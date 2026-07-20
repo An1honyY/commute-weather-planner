@@ -175,3 +175,13 @@ bolt onto this phase.
 **Resolution**: scoped narrowly — waypoints still fully affect the *route itself* (Google still routes through them), just not our leg list's presentation of them as separate indoor stops, for transit specifically. A multi-stop transit errand (bus to the bank, then the pharmacy, then work) is a narrow combination for a commute app; if it turns out to matter, revisit once a real Routes API key is available to confirm how Google actually behaves here, rather than guessing further now.
 
 ---
+
+## 2026-07-21 — Phase 5's recommendGear() omits the annotation-gated wind/sun deltas and puddle risk (Section 7.8)
+
+**What**: `src/lib/recommend.ts`'s Phase 5 `recommendGear()` implements Section 7 in full except the `windLeg`/`sunLeg` envDelta block and puddle-risk shoe override from Section 7.8. The stationary-wait aggravation (also introduced in the same "step 1.5" code block in Section 7's reference implementation, but covered by Section 7.9 rather than 7.8) is included now, not deferred.
+
+**Why this needed a decision**: Section 7's reference code presents wind-tunnel, sun-exposure, and stationary-wait as one contiguous adjustment step, citing both §7.8 and §7.9 together — reading it in isolation, all three look like Phase 5 work. But `docs/08-build-phases.md`'s Phase 6 description explicitly lists "the wind/sun/reflection/puddle/rain-cover adjustments to `recommendGear()` (Section 7.8)" as Phase 6 work, with stated reasoning: those adjustments only ever fire when a leg is flagged `windEffect`/`sunEffect`/`highReflection`/`puddleRisk` — fields that don't exist yet because Phase 6 is what wires the `EnvironmentAnnotation` matching (and puddle risk's `recentPrecipMm6h`, needing the `past_days` Open-Meteo parameter Phase 6 also adds) that sets them. Writing that block now would be genuinely dead code, unlike the `hikeSamples`-in-Phase-1-schema precedent (that shape gets *read* correctly once Phase 20 exists; §7.8's block wouldn't even have real inputs to read until Phase 6).
+
+**Resolution**: split by data dependency, not by section number. Stationary-wait aggravation needs only `JourneyLeg.isStationary` and `WeatherSnapshot.windKph`/`apparentTempC`, both real since Phase 4 — included in Phase 5. Wind-tunnel/sun-exposure/reflection/puddle-risk need annotation-matching and `recentPrecipMm6h`, both Phase 6 — deferred there, exactly as `docs/08-build-phases.md` Phase 6 already describes, so Phase 6 only has to *add* that block to an already-built function rather than reconcile a conflicting reading.
+
+---

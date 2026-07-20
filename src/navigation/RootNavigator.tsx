@@ -5,6 +5,7 @@ import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
 import JourneyDetailScreen from "../screens/journey-detail/JourneyDetailScreen";
 import HistoryScreen from "../screens/history/HistoryScreen";
 import LocalKnowledgeScreen from "../screens/local-knowledge/LocalKnowledgeScreen";
+import SettingsScreen from "../screens/settings/SettingsScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -27,6 +28,7 @@ export default function RootNavigator({ needsOnboarding = false }: Props) {
         <Stack.Screen name="JourneyDetail" component={JourneyDetailScreen} options={{ title: "Journey" }} />
         <Stack.Screen name="History" component={HistoryScreen} />
         <Stack.Screen name="LocalKnowledge" component={LocalKnowledgeScreen} options={{ title: "Local knowledge" }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

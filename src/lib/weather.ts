@@ -1,5 +1,7 @@
 // Weather + climate classification — docs/06-weather-classification.md.
 // Ported directly from the spec's working mockups.
+import type { Journey, WarmthCalibration } from "../types";
+
 export interface WeatherCondition {
   label: string;
   icon: string;
@@ -38,4 +40,39 @@ export function forecastConfidence(departTime: string, fetchedAt: string): "high
   if (leadHours <= 48) return "high";
   if (leadHours <= 120) return "medium";
   return "low";
+}
+
+// §6.1 — Auckland is Southern Hemisphere, so seasons are shifted relative
+// to the Intl/calendar defaults an agent might assume. Derived from the
+// journey's departTime, not device locale.
+export type Season = "summer" | "winter" | "shoulder";
+
+const SUMMER_MONTHS = [12, 1, 2];
+const WINTER_MONTHS = [6, 7, 8];
+
+export function getSeason(isoDateTime: string): Season {
+  const month = new Date(isoDateTime).getMonth() + 1;
+  if (SUMMER_MONTHS.includes(month)) return "summer";
+  if (WINTER_MONTHS.includes(month)) return "winter";
+  return "shoulder";
+}
+
+// §6.1 — AC on buses/trains is only a cold-contrast factor in summer
+// (actively refrigerating against a hot exterior); winter AC is typically
+// idle/ambient, treated as neutral for layering purposes.
+export function acFeelsCold(journey: Journey, season: Season, hasWarmOutdoor: boolean): boolean {
+  const hasIndoorAC = journey.legs.some((l) => l.climate === "ac");
+  return hasIndoorAC && season === "summer" && hasWarmOutdoor;
+}
+
+// §7.5.1 — what recommendGear() actually reads: prefer the current
+// season's own offset once it has at least one sample, otherwise fall back
+// to the global offsetLevels so a brand-new user (or a season with no
+// feedback yet) still gets a sensible value instead of 0-with-no-history.
+export function resolveWarmthOffset(calibration: WarmthCalibration, season: Season): number {
+  const seasonalCount = calibration.seasonalSampleCounts?.[season] ?? 0;
+  if (seasonalCount > 0 && calibration.seasonalOffsets) {
+    return calibration.seasonalOffsets[season];
+  }
+  return calibration.offsetLevels;
 }

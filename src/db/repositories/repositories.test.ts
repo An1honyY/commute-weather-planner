@@ -16,11 +16,16 @@ import { createShoe, listShoes } from "./shoes";
 import { createUmbrella, listUmbrellas } from "./umbrellas";
 import { createVehicle, listVehicles } from "./vehicles";
 import {
+  getCarryPreferenceDefault,
   getCrashReportingEnabled,
+  getThemePreference,
   isOnboardingCompleted,
+  setCarryPreferenceDefault,
   setCrashReportingEnabled,
   setOnboardingCompleted,
+  setThemePreference,
 } from "./settings";
+import { getAdvancedThresholds, saveAdvancedThresholds } from "./advancedThresholds";
 import { getWarmthCalibration, seedWarmthCalibration } from "./calibration";
 import { createSavedRoute, deleteSavedRoute, listSavedRoutes, touchSavedRoute } from "./savedRoutes";
 import { createJourney, findRecentJourneyBetween, getJourney, updateJourney } from "./journeys";
@@ -146,6 +151,27 @@ describe("repository round-trips", () => {
 
     expect(await isOnboardingCompleted()).toBe(true);
     expect(await getCrashReportingEnabled()).toBe(true);
+  });
+
+  it("settings: theme and carry-preference defaults default correctly and persist", async () => {
+    expect(await getThemePreference()).toBe("system");
+    expect(await getCarryPreferenceDefault()).toBe("no-preference");
+
+    await setThemePreference("dark");
+    await setCarryPreferenceDefault("avoid-spares");
+
+    expect(await getThemePreference()).toBe("dark");
+    expect(await getCarryPreferenceDefault()).toBe("avoid-spares");
+  });
+
+  it("advanced warmth thresholds: default to {} (undefined fields) and persist a partial override", async () => {
+    expect(await getAdvancedThresholds()).toEqual({});
+
+    await saveAdvancedThresholds({ coolUpperC: 16 });
+    expect(await getAdvancedThresholds()).toEqual({ coolUpperC: 16 });
+
+    await saveAdvancedThresholds({});
+    expect(await getAdvancedThresholds()).toEqual({});
   });
 
   it("calibration: seedWarmthCalibration sets the global offset and all three seasonal buckets", async () => {

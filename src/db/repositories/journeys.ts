@@ -143,6 +143,33 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
   return row ? fromRow(row) : undefined;
 }
 
+// §3 — a recurring journey is stored as a single row with `recurrence` set
+// and no `templateId` (it *is* the template). Today reads these to decide
+// which occurrences to materialize.
+export async function listRecurringTemplates(): Promise<Journey[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<JourneyRow>(
+    "SELECT * FROM journeys WHERE recurrence IS NOT NULL AND template_id IS NULL"
+  );
+  return rows.map(fromRow);
+}
+
+// Every journey (one-off or a materialized recurring occurrence) whose
+// departTime falls on the given calendar day, earliest first — what the
+// Today tab actually lists.
+export async function listJourneysOnDate(dateIso: string): Promise<Journey[]> {
+  const db = await getDb();
+  const date = new Date(dateIso);
+  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+  const startOfNextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).toISOString();
+  const rows = await db.getAllAsync<JourneyRow>(
+    `SELECT * FROM journeys WHERE depart_time >= ? AND depart_time < ? ORDER BY depart_time ASC`,
+    startOfDay,
+    startOfNextDay
+  );
+  return rows.map(fromRow);
+}
+
 // docs/05-data-wiring.md §5.1 — the offline-planning fallback: "a
 // previously-saved Journey between the same origin/destination pair (exact
 // SavedLocation.id match) within the last 30 days." Most recent first.

@@ -59,6 +59,10 @@ export interface PlanJourneyInput {
   formal: boolean;
   carryPreference: CarryPreference;
   recurrence?: RecurrenceRule;
+  // Set when materializing today's occurrence of a recurring journey (§3,
+  // Today tab) — points back at the template Journey.id this occurrence
+  // was generated from.
+  templateId?: string;
 }
 
 export type PlanJourneyResult =
@@ -190,6 +194,7 @@ async function assembleJourney(
     departTime: input.departTime,
     legs,
     recurrence: input.recurrence,
+    templateId: input.templateId,
     waypoints: input.waypoints.length > 0 ? input.waypoints : undefined,
     carryPreference: input.carryPreference,
     formal: input.formal || undefined,

@@ -17,4 +17,5 @@ export type RootStackParamList = {
   JourneyDetail: { journeyId: string; cachedFromDate?: string };
   History: undefined;
   LocalKnowledge: undefined;
+  Settings: undefined;
 };

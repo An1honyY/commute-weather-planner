@@ -1,4 +1,7 @@
 import { getDb } from "../index";
+import type { CarryPreference } from "../../types";
+
+export type ThemePreference = "system" | "light" | "dark";
 
 async function getSetting(key: string): Promise<string | undefined> {
   const db = await getDb();
@@ -42,4 +45,26 @@ export async function getCrashReportingEnabled(): Promise<boolean> {
 
 export async function setCrashReportingEnabled(enabled: boolean): Promise<void> {
   await setSetting("crash_reporting_enabled", enabled ? "true" : "false");
+}
+
+// docs/09-design-system.md §9.1 — defaults to "system", read via
+// useColorScheme() when set that way.
+export async function getThemePreference(): Promise<ThemePreference> {
+  const value = await getSetting("theme_preference");
+  return value === "light" || value === "dark" ? value : "system";
+}
+
+export async function setThemePreference(preference: ThemePreference): Promise<void> {
+  await setSetting("theme_preference", preference);
+}
+
+// docs/09-design-system.md §9.1 / docs/07-recommendation-engine.md §7.9 —
+// the Settings-level default a Journey's own carryPreference overrides.
+export async function getCarryPreferenceDefault(): Promise<CarryPreference> {
+  const value = await getSetting("carry_preference_default");
+  return value === "avoid-spares" ? "avoid-spares" : "no-preference";
+}
+
+export async function setCarryPreferenceDefault(preference: CarryPreference): Promise<void> {
+  await setSetting("carry_preference_default", preference);
 }

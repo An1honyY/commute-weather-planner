@@ -1,4 +1,5 @@
-import { classifyWeather, forecastConfidence } from "./weather";
+import { acFeelsCold, classifyWeather, forecastConfidence, getSeason } from "./weather";
+import type { Journey, JourneyLeg } from "../types";
 
 // docs/11-testing-strategy.md §11.1 — table-driven over the full WMO code
 // range including the boundary codes (45/48, 51, 61, 95), the mm > 4
@@ -51,5 +52,64 @@ describe("forecastConfidence", () => {
   it("low: over 120h", () => {
     expect(forecastConfidence("2026-07-25T00:00:00.001Z", fetchedAt)).toBe("low");
     expect(forecastConfidence("2026-08-01T00:00:00.000Z", fetchedAt)).toBe("low");
+  });
+});
+
+// docs/11-testing-strategy.md §11.1 — boundary months (Nov→Dec, Feb→Mar,
+// May→Jun, Aug→Sep).
+describe("getSeason", () => {
+  it.each([
+    ["2026-11-30T00:00:00.000Z", "shoulder"],
+    ["2026-12-01T00:00:00.000Z", "summer"],
+    ["2027-02-28T00:00:00.000Z", "summer"],
+    ["2027-03-01T00:00:00.000Z", "shoulder"],
+    ["2027-05-31T00:00:00.000Z", "shoulder"],
+    ["2027-06-01T00:00:00.000Z", "winter"],
+    ["2027-08-31T00:00:00.000Z", "winter"],
+    ["2027-09-01T00:00:00.000Z", "shoulder"],
+  ] as const)("%s -> %s", (iso, season) => {
+    expect(getSeason(iso)).toBe(season);
+  });
+});
+
+// docs/11-testing-strategy.md §11.1 — the three season × hasWarmOutdoor
+// combinations (only summer + warm triggers the contrast).
+describe("acFeelsCold", () => {
+  const acLeg: JourneyLeg = {
+    id: "1",
+    mode: "bus",
+    label: "Bus",
+    durationMin: 10,
+    startTime: "2026-01-01T00:00:00.000Z",
+    outdoor: false,
+    climate: "ac",
+  };
+  const journeyWithAc: Journey = {
+    id: "j",
+    origin: { id: "o", label: "O", address: "", lat: 0, lng: 0 },
+    destination: { id: "d", label: "D", address: "", lat: 0, lng: 0 },
+    departTime: "2026-01-01T00:00:00.000Z",
+    legs: [acLeg],
+  };
+
+  it("summer + warm outdoor -> true", () => {
+    expect(acFeelsCold(journeyWithAc, "summer", true)).toBe(true);
+  });
+
+  it("summer + not warm outdoor -> false", () => {
+    expect(acFeelsCold(journeyWithAc, "summer", false)).toBe(false);
+  });
+
+  it("winter + warm outdoor -> false (winter AC is neutral)", () => {
+    expect(acFeelsCold(journeyWithAc, "winter", true)).toBe(false);
+  });
+
+  it("shoulder + warm outdoor -> false", () => {
+    expect(acFeelsCold(journeyWithAc, "shoulder", true)).toBe(false);
+  });
+
+  it("no AC leg at all -> false regardless of season/warmth", () => {
+    const journeyNoAc: Journey = { ...journeyWithAc, legs: [{ ...acLeg, climate: "heated" }] };
+    expect(acFeelsCold(journeyNoAc, "summer", true)).toBe(false);
   });
 });

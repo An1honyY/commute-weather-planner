@@ -4,6 +4,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { getJourney, updateJourney } from "../../db/repositories/journeys";
+import { useRecommendation } from "../../lib/useRecommendation";
+import { dominantMode } from "../../lib/journeyMode";
 import JourneyMap from "../../components/JourneyMap";
 import GearRecommendationCard from "./GearRecommendationCard";
 import LegRow from "./LegRow";
@@ -11,9 +13,8 @@ import type { GearFeedback, Journey } from "../../types";
 
 // Core screen — docs/09-design-system.md §9.3, reading a real persisted
 // Journey (docs/08-build-phases.md Phase 4, src/db/repositories/journeys.ts)
-// built by src/lib/planJourney.ts. The severe-weather advisory banner still
-// stays unrendered — that needs Recommendation.severeWeatherAdvisory from
-// the recommendation engine, which is Phase 5.
+// built by src/lib/planJourney.ts, with gear recommendations from the real
+// engine (Phase 5, src/lib/recommend.ts).
 type Props = NativeStackScreenProps<RootStackParamList, "JourneyDetail">;
 
 const MODE_ACCENT: Record<string, string> = {
@@ -23,10 +24,6 @@ const MODE_ACCENT: Record<string, string> = {
   bus: "#2C8F86",
   train: "#2C8F86",
 };
-// Transit/drive legs outrank the walk-to-stop connector legs
-// planJourney.ts inserts around them when picking the map's overall accent.
-const MODE_PRIORITY = ["bus", "train", "drive", "cycle", "walk"] as const;
-
 const FEEDBACK_OPTIONS: { value: GearFeedback; label: string }[] = [
   { value: "much_too_cold", label: "Much too cold" },
   { value: "too_cold", label: "Too cold" },
@@ -45,6 +42,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // Date.now() is impure to call during render — a useState lazy
   // initializer (react-hooks/purity) only runs once at mount.
   const [nowMs] = useState(() => Date.now());
+  const recommendation = useRecommendation(journey);
 
   useFocusEffect(
     useCallback(() => {
@@ -77,11 +75,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     ...(journey.waypoints?.map((w) => ({ lat: w.lat, lng: w.lng })) ?? []),
     { lat: journey.destination.lat, lng: journey.destination.lng },
   ];
-  // The journey's dominant mode, not just the first leg — a bus/train trip's
-  // first leg is usually a short walk-to-stop connector, which shouldn't
-  // paint the whole map walk-colored.
-  const primaryMode = MODE_PRIORITY.find((mode) => journey.legs.some((l) => l.mode === mode)) ?? "walk";
-  const accentColor = MODE_ACCENT[primaryMode] ?? "#1A1E29";
+  const accentColor = MODE_ACCENT[dominantMode(journey.legs)] ?? "#1A1E29";
 
   const totalDurationMin = journey.legs.reduce((sum, leg) => sum + leg.durationMin, 0);
   const journeyEndMs = new Date(journey.departTime).getTime() + totalDurationMin * 60_000;
@@ -121,13 +115,19 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        {recommendation?.severeWeatherAdvisory && (
+          <View style={styles.severeBanner}>
+            <Text style={styles.severeBannerText}>⚠ {recommendation.severeWeatherAdvisory}</Text>
+          </View>
+        )}
+
         {worstConfidence !== "high" && (
           <View style={styles.confidenceBanner}>
             <Text style={styles.confidenceBannerText}>Forecast may still change — we&apos;ll update this closer to departure.</Text>
           </View>
         )}
 
-        <GearRecommendationCard />
+        {recommendation && <GearRecommendationCard recommendation={recommendation} />}
 
         <View style={styles.legList}>
           {journey.legs.map((leg) => (
@@ -172,6 +172,8 @@ const styles = StyleSheet.create({
   mapContainer: { height: 280, backgroundColor: "#F6F7FA" },
   cachedBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#F2C94C" },
   cachedBannerText: { fontSize: 12, color: "#1A1E29" },
+  severeBanner: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#8C3AB0" },
+  severeBannerText: { fontSize: 13, color: "#FFFFFF", fontWeight: "600" },
   confidenceBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#F6F7FA" },
   confidenceBannerText: { fontSize: 12, color: "#5C6478" },
   legList: { paddingHorizontal: 16, paddingTop: 12 },

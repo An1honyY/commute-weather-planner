@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import TodayScreen from "../screens/today/TodayScreen";
 import PlanScreen from "../screens/plan/PlanScreen";
 import LocationsScreen from "../screens/locations/LocationsScreen";
@@ -12,14 +12,19 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // Small text-button header icons stand in for the real iconography from
 // docs/09-design-system.md until that pass lands — functionally these are
-// the History (Section 4.4) and Local knowledge (Section 4.5) entry points
-// docs/04-screens-navigation.md items 1 and 3 call for.
-function HistoryButton() {
+// the History (§4.4), Settings (§9.1 — "reached from the Today tab header,
+// alongside the History icon"), and Local knowledge (§4.5) entry points.
+function TodayHeaderButtons() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Pressable onPress={() => navigation.navigate("History")} hitSlop={8}>
-      <Text>History</Text>
-    </Pressable>
+    <View style={{ flexDirection: "row", gap: 16 }}>
+      <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={8}>
+        <Text>Settings</Text>
+      </Pressable>
+      <Pressable onPress={() => navigation.navigate("History")} hitSlop={8}>
+        <Text>History</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -41,7 +46,7 @@ export default function MainTabs() {
       <Tab.Screen
         name="Today"
         component={TodayScreen}
-        options={{ headerRight: HistoryButton }}
+        options={{ headerRight: TodayHeaderButtons }}
       />
       <Tab.Screen name="Plan" component={PlanScreen} />
       <Tab.Screen
