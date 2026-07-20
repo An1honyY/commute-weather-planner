@@ -10,9 +10,11 @@ import type { RootStackParamList } from "./types";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 interface Props {
-  // True when there's no Inventory and no SavedLocation rows at all —
-  // docs/04-screens-navigation.md §4.1. Wired to real onboarding-state
-  // storage in Phase 2; defaults to false so Phase 1 lands on Main.
+  // True when app_settings.onboarding_completed isn't set yet —
+  // docs/04-screens-navigation.md §4.1; see DECISIONS.md ("Onboarding gate
+  // uses an explicit completed flag") for why this isn't derived from
+  // Inventory/SavedLocation row counts. Defaults to false so a caller that
+  // doesn't pass it (e.g. an isolated test render) lands on Main.
   needsOnboarding?: boolean;
 }
 

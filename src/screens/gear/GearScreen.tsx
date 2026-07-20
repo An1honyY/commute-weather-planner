@@ -1,18 +1,15 @@
 import { useState } from "react";
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import ClothingList from "./ClothingList";
+import ShoeList from "./ShoeList";
+import UmbrellaList from "./UmbrellaList";
+import VehicleList from "./VehicleList";
 
 // Inventory manager tab, sub-tabbed by Vehicles/Clothing/Shoes/Umbrellas —
-// docs/04-screens-navigation.md item 4. Each sub-tab is a simple CRUD list
-// in Phase 2; this is the Phase 1 empty shell per sub-tab.
+// docs/04-screens-navigation.md item 4. Full add/edit/delete per sub-tab
+// (Phase 2).
 const SUB_TABS = ["Vehicles", "Clothing", "Shoes", "Umbrellas"] as const;
 type SubTab = (typeof SUB_TABS)[number];
-
-const EMPTY_LABEL: Record<SubTab, string> = {
-  Vehicles: "No vehicles yet — add your first one",
-  Clothing: "No clothing yet — add your first item",
-  Shoes: "No shoes yet — add your first pair",
-  Umbrellas: "No umbrellas yet — add your first one",
-};
 
 export default function GearScreen() {
   const [activeTab, setActiveTab] = useState<SubTab>("Clothing");
@@ -32,9 +29,10 @@ export default function GearScreen() {
           </Pressable>
         ))}
       </View>
-      <View style={styles.content}>
-        <Text style={styles.empty}>{EMPTY_LABEL[activeTab]}</Text>
-      </View>
+      {activeTab === "Clothing" && <ClothingList />}
+      {activeTab === "Shoes" && <ShoeList />}
+      {activeTab === "Umbrellas" && <UmbrellaList />}
+      {activeTab === "Vehicles" && <VehicleList />}
     </SafeAreaView>
   );
 }
@@ -46,6 +44,4 @@ const styles = StyleSheet.create({
   tabButtonActive: { borderBottomWidth: 2, borderBottomColor: "#333" },
   tabLabel: { color: "#888" },
   tabLabelActive: { color: "#333", fontWeight: "600" },
-  content: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { color: "#666" },
 });

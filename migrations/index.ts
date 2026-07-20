@@ -3,6 +3,7 @@
 // the stored schema_version is below its version, then bumps the version.
 import type { SQLiteDatabase } from "expo-sqlite";
 import * as m001 from "./001_initial";
+import * as m002 from "./002_app_settings";
 
 interface Migration {
   version: number;
@@ -11,7 +12,7 @@ interface Migration {
 
 // Ordered oldest to newest. Append new migrations here — never reorder or
 // remove an entry once shipped.
-const migrations: Migration[] = [m001];
+const migrations: Migration[] = [m001, m002];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(

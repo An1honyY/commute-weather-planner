@@ -1,22 +1,53 @@
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { SafeAreaView, StyleSheet } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { setOnboardingCompleted } from "../../db/repositories/settings";
+import type { RootStackParamList } from "../../navigation/types";
+import Step1LocationPermission from "./steps/Step1LocationPermission";
+import Step2HomeWork from "./steps/Step2HomeWork";
+import Step3LiveDemo from "./steps/Step3LiveDemo";
+import Step4GearBasics from "./steps/Step4GearBasics";
+import Step5CrashReporting from "./steps/Step5CrashReporting";
 
-// First-run stack — docs/04-screens-navigation.md §4.1. The 5-step flow
-// (location priming, Home/Work, live demo card, gear basics, crash-report
-// opt-in) is built in Phase 2; this is the Phase 1 empty shell.
-export default function OnboardingScreen() {
+// First-run stack — docs/04-screens-navigation.md §4.1. A single component
+// stepping through an internal index rather than five separate nav-stack
+// screens: every step is linear and skippable-with-default-forward, so
+// there's no branching or back-navigation need a real stack buys here, and
+// keeping shared state (the location fix from step 1, feeding step 2/3)
+// is simpler as component state than as nav params. Country-outside-NZ
+// detection (the regional-scope notice, §2.1) needs reverse geocoding,
+// which isn't wired until Phase 4 — deferred, not dropped.
+type Props = NativeStackScreenProps<RootStackParamList, "Onboarding">;
+
+export default function OnboardingScreen({ navigation }: Props) {
+  const [step, setStep] = useState(0);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
+
+  async function finish() {
+    await setOnboardingCompleted();
+    // reset, not navigate — onboarding shouldn't be reachable via back-nav
+    // once finished.
+    navigation.reset({ index: 0, routes: [{ name: "Main" }] });
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome</Text>
-        <Text style={styles.empty}>Onboarding coming soon</Text>
-      </View>
+      {step === 0 && (
+        <Step1LocationPermission
+          onNext={(nextCoords) => {
+            setCoords(nextCoords);
+            setStep(1);
+          }}
+        />
+      )}
+      {step === 1 && <Step2HomeWork currentCoords={coords} onNext={() => setStep(2)} />}
+      {step === 2 && <Step3LiveDemo coords={coords} onNext={() => setStep(3)} />}
+      {step === 3 && <Step4GearBasics onNext={() => setStep(4)} />}
+      {step === 4 && <Step5CrashReporting onFinish={finish} />}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  title: { fontSize: 20, fontWeight: "600" },
-  empty: { color: "#666" },
 });
