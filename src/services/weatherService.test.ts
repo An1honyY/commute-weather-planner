@@ -1,0 +1,79 @@
+import { getForecast } from "./weatherService";
+
+function mockOpenMeteoResponse(pointCount: number) {
+  const hours = Array.from({ length: 24 }, (_, i) => `2026-07-20T${String(i).padStart(2, "0")}:00`);
+  const location = {
+    hourly: {
+      time: hours,
+      temperature_2m: hours.map((_, i) => 10 + i),
+      weather_code: hours.map(() => 61),
+      precipitation: hours.map(() => 2),
+      precipitation_probability: hours.map(() => 80),
+      apparent_temperature: hours.map((_, i) => 8 + i),
+      wind_speed_10m: hours.map(() => 12),
+      wind_gusts_10m: hours.map(() => 20),
+      relative_humidity_2m: hours.map(() => 75),
+      uv_index: hours.map(() => 3),
+      is_day: hours.map((_, i) => (i >= 6 && i <= 18 ? 1 : 0)),
+    },
+  };
+  return pointCount === 1 ? location : Array.from({ length: pointCount }, () => location);
+}
+
+describe("weatherService.getForecast", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("returns an empty array without calling fetch when given no points", async () => {
+    global.fetch = jest.fn();
+    const result = await getForecast([]);
+    expect(result).toEqual({ data: [] });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("picks the nearest hourly reading for each point and maps every field", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockOpenMeteoResponse(2),
+    }) as unknown as typeof fetch;
+
+    const result = await getForecast([
+      { lat: -36.8485, lng: 174.7633, time: "2026-07-20T09:05:00.000Z" }, // nearest hour: 09:00 (index 9)
+      { lat: -36.86, lng: 174.77, time: "2026-07-20T14:40:00.000Z" }, // nearest hour: 15:00 (index 15)
+    ]);
+
+    expect("data" in result).toBe(true);
+    if (!("data" in result)) return;
+    expect(result.data).toHaveLength(2);
+    expect(result.data[0]).toMatchObject({
+      tempC: 19, // 10 + 9
+      apparentTempC: 17, // 8 + 9
+      weatherCode: 61,
+      precipMm: 2,
+      windGustKph: 20,
+      isDaylight: true,
+    });
+    expect(result.data[1]).toMatchObject({ tempC: 25, apparentTempC: 23 }); // 10+15, 8+15
+  });
+
+  it("maps a network error to { error: 'network' }", async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+    const result = await getForecast([{ lat: 0, lng: 0, time: "2026-07-20T00:00:00.000Z" }]);
+    expect(result).toEqual({ error: "network" });
+  });
+
+  it("maps a 429 response to { error: 'rate-limited' } and other non-2xx to 'unreachable'", async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 429 }) as unknown as typeof fetch;
+    expect(await getForecast([{ lat: 0, lng: 0, time: "2026-07-20T00:00:00.000Z" }])).toEqual({
+      error: "rate-limited",
+    });
+
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    expect(await getForecast([{ lat: 0, lng: 0, time: "2026-07-20T00:00:00.000Z" }])).toEqual({
+      error: "unreachable",
+    });
+  });
+});

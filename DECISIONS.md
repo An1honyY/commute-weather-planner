@@ -165,3 +165,13 @@ bolt onto this phase.
 **Resolution**: plain text fields for now, matching the lat/lng precedent already set for `SavedLocation`. Functionally complete — `departTime` still parses correctly and defaults to "now" per §4.3 — just not the polished picker UI the spec's wording implies. Revisit if/when a date-picker dependency is deliberately added to the tech stack (most naturally alongside Phase 4's other UI-polish passes), rather than pulling one in ad hoc mid-Phase-3 for a single field.
 
 ---
+
+## 2026-07-20 — Bus/train journeys with waypoints skip indoor dwell legs (Section 5.5)
+
+**What**: `src/lib/planJourney.ts`'s `stepsToAssembledLegs()` only interleaves a waypoint's indoor dwell leg (`Journey.waypoints`, §3.5/§4.3.1) into the leg list for walk/cycle/drive modes. A bus/train journey with waypoints still routes through them (they're passed to Google as `intermediates`), but the resulting leg list has no separate indoor stop for them.
+
+**Why this needed a decision**: Google's Routes API returns one leg per hop for WALK/BICYCLE/DRIVE (`origin→wp1`, `wp1→wp2`, …), which lines up 1:1 with our per-hop leg model — clean to interleave. TRANSIT mode instead returns one flat `steps[]` list for the whole trip mixing WALK/TRANSIT sub-segments, with no documented hop boundary once waypoints are involved, and (per Google's docs, unverified here — no live API key this session, see the Phase 4 kickoff conversation) transit routing's support for intermediate waypoints at all is uncertain. Guessing at hop boundaries from step count would be fragile.
+
+**Resolution**: scoped narrowly — waypoints still fully affect the *route itself* (Google still routes through them), just not our leg list's presentation of them as separate indoor stops, for transit specifically. A multi-stop transit errand (bus to the bank, then the pharmacy, then work) is a narrow combination for a commute app; if it turns out to matter, revisit once a real Routes API key is available to confirm how Google actually behaves here, rather than guessing further now.
+
+---

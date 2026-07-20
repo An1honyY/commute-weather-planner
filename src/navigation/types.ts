@@ -11,7 +11,10 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Main: undefined;
-  JourneyDetail: { journeyId: string };
+  // cachedFromDate is set only when planJourney() (§5.1) fell back to a
+  // previously-saved route between the same origin/destination — Journey
+  // Detail shows the "using a saved route from…" banner when present.
+  JourneyDetail: { journeyId: string; cachedFromDate?: string };
   History: undefined;
   LocalKnowledge: undefined;
 };

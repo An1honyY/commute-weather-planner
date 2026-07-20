@@ -23,8 +23,9 @@ import {
 } from "./settings";
 import { getWarmthCalibration, seedWarmthCalibration } from "./calibration";
 import { createSavedRoute, deleteSavedRoute, listSavedRoutes, touchSavedRoute } from "./savedRoutes";
+import { createJourney, findRecentJourneyBetween, getJourney, updateJourney } from "./journeys";
 import { newId } from "../rowMapping";
-import type { SavedLocation } from "../../types";
+import type { Journey, SavedLocation } from "../../types";
 
 jest.mock("../index", () => ({ getDb: jest.fn() }));
 
@@ -170,5 +171,45 @@ describe("repository round-trips", () => {
     await deleteSavedRoute(work.id);
     all = await listSavedRoutes();
     expect(all.map((r) => r.id)).toEqual([gym.id]);
+  });
+
+  it("journeys: create/get round-trips legs and waypoints, update persists new legs, findRecentJourneyBetween matches by id pair and recency", async () => {
+    const home: SavedLocation = { id: "home", label: "Home", address: "1 Home St", lat: -36.8485, lng: 174.7633 };
+    const work: SavedLocation = { id: "work", label: "Work", address: "2 Work St", lat: -36.86, lng: 174.77 };
+    const journey: Journey = {
+      id: newId(),
+      origin: home,
+      destination: work,
+      departTime: "2026-07-20T08:00:00.000Z",
+      legs: [
+        {
+          id: newId(),
+          mode: "walk",
+          label: "Walk to Work",
+          durationMin: 20,
+          startTime: "2026-07-20T08:00:00.000Z",
+          outdoor: true,
+        },
+      ],
+    };
+
+    await createJourney(journey);
+    const fetched = await getJourney(journey.id);
+    expect(fetched?.legs).toEqual(journey.legs);
+    expect(fetched?.origin).toEqual(home);
+
+    const updated: Journey = { ...journey, legs: [...journey.legs, { ...journey.legs[0], id: newId() }] };
+    await updateJourney(updated);
+    const refetched = await getJourney(journey.id);
+    expect(refetched?.legs).toHaveLength(2);
+
+    const recent = await findRecentJourneyBetween("home", "work", "2026-01-01T00:00:00.000Z");
+    expect(recent?.id).toBe(journey.id);
+
+    const tooOld = await findRecentJourneyBetween("home", "work", "2027-01-01T00:00:00.000Z");
+    expect(tooOld).toBeUndefined();
+
+    const wrongPair = await findRecentJourneyBetween("work", "home", "2026-01-01T00:00:00.000Z");
+    expect(wrongPair).toBeUndefined();
   });
 });

@@ -1,18 +1,18 @@
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { listLocations } from "../../db/repositories/locations";
 import { createSavedRoute, listSavedRoutes, touchSavedRoute } from "../../db/repositories/savedRoutes";
-import { buildMockJourney } from "../../lib/mockJourney";
-import { useJourneyStore } from "../../store/journeyStore";
+import { updateJourney } from "../../db/repositories/journeys";
+import { planJourney } from "../../lib/planJourney";
 import SavedLocationPicker from "../../components/SavedLocationPicker";
 import type { CarryPreference, SavedLocation, SavedRoute, TravelMode } from "../../types";
 
-// Journey planner — docs/04-screens-navigation.md §4.3/§4.3.1. Wired to a
-// mocked Journey object per docs/08-build-phases.md Phase 3 (no live
-// Google Routes/Open-Meteo yet — that's Phase 4).
+// Journey planner — docs/04-screens-navigation.md §4.3/§4.3.1, wired to the
+// real Google Routes + Open-Meteo pipeline (docs/08-build-phases.md Phase 4,
+// src/lib/planJourney.ts).
 const MODES: TravelMode[] = ["walk", "drive", "bus", "train", "cycle"];
 const MODE_LABEL: Record<TravelMode, string> = {
   walk: "Walk",
@@ -40,7 +40,6 @@ function nowTimeStr(): string {
 
 export default function PlanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const addJourney = useJourneyStore((state) => state.addJourney);
 
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
@@ -56,6 +55,7 @@ export default function PlanScreen() {
   const [saveThisRoute, setSaveThisRoute] = useState(false);
   const [formal, setFormal] = useState(false);
   const [carryPreference, setCarryPreference] = useState<CarryPreference>("no-preference");
+  const [planning, setPlanning] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,7 +96,7 @@ export default function PlanScreen() {
     setSelectedDays((days) => (days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort()));
   }
 
-  async function planJourney() {
+  async function handlePlanJourney() {
     if (!origin || !destination) {
       Alert.alert("Pick an origin and destination", "Both are needed to plan a journey.");
       return;
@@ -108,40 +108,49 @@ export default function PlanScreen() {
         ? { daysOfWeek: selectedDays, departTimeOfDay: timeStr, active: true }
         : undefined;
 
-    const journey = buildMockJourney({
-      origin,
-      destination,
-      waypoints,
-      departTime,
-      mode,
-      formal,
-      carryPreference,
-      recurrence,
-    });
-    addJourney(journey);
+    setPlanning(true);
+    try {
+      const result = await planJourney({ origin, destination, waypoints, departTime, mode, formal, carryPreference, recurrence });
 
-    if (planReturnTrip) {
-      const returnDepart = new Date(new Date(departTime).getTime() + 8 * 60 * 60_000).toISOString(); // mock: +8h
-      const returnJourney = buildMockJourney({
-        origin: destination,
-        destination: origin,
-        waypoints: [...waypoints].reverse(),
-        departTime: returnDepart,
-        mode,
-        formal,
-        carryPreference,
+      if (result.kind === "failed") {
+        // §5.1 — no live route and no cached fallback to reuse.
+        Alert.alert("Can't plan a new route right now", "Check your connection and try again.", [
+          { text: "Retry", onPress: handlePlanJourney },
+          { text: "Cancel", style: "cancel" },
+        ]);
+        return;
+      }
+
+      if (planReturnTrip) {
+        const returnDepart = new Date(new Date(departTime).getTime() + 8 * 60 * 60_000).toISOString(); // mock: +8h, same as Phase 3
+        const returnResult = await planJourney({
+          origin: destination,
+          destination: origin,
+          waypoints: [...waypoints].reverse(),
+          departTime: returnDepart,
+          mode,
+          formal,
+          carryPreference,
+        });
+        if (returnResult.kind !== "failed") {
+          await Promise.all([
+            updateJourney({ ...result.journey, linkedReturnJourneyId: returnResult.journey.id }),
+            updateJourney({ ...returnResult.journey, linkedReturnJourneyId: result.journey.id }),
+          ]);
+        }
+      }
+
+      if (saveThisRoute) {
+        await createSavedRoute({ label: `${origin.label} → ${destination.label}`, originId: origin.id, destinationId: destination.id, preferredMode: mode });
+      }
+
+      navigation.navigate("JourneyDetail", {
+        journeyId: result.journey.id,
+        cachedFromDate: result.kind === "success-cached" ? result.cachedFromDate : undefined,
       });
-      journey.linkedReturnJourneyId = returnJourney.id;
-      returnJourney.linkedReturnJourneyId = journey.id;
-      addJourney(journey); // re-add with linkedReturnJourneyId now set
-      addJourney(returnJourney);
+    } finally {
+      setPlanning(false);
     }
-
-    if (saveThisRoute) {
-      await createSavedRoute({ label: `${origin.label} → ${destination.label}`, originId: origin.id, destinationId: destination.id, preferredMode: mode });
-    }
-
-    navigation.navigate("JourneyDetail", { journeyId: journey.id });
   }
 
   return (
@@ -241,8 +250,8 @@ export default function PlanScreen() {
         <Switch value={saveThisRoute} onValueChange={setSaveThisRoute} />
       </View>
 
-      <Pressable onPress={planJourney} style={styles.planButton}>
-        <Text style={styles.planButtonLabel}>Plan journey</Text>
+      <Pressable onPress={handlePlanJourney} disabled={planning} style={[styles.planButton, planning && styles.planButtonDisabled]}>
+        {planning ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.planButtonLabel}>Plan journey</Text>}
       </Pressable>
     </ScrollView>
   );
@@ -275,5 +284,6 @@ const styles = StyleSheet.create({
   dayChipLabel: { fontSize: 11 },
   dayChipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
   planButton: { marginTop: 24, marginBottom: 40, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
+  planButtonDisabled: { opacity: 0.6 },
   planButtonLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 });
