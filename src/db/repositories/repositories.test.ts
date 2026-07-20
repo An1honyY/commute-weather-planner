@@ -22,6 +22,7 @@ import {
   setOnboardingCompleted,
 } from "./settings";
 import { getWarmthCalibration, seedWarmthCalibration } from "./calibration";
+import { createSavedRoute, deleteSavedRoute, listSavedRoutes, touchSavedRoute } from "./savedRoutes";
 import { newId } from "../rowMapping";
 import type { SavedLocation } from "../../types";
 
@@ -152,5 +153,22 @@ describe("repository round-trips", () => {
     expect(calibration.offsetLevels).toBe(1);
     expect(calibration.seasonalOffsets).toEqual({ summer: 1, winter: 1, shoulder: 1 });
     expect(calibration.sampleCount).toBe(0); // a self-report seed, not a real feedback event
+  });
+
+  it("saved routes: create, list ordered by recency, touch bumps to front, delete", async () => {
+    const gym = await createSavedRoute({ label: "Fast way to the gym", originId: "home", destinationId: "gym" });
+    await new Promise((r) => setTimeout(r, 5));
+    const work = await createSavedRoute({ label: "Commute", originId: "home", destinationId: "work" });
+
+    let all = await listSavedRoutes();
+    expect(all.map((r) => r.id)).toEqual([work.id, gym.id]); // most recently created first
+
+    await touchSavedRoute(gym.id);
+    all = await listSavedRoutes();
+    expect(all[0].id).toBe(gym.id); // touching bumps it to the front
+
+    await deleteSavedRoute(work.id);
+    all = await listSavedRoutes();
+    expect(all.map((r) => r.id)).toEqual([gym.id]);
   });
 });

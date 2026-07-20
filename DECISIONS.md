@@ -155,3 +155,13 @@ bolt onto this phase.
 **Resolution**: read the first statement as describing *when onboarding is first shown*, and the second as the actual desired steady-state behavior afterward, and bridged the gap with an explicit flag rather than re-deriving "have we shown onboarding" from data that a fully-skipped run never writes. `needsOnboarding` is `!onboarding_completed`, set true unconditionally when the user reaches the end of the flow (finished or skipped through). This is a one-line interpretive call, not a structural change — worth flagging since a future contributor reading Section 4.1's data-presence sentence in isolation might "fix" this back to the literal reading and reintroduce the loop.
 
 ---
+
+## 2026-07-20 — Plan screen's date/time picker is plain text fields (Section 4, "Plan" bullet)
+
+**What**: `src/screens/plan/PlanScreen.tsx`'s "When" section is two text inputs (`YYYY-MM-DD`, `HH:mm`), defaulting to now, rather than a native date/time picker widget.
+
+**Why this needed a decision**: `docs/01-tech-stack.md`'s dependency table doesn't include a date/time picker library (`@react-native-community/datetimepicker` or similar), and React Native itself dropped its old built-in `DatePickerIOS`/`DatePickerAndroid` components years ago — there's no picker available without adding a new dependency the spec doesn't call for. Same shape of gap as the map/geocoding decision above (Locations CRUD), and resolved the same way.
+
+**Resolution**: plain text fields for now, matching the lat/lng precedent already set for `SavedLocation`. Functionally complete — `departTime` still parses correctly and defaults to "now" per §4.3 — just not the polished picker UI the spec's wording implies. Revisit if/when a date-picker dependency is deliberately added to the tech stack (most naturally alongside Phase 4's other UI-polish passes), rather than pulling one in ad hoc mid-Phase-3 for a single field.
+
+---
