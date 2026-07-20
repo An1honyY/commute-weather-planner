@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+
+# Env/secrets — docs/01-tech-stack.md: never commit real keys
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Native builds (managed workflow — shouldn't normally exist, but ignore if generated)
+ios/
+android/
