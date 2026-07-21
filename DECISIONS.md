@@ -490,6 +490,8 @@ a substitute for the real fix.
 
 **Left open**: Plan screen's origin/destination pickers still only search saved locations (`SavedLocationPicker.tsx`) — the free-text Google Places search Section 4's "Plan" bullet describes was never built (logged in the 2026-07-20 "Locations CRUD" entry as deferred to "Phase 4," but Phase 4 shipped without it). `placesService.ts`/`AddressAutocomplete` now exist and could close that gap directly, but wiring waypoints/origin/destination through free-text search is a separate, scoped UI change this pass didn't attempt — revisit as its own follow-on rather than folding it in here.
 
+**Closed later the same day** — see the entry below.
+
 ---
 
 ## 2026-07-21 — AddressAutocomplete error visibility + race guard; map pin-drop closes the last "Locations CRUD" deferral
