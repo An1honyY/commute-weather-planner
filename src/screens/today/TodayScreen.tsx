@@ -8,6 +8,7 @@ import type { RootStackParamList } from "../../navigation/types";
 import type { Journey } from "../../types";
 import RightNowCard from "./RightNowCard";
 import JourneyCard from "./JourneyCard";
+import SetupChecklist from "./SetupChecklist";
 import useTheme from "../../theme/useTheme";
 import useWeatherTheme from "../../theme/useWeatherTheme";
 
@@ -49,6 +50,8 @@ export default function TodayScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <RightNowCard {...rightNow} />
+
+        <SetupChecklist />
 
         {journeys === null ? null : journeys.length === 0 ? (
           <View style={styles.emptyContainer}>
