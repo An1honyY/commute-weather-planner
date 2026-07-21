@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Location from "expo-location";
 import AddressAutocomplete from "../../../components/AddressAutocomplete";
+import LocationPickerMap from "../../../components/LocationPickerMap";
+import { reverseGeocode } from "../../../services/placesService";
 import useTheme from "../../../theme/useTheme";
 
 // docs/04-screens-navigation.md §4.1 (2026-07-21 minimal-onboarding
@@ -10,8 +12,9 @@ import useTheme from "../../../theme/useTheme";
 // notification permission, crash reporting) moved to the postponable
 // setup checklist on Today (SetupChecklist.tsx) — see DECISIONS.md.
 // Keeps the "explain why before the OS permission dialog" principle the
-// old Step1LocationPermission established, just as one path among three
-// rather than a forced first screen of its own.
+// old Step1LocationPermission established, just as one path among four
+// (GPS / typed address / map pin / skip) rather than a forced first
+// screen of its own.
 interface Props {
   onDone: (location: { lat: number; lng: number; label: string } | undefined) => void;
 }
@@ -22,6 +25,8 @@ export default function Step1Location({ onDone }: Props) {
   const [requesting, setRequesting] = useState(false);
   const [typingAddress, setTypingAddress] = useState(false);
   const [addressText, setAddressText] = useState("");
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [resolvingPin, setResolvingPin] = useState(false);
 
   async function useCurrentLocation() {
     setRequesting(true);
@@ -37,6 +42,14 @@ export default function Step1Location({ onDone }: Props) {
     }
   }
 
+  async function handleMapConfirm(coords: { lat: number; lng: number }) {
+    setMapPickerOpen(false);
+    setResolvingPin(true);
+    const result = await reverseGeocode(coords.lat, coords.lng);
+    setResolvingPin(false);
+    onDone({ lat: coords.lat, lng: coords.lng, label: "data" in result ? result.data.formattedAddress : "Pinned location" });
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Let&apos;s check the weather where you are</Text>
@@ -45,7 +58,9 @@ export default function Step1Location({ onDone }: Props) {
         own gear later — this is just enough to get started.
       </Text>
 
-      {!typingAddress ? (
+      {resolvingPin ? (
+        <ActivityIndicator style={styles.resolvingSpinner} color={theme.accentWalk} />
+      ) : !typingAddress ? (
         <>
           <Pressable onPress={useCurrentLocation} disabled={requesting} style={styles.primaryButton}>
             {requesting ? (
@@ -56,6 +71,9 @@ export default function Step1Location({ onDone }: Props) {
           </Pressable>
           <Pressable onPress={() => setTypingAddress(true)} style={styles.secondaryButton}>
             <Text style={styles.secondaryLabel}>Type a location instead</Text>
+          </Pressable>
+          <Pressable onPress={() => setMapPickerOpen(true)} style={styles.secondaryButton}>
+            <Text style={styles.secondaryLabel}>Or pick on a map</Text>
           </Pressable>
         </>
       ) : (
@@ -68,6 +86,8 @@ export default function Step1Location({ onDone }: Props) {
           />
         </View>
       )}
+
+      <LocationPickerMap visible={mapPickerOpen} onConfirm={handleMapConfirm} onClose={() => setMapPickerOpen(false)} />
 
       <Pressable onPress={() => onDone(undefined)} style={styles.skipButton}>
         <Text style={styles.skipLabel}>Skip for now</Text>
@@ -86,6 +106,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     secondaryButton: { marginTop: 12, alignItems: "center", paddingVertical: 10 },
     secondaryLabel: { color: theme.accentWalk, fontSize: 14, fontWeight: "600" },
     addressBlock: { marginTop: 24 },
+    resolvingSpinner: { marginTop: 24 },
     skipButton: { marginTop: 20, alignItems: "center", paddingVertical: 10 },
     skipLabel: { color: theme.textSecondary },
   });
