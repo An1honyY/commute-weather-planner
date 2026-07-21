@@ -19,6 +19,7 @@ jest.mock("../db/repositories/journeys", () => ({
   findRecentJourneyBetween: jest.fn(),
 }));
 jest.mock("../db/repositories/annotations", () => ({ listAnnotations: jest.fn() }));
+jest.mock("./leaveBy", () => ({ scheduleForJourney: jest.fn() }));
 
 const mockComputeRoute = computeRoute as jest.Mock;
 const mockGetForecast = getForecast as jest.Mock;

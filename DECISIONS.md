@@ -265,6 +265,58 @@ blanket transit-stop for both modes.
 
 ---
 
+## 2026-07-21 — Phase 8 (leave-by notifications): freeze/recordWear via a
+Journey-Detail fallback and a foreground listener, not a background task;
+recurrence-pause cancellation deferred (no UI exists to pause one)
+
+**What**: `src/lib/leaveBy.ts` implements §7.3/§7.16's "freeze
+`RecommendationSnapshot` and call `recordWear()` at leave-by time" via two
+triggers, not a single one: (1) `App.tsx` registers
+`Notifications.addNotificationReceivedListener`, which fires the freeze
+when the scheduled notification is actually delivered while the app
+process is alive (foreground or backgrounded); (2) `JourneyDetailScreen`
+calls `freezeIfDue()` on every load as a fallback, covering the case where
+the app was fully killed and the listener never ran. `freezeIfDue()` is
+idempotent (guarded by `recommendationSnapshot` already being set), so
+either trigger firing first is fine.
+
+**Why this needed a decision**: Expo's managed workflow (this project's
+tech stack, `docs/01-tech-stack.md`) has no reliable way to run JS and
+write to SQLite at a precise future moment when the app isn't running —
+that needs a native background-task extension (`expo-dev-client` +
+`expo-task-manager`/`BGTaskScheduler`), the same category of native-
+complexity gap already logged for the home screen widget (§7.4) and
+deferred there for the same reason. Silently shipping only the
+listener-based path would mean wear tracking/History snapshots simply
+never populate for a killed-app scenario, which is a real and common case
+for a commute app (phone locked, app swiped away overnight).
+
+**Resolution**: `RecommendationSnapshot`'s own doc comment already
+anticipates exactly this gap — "frozen at leave-by time... or on first
+History view of a past journey missing one" (`docs/03-data-models.md`)
+— so the fallback isn't a new invention, it's implementing a case the
+spec's own data model comment already called for. Journey Detail (not
+History, which is still Phase 9's empty shell) is where it's wired for
+now since it's the only screen currently reading real past Journeys;
+revisit once Phase 9 builds History proper to make sure it also benefits
+(it will, automatically, once History reads through `getJourney`/the same
+repository layer — no additional wiring anticipated, but worth confirming
+then).
+
+**Also**: §7.3 also calls for cancelling a scheduled notification when the
+user deletes a Journey or "turns off a recurrence's `active` flag." A
+minimal delete-journey action (confirm-then-delete) was added to Journey
+Detail specifically to make the deletion half of this reachable — no such
+action existed anywhere before this phase. The recurrence-pause half is
+**not** wired: no screen in any phase through Phase 7 exposes editing or
+pausing an existing `RecurrenceRule.active` flag (Plan screen only sets
+`active: true` once, at creation), so there is no UI trigger to attach a
+cancellation call to. Building a recurrence-management screen is out of
+Phase 8's stated scope ("Leave-by notifications"); revisit alongside
+whichever future phase adds recurring-journey editing.
+
+---
+
 ## 2026-07-21 — Fixed web bundling (`metro.config.js`), added `withTimeout()` as a defense-in-depth backstop, not the primary fix
 
 **What**: added `metro.config.js` registering `"wasm"` on

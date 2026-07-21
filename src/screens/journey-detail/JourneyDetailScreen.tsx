@@ -1,12 +1,14 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
-import { getJourney, updateJourney } from "../../db/repositories/journeys";
+import { deleteJourney, getJourney, updateJourney } from "../../db/repositories/journeys";
 import { createAnnotation, listAnnotations } from "../../db/repositories/annotations";
 import { applyAnnotationsToLegs } from "../../lib/annotations";
 import { useRecommendation } from "../../lib/useRecommendation";
+import { freezeIfDue } from "../../lib/leaveBy";
+import { cancelLeaveByNotification } from "../../lib/notifications";
 import { dominantMode } from "../../lib/journeyMode";
 import JourneyMap, { type MapCircle } from "../../components/JourneyMap";
 import AnnotationForm, { type AnnotationFormValues } from "../local-knowledge/AnnotationForm";
@@ -54,7 +56,23 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      getJourney(route.params.journeyId).then((result) => setJourney(result ?? null));
+      let cancelled = false;
+      // §7.3/§3 — fallback freeze: if the scheduled leave-by notification
+      // never actually fired (app killed, permission revoked), viewing a
+      // journey whose leave-by time has already passed freezes the
+      // RecommendationSnapshot and records wear here instead. Idempotent —
+      // freezeIfDue() is a no-op once a snapshot already exists.
+      getJourney(route.params.journeyId).then(async (result) => {
+        if (!result) {
+          if (!cancelled) setJourney(null);
+          return;
+        }
+        const frozen = await freezeIfDue(result);
+        if (!cancelled) setJourney(frozen);
+      });
+      return () => {
+        cancelled = true;
+      };
     }, [route.params.journeyId])
   );
 
@@ -129,6 +147,24 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     setFeedbackGiven(true);
   }
 
+  // §7.3 — "cancel with cancelScheduledNotificationAsync if the user
+  // deletes the journey." No delete-journey UI existed anywhere in the app
+  // before this phase (see DECISIONS.md) — a single confirm-then-delete
+  // action here is the minimal affordance that makes the cancellation path
+  // reachable, not a full journey-management screen.
+  function confirmDelete() {
+    Alert.alert("Delete this journey?", "This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: doDelete },
+    ]);
+  }
+
+  async function doDelete() {
+    await cancelLeaveByNotification(journey!.id);
+    await deleteJourney(journey!.id);
+    navigation.goBack();
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -177,6 +213,10 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
             <Text style={styles.returnLinkLabel}>⇄ Return trip</Text>
           </Pressable>
         )}
+
+        <Pressable onPress={confirmDelete} style={styles.deleteButton}>
+          <Text style={styles.deleteButtonLabel}>Delete journey</Text>
+        </Pressable>
 
         {showFeedbackStrip && (
           <View style={styles.feedbackContainer}>
@@ -235,6 +275,8 @@ const styles = StyleSheet.create({
   legList: { paddingHorizontal: 16, paddingTop: 12 },
   returnLink: { margin: 16, alignItems: "center", paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
   returnLinkLabel: { fontWeight: "600" },
+  deleteButton: { marginHorizontal: 16, marginTop: 16, alignItems: "center", paddingVertical: 12 },
+  deleteButtonLabel: { color: "#C0392B", fontWeight: "600", fontSize: 13 },
   feedbackContainer: { margin: 16, gap: 8 },
   feedbackPrompt: { fontSize: 13, color: "#5C6478" },
   feedbackRow: { flexDirection: "row", gap: 4 },

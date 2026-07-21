@@ -90,3 +90,19 @@ export async function deleteShoe(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM shoe_items WHERE id = ?", id);
 }
+
+// §7.16 — recordWear()'s targeted per-item write, mirroring
+// updateClothingWearTracking() in clothing.ts for the shoe_items table.
+export async function updateShoeWearTracking(
+  id: string,
+  patch: { wearsSinceClean: number; lastWornAt: string; needsCleaning: boolean }
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE shoe_items SET wears_since_clean = ?, last_worn_at = ?, needs_cleaning = ? WHERE id = ?`,
+    patch.wearsSinceClean,
+    patch.lastWornAt,
+    toSqlBool(patch.needsCleaning),
+    id
+  );
+}

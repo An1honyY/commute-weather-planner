@@ -11,6 +11,7 @@ import { listAnnotations } from "../db/repositories/annotations";
 import { newId } from "../db/rowMapping";
 import { applyAnnotationsToLegs } from "./annotations";
 import { PUDDLE_RISK_PRECIP_MM_6H } from "./recommend";
+import { scheduleForJourney } from "./leaveBy";
 import { CLIMATE_BY_MODE } from "./weather";
 import type { CarryPreference, Journey, JourneyLeg, RecurrenceRule, SavedLocation, TravelMode } from "../types";
 
@@ -363,5 +364,10 @@ export async function planJourney(input: PlanJourneyInput): Promise<PlanJourneyR
   if (!journey) return { kind: "failed" };
 
   await createJourney(journey);
+  // §7.3 — schedule/reschedule the leave-by notification now that this
+  // Journey's weather/legs (and any Phase 7 live-delay data, applied above)
+  // are final for this plan/materialization pass. Fire-and-forget from the
+  // caller's perspective: scheduleForJourney() never throws.
+  void scheduleForJourney(journey);
   return cachedFromDate ? { kind: "success-cached", journey, cachedFromDate } : { kind: "success", journey };
 }

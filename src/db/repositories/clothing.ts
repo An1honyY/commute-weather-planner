@@ -109,3 +109,20 @@ export async function deleteClothing(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM clothing_items WHERE id = ?", id);
 }
+
+// §7.16 — recordWear()'s targeted per-item write. A smaller, dedicated
+// UPDATE rather than routing through updateClothing() (which requires the
+// full item object the caller doesn't have at the leave-by call site).
+export async function updateClothingWearTracking(
+  id: string,
+  patch: { wearsSinceClean: number; lastWornAt: string; needsCleaning: boolean }
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE clothing_items SET wears_since_clean = ?, last_worn_at = ?, needs_cleaning = ? WHERE id = ?`,
+    patch.wearsSinceClean,
+    patch.lastWornAt,
+    toSqlBool(patch.needsCleaning),
+    id
+  );
+}

@@ -9,6 +9,7 @@ import Step2HomeWork from "./steps/Step2HomeWork";
 import Step3LiveDemo from "./steps/Step3LiveDemo";
 import Step4GearBasics from "./steps/Step4GearBasics";
 import Step5CrashReporting from "./steps/Step5CrashReporting";
+import Step6NotificationPermission from "./steps/Step6NotificationPermission";
 
 // First-run stack — docs/04-screens-navigation.md §4.1. A single component
 // stepping through an internal index rather than five separate nav-stack
@@ -44,7 +45,8 @@ export default function OnboardingScreen({ navigation }: Props) {
       {step === 1 && <Step2HomeWork currentCoords={coords} onNext={() => setStep(2)} />}
       {step === 2 && <Step3LiveDemo coords={coords} onNext={() => setStep(3)} />}
       {step === 3 && <Step4GearBasics onNext={() => setStep(4)} />}
-      {step === 4 && <Step5CrashReporting onFinish={finish} />}
+      {step === 4 && <Step5CrashReporting onFinish={() => setStep(5)} />}
+      {step === 5 && <Step6NotificationPermission onNext={finish} />}
     </SafeAreaView>
   );
 }

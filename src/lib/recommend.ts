@@ -39,9 +39,11 @@ export interface Inventory {
 // ---- Named thresholds — tune these, don't touch control flow below ----
 const FREEZING_C = 2;
 const COOL_UPPER_C = 14;
-const WARM_OUTDOOR_C = 18;
-const WARMUP_WALK_MIN_MINUTES = 15;
-const WARMUP_CYCLE_MIN_MINUTES = 8;
+// Exported — §7.16's recordWear()/isSweatyConditions() (src/lib/wearTracking.ts)
+// need the same resolved warmOutdoorC fallback the engine itself uses.
+export const WARM_OUTDOOR_C = 18;
+export const WARMUP_WALK_MIN_MINUTES = 15;
+export const WARMUP_CYCLE_MIN_MINUTES = 8;
 const HIGH_WIND_KPH = 30; // gust speed requiring a wind-rated umbrella
 const ACCESSORY_WARMTH_LEVEL = 3;
 const HIGH_UV_INDEX = 6;
@@ -64,6 +66,9 @@ const BOTTOMS_COLD_WARMTH_LEVEL = 4;
 const HOT_C = 24;
 const SEVERE_WEATHER_SEVERITY = 4;
 const SEVERE_GUST_KPH = 60;
+// §7.16 — wearsSinceClean at/above which needsCleaning is set, absent an
+// earlier sweaty-conditions trigger. Exported for wearTracking.ts.
+export const WASH_REMINDER_WEAR_COUNT = 3;
 
 function condition(weather: WeatherSnapshot) {
   return classifyWeather(weather.weatherCode, weather.precipMm, weather.windKph);
@@ -94,8 +99,10 @@ function warmthLevelFromTemp(
 }
 
 // §7.9 — walking/cycling evaluated against separate warmup thresholds;
-// both explicitly exclude isStationary legs.
-function totalOutdoorExertionMinutes(journey: Journey, mode: "walk" | "cycle"): number {
+// both explicitly exclude isStationary legs. Exported — §7.16's
+// isSweatyConditions() (src/lib/wearTracking.ts) reuses this exact same
+// exertion signal rather than introducing a second definition of it.
+export function totalOutdoorExertionMinutes(journey: Journey, mode: "walk" | "cycle"): number {
   return journey.legs
     .filter((l) => l.outdoor && !l.isStationary && l.mode === mode)
     .reduce((sum, l) => sum + l.durationMin, 0);

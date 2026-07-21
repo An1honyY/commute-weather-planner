@@ -137,6 +137,14 @@ export async function updateJourney(journey: Journey): Promise<void> {
   );
 }
 
+// §7.3 — the delete side of "cancel with cancelScheduledNotificationAsync
+// if the user deletes the journey." Notification cancellation itself is
+// the caller's job (src/lib/journeyActions.ts), not this repo's.
+export async function deleteJourney(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("DELETE FROM journeys WHERE id = ?", id);
+}
+
 export async function getJourney(id: string): Promise<Journey | undefined> {
   const db = await getDb();
   const row = await db.getFirstAsync<JourneyRow>("SELECT * FROM journeys WHERE id = ?", id);

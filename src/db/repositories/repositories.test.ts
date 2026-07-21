@@ -11,8 +11,8 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { runMigrations } from "../../../migrations";
 import { getDb } from "../index";
 import { createLocation, deleteLocation, listLocations, updateLocation } from "./locations";
-import { createClothing, deleteClothing, listClothing, updateClothing } from "./clothing";
-import { createShoe, listShoes } from "./shoes";
+import { createClothing, deleteClothing, listClothing, updateClothing, updateClothingWearTracking } from "./clothing";
+import { createShoe, listShoes, updateShoeWearTracking } from "./shoes";
 import { createUmbrella, listUmbrellas } from "./umbrellas";
 import { createVehicle, listVehicles } from "./vehicles";
 import {
@@ -28,7 +28,7 @@ import {
 import { getAdvancedThresholds, saveAdvancedThresholds } from "./advancedThresholds";
 import { getWarmthCalibration, seedWarmthCalibration } from "./calibration";
 import { createSavedRoute, deleteSavedRoute, listSavedRoutes, touchSavedRoute } from "./savedRoutes";
-import { createJourney, findRecentJourneyBetween, getJourney, updateJourney } from "./journeys";
+import { createJourney, deleteJourney, findRecentJourneyBetween, getJourney, updateJourney } from "./journeys";
 import { newId } from "../rowMapping";
 import type { Journey, SavedLocation } from "../../types";
 
@@ -237,5 +237,43 @@ describe("repository round-trips", () => {
 
     const wrongPair = await findRecentJourneyBetween("work", "home", "2026-01-01T00:00:00.000Z");
     expect(wrongPair).toBeUndefined();
+
+    await deleteJourney(journey.id);
+    expect(await getJourney(journey.id)).toBeUndefined();
+  });
+
+  it("§7.16 wear tracking: updateClothingWearTracking/updateShoeWearTracking patch only the three tracked fields", async () => {
+    const clothingId = newId();
+    await createClothing({
+      id: clothingId,
+      name: "Wool base layer",
+      type: "base",
+      warmth: 4,
+      waterproof: false,
+      windproof: false,
+      packable: true,
+    });
+    await updateClothingWearTracking(clothingId, {
+      wearsSinceClean: 3,
+      lastWornAt: "2026-07-20T08:00:00.000Z",
+      needsCleaning: true,
+    });
+    const [clothing] = await listClothing();
+    expect(clothing).toMatchObject({
+      name: "Wool base layer", // untouched fields survive the targeted UPDATE
+      wearsSinceClean: 3,
+      lastWornAt: "2026-07-20T08:00:00.000Z",
+      needsCleaning: true,
+    });
+
+    const shoeId = newId();
+    await createShoe({ id: shoeId, name: "Trail runners", type: "sneaker", waterproof: true, grip: "high" });
+    await updateShoeWearTracking(shoeId, {
+      wearsSinceClean: 1,
+      lastWornAt: "2026-07-20T08:00:00.000Z",
+      needsCleaning: false,
+    });
+    const [shoe] = await listShoes();
+    expect(shoe).toMatchObject({ name: "Trail runners", wearsSinceClean: 1, needsCleaning: false });
   });
 });
