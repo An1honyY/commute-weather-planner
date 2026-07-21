@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import WarmthSlider from "../../../components/WarmthSlider";
-import PhotoPicker from "../../../components/PhotoPicker";
-import { seedWarmthCalibration } from "../../../db/repositories/calibration";
-import { createClothing } from "../../../db/repositories/clothing";
-import { createShoe } from "../../../db/repositories/shoes";
-import { createUmbrella } from "../../../db/repositories/umbrellas";
-import { newId } from "../../../db/rowMapping";
-import { withTimeout } from "../../../lib/withTimeout";
-import useTheme from "../../../theme/useTheme";
-import type { ClothingType } from "../../../types";
+import WarmthSlider from "../../components/WarmthSlider";
+import PhotoPicker from "../../components/PhotoPicker";
+import { seedWarmthCalibration } from "../../db/repositories/calibration";
+import { createClothing } from "../../db/repositories/clothing";
+import { createShoe } from "../../db/repositories/shoes";
+import { createUmbrella } from "../../db/repositories/umbrellas";
+import { newId } from "../../db/rowMapping";
+import { withTimeout } from "../../lib/withTimeout";
+import useTheme from "../../theme/useTheme";
+import type { ClothingType } from "../../types";
 
-// docs/04-screens-navigation.md §4.1 step 4 — "a short checklist-style add
-// flow (not the full Gear CRUD screen)" for jacket/shoes/umbrella (the
-// minimum for real recommendations instead of fallbackText) plus an
-// optional bottoms entry, opening with the self-report warmth question.
+// docs/04-screens-navigation.md §4.1 (2026-07-21 minimal-onboarding
+// rework) — "a short checklist-style add flow (not the full Gear CRUD
+// screen)" for jacket/shoes/umbrella (the minimum for real recommendations
+// instead of fallbackText) plus an optional bottoms entry, opening with the
+// self-report warmth question. Originally a forced onboarding step; now
+// reached from the Today tab's SetupChecklist, any time the user chooses
+// to — see DECISIONS.md.
 const SELF_REPORT_OPTIONS: { label: string; offset: number }[] = [
   { label: "Cold", offset: 1 },
   { label: "Average", offset: 0 },
@@ -190,10 +193,10 @@ function SimpleEntry({
 }
 
 interface Props {
-  onNext: () => void;
+  onDone: () => void;
 }
 
-export default function Step4GearBasics({ onNext }: Props) {
+export default function GearBasicsSetup({ onDone }: Props) {
   const theme = useTheme();
   const styles = getStyles(theme);
   const [selfReportDone, setSelfReportDone] = useState(false);
@@ -233,8 +236,8 @@ export default function Step4GearBasics({ onNext }: Props) {
           <Text style={styles.optionalLabel}>Optional</Text>
           <WarmthEntry title="Bottoms/trousers" clothingType="bottoms" showSubstitutesToggle={false} onSaved={() => {}} />
 
-          <Pressable onPress={onNext} style={styles.primaryButton}>
-            <Text style={styles.primaryLabel}>Continue</Text>
+          <Pressable onPress={onDone} style={styles.primaryButton}>
+            <Text style={styles.primaryLabel}>Done</Text>
           </Pressable>
         </>
       )}

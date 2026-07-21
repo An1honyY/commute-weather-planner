@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { LEAVE_BY_LEAD_MINUTES, requestNotificationPermission } from "../../../lib/notifications";
-import useTheme from "../../../theme/useTheme";
+import { LEAVE_BY_LEAD_MINUTES, requestNotificationPermission } from "../../lib/notifications";
+import useTheme from "../../theme/useTheme";
 
 // docs/07-recommendation-engine.md §7.3 — "request notification permission
-// from the onboarding flow... not silently on app launch." Modeled on
-// Step1LocationPermission's explain-then-request pattern: skip is always an
-// option and never blocks finishing onboarding.
+// from the onboarding flow... not silently on app launch." Originally a
+// forced onboarding step; now reached from the Today tab's SetupChecklist
+// (2026-07-21 minimal-onboarding rework, see DECISIONS.md) — skip is still
+// always an option, it just means "not now" rather than "not this step of
+// onboarding."
 interface Props {
-  onNext: () => void;
+  onDone: () => void;
 }
 
-export default function Step6NotificationPermission({ onNext }: Props) {
+export default function NotificationsSetup({ onDone }: Props) {
   const theme = useTheme();
   const styles = getStyles(theme);
   const [requesting, setRequesting] = useState(false);
@@ -22,7 +24,7 @@ export default function Step6NotificationPermission({ onNext }: Props) {
       await requestNotificationPermission();
     } finally {
       setRequesting(false);
-      onNext();
+      onDone();
     }
   }
 
@@ -36,8 +38,8 @@ export default function Step6NotificationPermission({ onNext }: Props) {
       <Pressable onPress={allow} disabled={requesting} style={styles.primaryButton}>
         <Text style={styles.primaryLabel}>{requesting ? "Requesting…" : "Allow notifications"}</Text>
       </Pressable>
-      <Pressable onPress={onNext} style={styles.skipButton}>
-        <Text style={styles.skipLabel}>Skip</Text>
+      <Pressable onPress={onDone} style={styles.skipButton}>
+        <Text style={styles.skipLabel}>Not now</Text>
       </Pressable>
     </View>
   );
