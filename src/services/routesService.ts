@@ -25,6 +25,13 @@ export interface RouteStep {
   // this from live AT GTFS Realtime delay data instead.
   isStationary?: boolean;
   waitContext?: "transit-platform" | "transit-stop";
+  // Best-effort identifiers for Phase 7's AT GTFS Realtime lookup
+  // (transitService.getRealtimeDelay, §5.6) — only set on the transit
+  // step itself, not the walk/wait steps around it. See transitService.ts's
+  // header comment for why these are approximate, not real AT GTFS ids.
+  routeId?: string;
+  stopId?: string;
+  scheduledDepartTime?: string; // ISO
 }
 
 export interface RoutePoint {
@@ -67,8 +74,13 @@ interface GoogleTransitStop {
   name?: string;
 }
 interface GoogleTransitDetails {
-  stopDetails?: { arrivalStop?: GoogleTransitStop; departureTime?: string; arrivalTime?: string };
-  transitLine?: { vehicle?: { type?: string } };
+  stopDetails?: {
+    arrivalStop?: GoogleTransitStop;
+    departureStop?: GoogleTransitStop;
+    departureTime?: string;
+    arrivalTime?: string;
+  };
+  transitLine?: { vehicle?: { type?: string }; nameShort?: string; name?: string };
 }
 interface GoogleRouteStep {
   travelMode?: "WALK" | "TRANSIT";
@@ -154,6 +166,9 @@ function parseTransitSteps(route: GoogleRoute, params: ComputeRouteParams): Rout
         label: `${mode === "bus" ? "Bus" : "Train"} to ${arrivalStopName}`,
         durationMin: toMinutes(durationSeconds),
         polyline: step.polyline?.encodedPolyline ?? "",
+        routeId: step.transitDetails.transitLine?.nameShort ?? step.transitDetails.transitLine?.name,
+        stopId: step.transitDetails.stopDetails?.departureStop?.name,
+        scheduledDepartTime: departureIso,
       });
       cursorMs += durationSeconds * 1000;
     }

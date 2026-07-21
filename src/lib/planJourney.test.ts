@@ -1,6 +1,7 @@
 import { planJourney } from "./planJourney";
 import { computeRoute } from "../services/routesService";
 import { getForecast } from "../services/weatherService";
+import { getRealtimeDelay } from "../services/transitService";
 import { createJourney, findRecentJourneyBetween } from "../db/repositories/journeys";
 import { listAnnotations } from "../db/repositories/annotations";
 import type { SavedLocation, WeatherSnapshot } from "../types";
@@ -12,6 +13,7 @@ import type { SavedLocation, WeatherSnapshot } from "../types";
 // mock ever takes effect.
 jest.mock("../services/routesService", () => ({ computeRoute: jest.fn() }));
 jest.mock("../services/weatherService", () => ({ getForecast: jest.fn() }));
+jest.mock("../services/transitService", () => ({ getRealtimeDelay: jest.fn() }));
 jest.mock("../db/repositories/journeys", () => ({
   createJourney: jest.fn(),
   findRecentJourneyBetween: jest.fn(),
@@ -20,6 +22,7 @@ jest.mock("../db/repositories/annotations", () => ({ listAnnotations: jest.fn() 
 
 const mockComputeRoute = computeRoute as jest.Mock;
 const mockGetForecast = getForecast as jest.Mock;
+const mockGetRealtimeDelay = getRealtimeDelay as jest.Mock;
 const mockCreateJourney = createJourney as jest.Mock;
 const mockFindRecentJourneyBetween = findRecentJourneyBetween as jest.Mock;
 const mockListAnnotations = listAnnotations as jest.Mock;
@@ -191,5 +194,108 @@ describe("planJourney", () => {
     expect(result.journey.legs[0].startTime).toBe(baseInput.departTime); // re-timed to the new departTime, not the cached one
     expect(result.journey.id).not.toBe("old-journey"); // a fresh journey, not a mutated old one
     expect(mockGetForecast).toHaveBeenCalled();
+  });
+
+  // Phase 7 (§5.6) — AT GTFS Realtime wiring.
+  describe("live transit delay", () => {
+    it("resizes the preceding wait leg from a live delay and stamps delayMinutes on the transit leg", async () => {
+      mockComputeRoute.mockResolvedValue({
+        data: [
+          { mode: "walk", label: "Walk to stop", durationMin: 5, polyline: "walk1" },
+          { mode: "bus", label: "Waiting for transit", durationMin: 5, polyline: "", isStationary: true, waitContext: "transit-stop" },
+          {
+            mode: "bus",
+            label: "Bus to Britomart",
+            durationMin: 10,
+            polyline: "bus1",
+            routeId: "70",
+            stopId: "Queen St",
+            scheduledDepartTime: "2026-07-20T08:10:00.000Z",
+          },
+        ],
+      });
+      mockGetForecast.mockResolvedValue({ data: [fakeWeather(), fakeWeather()] });
+      mockGetRealtimeDelay.mockResolvedValue({ data: { delayMinutes: 12, stopType: "street-stop" } });
+
+      const result = await planJourney({ ...baseInput, mode: "bus" });
+
+      expect(result.kind).toBe("success");
+      if (result.kind !== "success") return;
+      expect(mockGetRealtimeDelay).toHaveBeenCalledWith({
+        routeId: "70",
+        stopId: "Queen St",
+        scheduledDepartTime: "2026-07-20T08:10:00.000Z",
+        mode: "bus",
+      });
+      const [, wait, transit] = result.journey.legs;
+      expect(wait.durationMin).toBe(12);
+      expect(wait.label).toBe("Waiting at Queen St — delay 12 min");
+      expect(transit.delayMinutes).toBe(12);
+    });
+
+    it("inserts a wait leg when Google reported no gap but AT GTFS Realtime reports a delay", async () => {
+      mockComputeRoute.mockResolvedValue({
+        data: [
+          {
+            mode: "bus",
+            label: "Bus to Britomart",
+            durationMin: 10,
+            polyline: "bus1",
+            routeId: "70",
+            stopId: "Queen St",
+            scheduledDepartTime: "2026-07-20T08:10:00.000Z",
+          },
+        ],
+      });
+      mockGetForecast.mockResolvedValue({ data: [] });
+      mockGetRealtimeDelay.mockResolvedValue({ data: { delayMinutes: 6, stopType: "platform" } });
+
+      const result = await planJourney({ ...baseInput, mode: "bus" });
+
+      expect(result.kind).toBe("success");
+      if (result.kind !== "success") return;
+      expect(result.journey.legs).toHaveLength(2);
+      expect(result.journey.legs[0]).toMatchObject({ isStationary: true, durationMin: 6, waitContext: "transit-platform" });
+      expect(result.journey.legs[1].delayMinutes).toBe(6);
+    });
+
+    it("falls back to a flat 5-minute wait when AT GTFS Realtime has no data and no wait leg already exists (§5.6 point 2)", async () => {
+      mockComputeRoute.mockResolvedValue({
+        data: [
+          {
+            mode: "bus",
+            label: "Bus to Britomart",
+            durationMin: 10,
+            polyline: "bus1",
+            routeId: "70",
+            stopId: "Queen St",
+            scheduledDepartTime: "2026-07-20T08:10:00.000Z",
+          },
+        ],
+      });
+      mockGetForecast.mockResolvedValue({ data: [] });
+      mockGetRealtimeDelay.mockResolvedValue({ error: "unreachable" });
+
+      const result = await planJourney({ ...baseInput, mode: "bus" });
+
+      expect(result.kind).toBe("success");
+      if (result.kind !== "success") return;
+      expect(result.journey.legs).toHaveLength(2);
+      expect(result.journey.legs[0]).toMatchObject({ isStationary: true, durationMin: 5, waitContext: "transit-stop" });
+      expect(result.journey.legs[0].label).toBe("Waiting at Queen St — delay 5 min");
+      expect(result.journey.legs[1].delayMinutes).toBeUndefined();
+    });
+
+    it("skips the lookup entirely when routing didn't return matchable route/stop ids", async () => {
+      mockComputeRoute.mockResolvedValue({
+        data: [{ mode: "bus", label: "Bus to Britomart", durationMin: 10, polyline: "bus1" }],
+      });
+      mockGetForecast.mockResolvedValue({ data: [] });
+
+      const result = await planJourney({ ...baseInput, mode: "bus" });
+
+      expect(result.kind).toBe("success");
+      expect(mockGetRealtimeDelay).not.toHaveBeenCalled();
+    });
   });
 });

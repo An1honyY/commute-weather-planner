@@ -99,15 +99,30 @@ export function matchAnnotationsToPoints(
   };
 }
 
-// §3.4/§5.5 — stamp every outdoor leg with a polyline. Returns new leg
-// objects (previous stamps cleared first) so a re-run after adding an
-// annotation from Journey Detail (§4.5) reflects deletions/edits too.
+// §3.4/§5.5 — stamp every outdoor leg with a polyline, plus (§5.6 point 3,
+// Phase 7) a stationary wait leg's single point. A wait leg has no polyline
+// of its own, so its point is taken from the transit leg it precedes — that
+// leg's own decoded polyline necessarily starts where the wait happened.
+// Returns new leg objects (previous stamps cleared first) so a re-run after
+// adding an annotation from Journey Detail (§4.5) reflects deletions/edits
+// too.
 export function applyAnnotationsToLegs(
   legs: JourneyLeg[],
   annotations: EnvironmentAnnotation[]
 ): JourneyLeg[] {
-  return legs.map((leg) => {
-    if (!leg.outdoor || !leg.polyline) return leg;
+  return legs.map((leg, i) => {
+    if (!leg.outdoor) return leg;
+
+    let points: LatLng[] = [];
+    if (leg.polyline) {
+      points = decodePolyline(leg.polyline);
+    } else if (leg.isStationary) {
+      const nextPolyline = legs[i + 1]?.polyline;
+      const nextPoints = nextPolyline ? decodePolyline(nextPolyline) : [];
+      if (nextPoints.length > 0) points = [nextPoints[0]];
+    }
+    if (points.length === 0) return leg;
+
     const cleared: JourneyLeg = {
       ...leg,
       windEffect: undefined,
@@ -116,6 +131,6 @@ export function applyAnnotationsToLegs(
       rainCovered: undefined,
       matchedAnnotationIds: undefined,
     };
-    return { ...cleared, ...matchAnnotationsToPoints(decodePolyline(leg.polyline), annotations) };
+    return { ...cleared, ...matchAnnotationsToPoints(points, annotations) };
   });
 }

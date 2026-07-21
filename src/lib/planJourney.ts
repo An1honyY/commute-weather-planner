@@ -5,6 +5,7 @@
 // legs → persist → return.
 import { computeRoute, type RoutePoint, type RouteStep } from "../services/routesService";
 import { getForecast } from "../services/weatherService";
+import { getRealtimeDelay } from "../services/transitService";
 import { createJourney, findRecentJourneyBetween } from "../db/repositories/journeys";
 import { listAnnotations } from "../db/repositories/annotations";
 import { newId } from "../db/rowMapping";
@@ -15,6 +16,11 @@ import type { CarryPreference, Journey, JourneyLeg, RecurrenceRule, SavedLocatio
 
 const WAYPOINT_DWELL_MIN = 10;
 const OFFLINE_FALLBACK_WINDOW_DAYS = 30;
+// §5.6 point 2 — used only when AT GTFS Realtime has no live data for a
+// leg's specific departure and Google itself reported no scheduled gap to
+// build a wait leg from either; "no delay data" isn't the same claim as
+// "no wait."
+const FLAT_WAIT_FALLBACK_MIN = 5;
 
 function toRoutePoint(location: SavedLocation): RoutePoint {
   return { lat: location.lat, lng: location.lng, label: location.label };
@@ -83,6 +89,81 @@ interface AssembledLeg {
   waitContext?: JourneyLeg["waitContext"];
   polyline?: string;
   hopIndex?: number; // index into the ordered stop sequence this leg travels *from* — undefined when unknown (transit, cached-structure reuse)
+  // Phase 7 (§5.6) — best-effort AT GTFS Realtime lookup keys carried from
+  // routesService's transit step, only set on the transit step itself.
+  routeId?: string;
+  stopId?: string;
+  scheduledDepartTime?: string;
+  delayMinutes?: number;
+}
+
+// §5.6 — a stationary wait leg's label names the specific stop and delay
+// per the voice guide (docs/09-design-system.md §9.3): "Waiting at
+// Britomart — delay 12 min." Falls back to generic phrasing when the stop
+// name isn't known (cached-structure replanning, or Google not returning
+// one).
+function waitLabel(stopId: string | undefined, waitMin: number): string {
+  const stopName = stopId ?? "your stop";
+  return waitMin > 0 ? `Waiting at ${stopName} — delay ${waitMin} min` : `Waiting at ${stopName}`;
+}
+
+// §5.6 — for each bus/train step, ask AT GTFS Realtime for the live
+// scheduled-vs-actual delay and size the preceding wait leg from it
+// (inserting one if Google itself reported no scheduled gap), falling back
+// to a flat FLAT_WAIT_FALLBACK_MIN when live data isn't available for this
+// specific departure (point 2) rather than silently dropping the wait.
+async function applyRealtimeDelays(steps: AssembledLeg[]): Promise<AssembledLeg[]> {
+  const result: AssembledLeg[] = [];
+
+  for (const step of steps) {
+    const isTransitLeg = !step.isStationary && (step.mode === "bus" || step.mode === "train");
+    if (!isTransitLeg || !step.routeId || !step.stopId || !step.scheduledDepartTime) {
+      result.push(step);
+      continue;
+    }
+
+    const precedingWait = result[result.length - 1]?.isStationary ? result[result.length - 1] : undefined;
+    const delayResult = await getRealtimeDelay({
+      routeId: step.routeId,
+      stopId: step.stopId,
+      scheduledDepartTime: step.scheduledDepartTime,
+      mode: step.mode as "bus" | "train",
+    });
+
+    if ("data" in delayResult) {
+      const waitMin = Math.max(0, delayResult.data.delayMinutes);
+      const waitContext: JourneyLeg["waitContext"] =
+        delayResult.data.stopType === "platform" ? "transit-platform" : "transit-stop";
+      step.delayMinutes = delayResult.data.delayMinutes;
+      if (precedingWait) {
+        precedingWait.durationMin = waitMin;
+        precedingWait.waitContext = waitContext;
+        precedingWait.label = waitLabel(step.stopId, waitMin);
+      } else if (waitMin > 0) {
+        result.push({
+          mode: step.mode,
+          label: waitLabel(step.stopId, waitMin),
+          durationMin: waitMin,
+          outdoor: true,
+          isStationary: true,
+          waitContext,
+        });
+      }
+    } else if (!precedingWait) {
+      result.push({
+        mode: step.mode,
+        label: waitLabel(step.stopId, FLAT_WAIT_FALLBACK_MIN),
+        durationMin: FLAT_WAIT_FALLBACK_MIN,
+        outdoor: true,
+        isStationary: true,
+        waitContext: step.mode === "train" ? "transit-platform" : "transit-stop",
+      });
+    }
+
+    result.push(step);
+  }
+
+  return result;
 }
 
 // docs/05-data-wiring.md §5.5 (waypoint routing) — walk/cycle/drive get one
@@ -124,6 +205,9 @@ function stepsToAssembledLegs(steps: RouteStep[], input: PlanJourneyInput): Asse
       waitContext: step.waitContext,
       polyline: step.polyline,
       hopIndex: knownHopBoundaries ? hopIndex : undefined,
+      routeId: step.routeId,
+      stopId: step.stopId,
+      scheduledDepartTime: step.scheduledDepartTime,
     });
     if (knownHopBoundaries) hopIndex++;
   });
@@ -160,6 +244,7 @@ async function assembleJourney(
       polyline: step.polyline,
       isStationary: step.isStationary,
       waitContext: step.waitContext,
+      delayMinutes: step.delayMinutes,
     };
     legs.push(leg);
 
@@ -221,7 +306,7 @@ async function assembleJourney(
 }
 
 async function buildFromLiveRoute(steps: RouteStep[], input: PlanJourneyInput): Promise<Journey> {
-  const assembled = stepsToAssembledLegs(steps, input);
+  const assembled = await applyRealtimeDelays(stepsToAssembledLegs(steps, input));
   const stops = [input.origin, ...input.waypoints, input.destination];
   return assembleJourney(assembled, input, stops);
 }
@@ -240,6 +325,10 @@ async function buildFromCachedStructure(cached: Journey, input: PlanJourneyInput
     // cached-structure fallback always uses the coarser whole-journey
     // interpolation regardless of original mode.
     hopIndex: undefined,
+    // §5.1's cached-structure fallback only runs when Google Routes itself
+    // is unreachable — a cached leg also has no routeId/stopId to look a
+    // live delay up with, so this path keeps whatever wait leg the cached
+    // structure already had rather than attempting applyRealtimeDelays.
   }));
   const stops = [input.origin, ...input.waypoints, input.destination];
   return assembleJourney(assembled, input, stops);

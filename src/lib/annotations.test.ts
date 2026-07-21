@@ -154,4 +154,50 @@ describe("applyAnnotationsToLegs", () => {
     expect(leg.windEffect).toBeUndefined();
     expect(leg.matchedAnnotationIds).toBeUndefined();
   });
+
+  // §5.6 point 3 (Phase 7) — a stationary wait leg has no polyline of its
+  // own; its point is taken from the transit leg it precedes.
+  it("matches a stationary wait leg against the following transit leg's first point", () => {
+    const wait: JourneyLeg = {
+      id: "wait",
+      mode: "bus",
+      label: "Waiting at Britomart",
+      durationMin: 8,
+      startTime: "2026-07-21T08:00:00.000Z",
+      outdoor: true,
+      isStationary: true,
+      waitContext: "transit-stop",
+    };
+    const transit: JourneyLeg = {
+      id: "bus-leg",
+      mode: "bus",
+      label: "Bus to Work",
+      durationMin: 15,
+      startTime: "2026-07-21T08:08:00.000Z",
+      outdoor: true,
+      polyline: encodePolyline([
+        { lat: -36.8485, lng: 174.7633 },
+        { lat: -36.86, lng: 174.77 },
+      ]),
+    };
+
+    const [waitResult] = applyAnnotationsToLegs([wait, transit], [annotation({ effect: "wind-tunnel" })]);
+    expect(waitResult.windEffect).toBe("amplified");
+    expect(waitResult.matchedAnnotationIds).toEqual(["a1"]);
+  });
+
+  it("leaves a stationary wait leg untouched when the following leg has no polyline", () => {
+    const wait: JourneyLeg = {
+      id: "wait",
+      mode: "bus",
+      label: "Waiting at Britomart",
+      durationMin: 8,
+      startTime: "2026-07-21T08:00:00.000Z",
+      outdoor: true,
+      isStationary: true,
+      waitContext: "transit-stop",
+    };
+    const [waitResult] = applyAnnotationsToLegs([wait], [annotation({ effect: "wind-tunnel" })]);
+    expect(waitResult).toBe(wait);
+  });
 });

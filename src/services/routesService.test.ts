@@ -95,8 +95,9 @@ describe("routesService.computeRoute", () => {
                         departureTime: "2026-07-20T08:10:00.000Z", // 5 min after the walk step ends (08:05)
                         arrivalTime: "2026-07-20T08:20:00.000Z",
                         arrivalStop: { name: "Britomart" },
+                        departureStop: { name: "Queen St" },
                       },
-                      transitLine: { vehicle: { type: "BUS" } },
+                      transitLine: { vehicle: { type: "BUS" }, nameShort: "70" },
                     },
                   },
                 ],
@@ -116,6 +117,14 @@ describe("routesService.computeRoute", () => {
       { mode: "bus", label: "Waiting for transit", durationMin: 5, isStationary: true },
       { mode: "bus", label: "Bus to Britomart", durationMin: 10, isStationary: undefined },
     ]);
+
+    // Phase 7 (§5.6) — the transit step itself carries best-effort AT GTFS
+    // Realtime lookup keys; the walk/wait steps around it don't.
+    const transitStep = result.data[2];
+    expect(transitStep.routeId).toBe("70");
+    expect(transitStep.stopId).toBe("Queen St");
+    expect(transitStep.scheduledDepartTime).toBe("2026-07-20T08:10:00.000Z");
+    expect(result.data[0].routeId).toBeUndefined();
   });
 
   it("maps a network error and non-2xx responses to the shared ServiceError shape", async () => {

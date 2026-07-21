@@ -216,3 +216,49 @@ map circle preview, since Journey Detail's native map already exists;
 only the list/edit screen avoids map dependencies. Revisit alongside the
 same future pass the Locations entry already anticipates (if a map
 pin-drop/slider dependency is ever deliberately added).
+
+---
+
+## 2026-07-21 — AT GTFS Realtime lookup keys are best-effort, not real AT GTFS ids (Section 5.6, Phase 7)
+
+**What**: `transitService.getRealtimeDelay()` (`src/services/transitService.ts`)
+makes a real network call to AT's trip-updates feed and matches a
+`stop_time_update` by `routeId`/`stopId`. Those two values, as threaded
+through from `routesService.ts`'s Google Routes parsing into
+`planJourney.ts`, are Google's own route short name (`transitLine.nameShort`)
+and departure-stop display name (`stopDetails.departureStop.name`) — not
+AT's actual GTFS `route_id`/`stop_id`, which are separate internal
+identifiers Google's transit response doesn't expose.
+
+**Why this needed a decision**: Section 5.6 describes sizing the wait leg
+"from the AT GTFS Realtime scheduled-vs-actual delta for that specific
+departure," which in a fully-correct implementation means matching the
+exact `trip_id` AT's feed uses. Building that match properly would require
+importing and indexing AT's static GTFS feed (stops.txt/routes.txt/trips.txt)
+to resolve Google's names/short codes to AT's real ids — a standalone data
+pipeline, not a small addition to this phase, and the same order of scope
+as the multi-user (§2.2) and cloud-sync (§13.7) exclusions already logged
+here.
+
+**Resolution**: implemented the service call for real (real fetch, real
+auth header, real JSON parsing, proper `ServiceResult` error mapping) using
+the best-effort name-based keys as-is, rather than leaving the whole
+integration stubbed or half-faking a static-GTFS lookup under time
+pressure. A mismatch (the very likely case until a real ids-resolution
+pass exists) simply produces "no matching entity found," which
+`getRealtimeDelay()` maps to the same `unreachable` result AT being
+genuinely down would produce — §5.6 point 2's flat 5-minute fallback
+already covers that path correctly, so the user-facing behavior degrades
+gracefully rather than breaking. Revisit once a real AT subscription key
+and static GTFS import are both in place to verify actual field shapes,
+the same "unverified — no live key this session" caveat already logged for
+the Google Routes waypoints-transit entry above.
+
+**Also**: `RealtimeDelay.stopType` ("platform" vs "street-stop", used for
+`JourneyLeg.waitContext`) is inferred purely from travel mode — trains
+always "platform," buses always "street-stop" — rather than from GTFS stop
+metadata, since the realtime trip-updates feed carries no `location_type`
+data (that's static-GTFS territory too). A reasonable default per §5.6
+point 1's own wording ("inferred from the AT GTFS stop type if available,
+**otherwise default to transit-stop**"), just a smarter default than a
+blanket transit-stop for both modes.

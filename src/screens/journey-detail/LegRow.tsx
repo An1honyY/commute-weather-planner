@@ -53,11 +53,18 @@ export default function LegRow({ leg }: Props) {
         </Text>
         {annotationEffectLine(leg) && <Text style={styles.annotationLine}>{annotationEffectLine(leg)}</Text>}
       </View>
-      {leg.outdoor && leg.weather && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{Math.round(leg.weather.apparentTempC)}°C</Text>
-        </View>
-      )}
+      <View style={styles.badgeColumn}>
+        {leg.outdoor && leg.weather && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{Math.round(leg.weather.apparentTempC)}°C</Text>
+          </View>
+        )}
+        {(leg.mode === "bus" || leg.mode === "train") && leg.delayMinutes !== undefined && (
+          <View style={[styles.delayPill, leg.delayMinutes > 0 ? styles.delayPillLate : styles.delayPillOnTime]}>
+            <Text style={styles.delayPillText}>{leg.delayMinutes > 0 ? `+${leg.delayMinutes} min` : "On time"}</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -72,6 +79,11 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: "600" },
   meta: { fontSize: 12, color: "#5C6478", marginTop: 2 },
   annotationLine: { fontSize: 12, color: "#C97F2E", marginTop: 2 },
+  badgeColumn: { alignItems: "flex-end", gap: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#DDE1EA" },
   badgeText: { fontSize: 12, fontWeight: "600" },
+  delayPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  delayPillOnTime: { backgroundColor: "#DDE1EA" },
+  delayPillLate: { backgroundColor: "#F0B95C" },
+  delayPillText: { fontSize: 11, fontWeight: "600" },
 });

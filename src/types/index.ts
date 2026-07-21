@@ -160,6 +160,7 @@ export interface JourneyLeg {
   isStationary?: boolean; // Section 3.5, 7.9 — outdoor wait ahead of a bus/train leg
   waitContext?: "transit-platform" | "transit-stop" | "pickup-queue" | "general"; // only set when isStationary
   hikeSamples?: HikeRouteSample[]; // only set when mode === "hike" (Phase 20)
+  delayMinutes?: number; // Phase 7 — AT GTFS Realtime scheduled-vs-actual delta for a bus/train leg's specific departure, Section 5.6; only set once live data is fetched, drives the live-delay pill (Section 9.3) and the preceding wait leg's durationMin
 }
 
 // Phase 20 (Section 13.8) — per-sample reading along a hike leg's route
