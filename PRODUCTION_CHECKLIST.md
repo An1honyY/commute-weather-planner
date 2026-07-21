@@ -77,9 +77,13 @@ behind each judgment call referenced below.
       session can't produce. Marked done for the code; the manual pass
       itself is still owed before submission.
 - [ ] **Offline fallback (§5.1) verified for all three APIs** — pre-existing
-      from Phase 11 (see that phase's DECISIONS.md entries); not re-verified
-      this phase, no dev-menu (§12.2) exists yet to toggle each API off in
-      isolation without a real outage.
+      from Phase 11 (see that phase's DECISIONS.md entries); the §12.2
+      debug menu (`src/screens/dev/DevMenuScreen.tsx`, 2026-07-21) now
+      exists and can force each of routes/weather/transit into a chosen
+      error without a real outage, so this is mechanically testable now —
+      but the actual pass (opening the menu, forcing each error, watching
+      the fallback UI on a real device/simulator) hasn't been run from
+      this session, so still unchecked.
 - [ ] **Schema migrations (§3.1) tested against a fixture DB from the
       previous released version** — no prior *released* version exists yet
       (v1 hasn't shipped), so this specific check has nothing to run
