@@ -1,11 +1,13 @@
 // docs/10-production-readiness.md §10.5 — opt-in crash reporting. Default
 // off; no telemetry SDK initializes and no data leaves the device until the
-// user explicitly turns it on (onboarding Step5CrashReporting, or the
-// Settings toggle). See DECISIONS.md (2026-07-21) for why the actual
-// telemetry transport is a no-op provider rather than a live
-// `@sentry/react-native` install in this session — the on/off gating and
-// scrubbing behavior below are real and unit-tested regardless of which
-// provider is plugged in.
+// user explicitly turns it on via the Settings toggle (the 2026-07-21
+// minimal-onboarding rework dropped the old forced onboarding step — crash
+// reporting isn't personalization-relevant, so it doesn't belong in the
+// postponable setup checklist either, only Settings). See DECISIONS.md
+// (2026-07-21) for why the actual telemetry transport is a no-op provider
+// rather than a live `@sentry/react-native` install in this session — the
+// on/off gating and scrubbing behavior below are real and unit-tested
+// regardless of which provider is plugged in.
 import { getCrashReportingEnabled } from "../db/repositories/settings";
 
 export type CrashReportContext = Record<string, unknown>;

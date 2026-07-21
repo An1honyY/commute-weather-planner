@@ -112,83 +112,69 @@ Plus stack screens reached from Today or Plan:
   (Section 4.5).
 - **Onboarding** (first-run only, see 4.1).
 
-### 4.1 Onboarding & empty states
+### 4.1 Onboarding & empty states (2026-07-21 minimal-onboarding rework)
 
 Recommendations are meaningless against an empty `Inventory`, so first-run
-UX matters more here than in a typical CRUD app:
+UX matters — but the app should still be useful as a plain "what should I
+wear today" weather app with almost no setup, and only ask for more when
+the user chooses to. See DECISIONS.md for the reasoning behind replacing
+the original 5-step forced wizard with the design below.
 
-- **First launch** (no `Inventory` rows and no `SavedLocation` rows at all):
-  a short 5-step onboarding stack, skippable at every step but defaulting
-  forward:
-  1. Location permission priming screen — explain *why* ("so we can use
-     your current location as a starting point") before triggering the OS
-     permission dialog, since a bare OS prompt with no context has a much
-     higher deny rate.
-  2. "Add Home and Work" — a minimal 2-field version of the Locations
-     add-flow, pre-labeled.
-  3. **Live demo card** — before asking for any gear, make one real
-     Open-Meteo call for the just-granted (or skipped) location and render
-     an actual "Right now" card (Section 4.2) with today's real conditions,
-     but with placeholder gear slots reading "If you owned a rain shell,
-     we'd tell you to grab it here" instead of a real recommendation. This
-     is the payoff-before-effort moment — it shows what the app *does*
-     with real, current data before asking the user to do any setup work,
-     rather than asking for gear entry on faith. If location was skipped in
-     step 1, use Auckland's coordinates as a fallback demo location and
-     label the card "Example — Auckland" so it's clearly not personalized
-     yet.
-  4. "Add a few gear basics" — a short checklist-style add flow (not the
-     full Gear CRUD screen) for one jacket, one pair of shoes, one
-     umbrella — the minimum needed for the recommendation engine to return
-     real items instead of `fallbackText` on the very first journey. A
-     fourth, clearly-marked-optional entry for bottoms/trousers (Section
-     3, 7.13) is offered too, but skippable without the same "this is the
-     minimum" framing as the first three — most journeys don't trigger the
-     bottoms slot at all (Section 7.13's narrow thermal/waterproof
-     triggers), so it's less urgent than the always-relevant jacket/shoes/
-     umbrella trio. Each entry offers the optional photo capture from
-     Section 3.3 right inline (skippable per-item), since this is the
-     moment the step 3 card's placeholder gets replaced with something real
-     and it's worth letting that replacement include a photo immediately
-     rather than a follow-up trip to Gear later.
-     - **Opens with a one-tap self-report question** (Section 7.5.1),
-       before any gear entry: "Do you tend to run warm, cold, or about
-       average?" — three buttons (Warm / Average / Cold). This seeds
-       `WarmthCalibration.offsetLevels` (and all three `seasonalOffsets`
-       buckets, Section 3) at -1/0/+1 respectively, so the very first
-       recommendation the user sees already reflects a self-declared
-       starting point rather than the flat default — the feedback loop
-       (Section 7.5) still refines it from there. One line of context
-       under the question: "Helps us get your first few recommendations
-       right — you can fine-tune this anytime from how a trip actually
-       felt." Skippable, defaulting to "Average" (offset 0).
-     - **The jacket entry's warmth field is a 1-10 slider** (Section 3.6),
-       not a 5-point picker, labeled at both ends so the scale means
-       something without reading a spec: "1 · barely warmer than a
-       t-shirt" and "10 · heaviest winter coat you own," with the
-       in-between values unlabeled (the two anchors are enough context —
-       see Section 9.1 for the exact copy pattern reused everywhere this
-       slider appears). Every other clothing item's warmth field in the
-       full Gear CRUD screen (Section 4, item 4) uses the same slider and
-       the same two anchor labels for consistency.
-     - **A "This is also warm enough to skip a midlayer" toggle** appears
-       under the warmth slider whenever the item's `type` is `"jacket"`
-       (`ClothingItem.substitutesForMidlayer`, Section 3.6/7.12), off by
-       default, with one line of context: "Turn this on if this jacket is
-       insulated enough on its own — like a rain shell with a built-in
-       thin puffer lining. We won't ask you to add anything underneath it
-       when it's picked." Hidden entirely for non-jacket types rather than
-       shown-and-disabled.
-  5. Crash-reporting opt-in (Section 10.5) — a single toggle, defaulted
-     **off**, with one line explaining what it does and that it's changeable
-     later in Settings. Skipping this step leaves it off, same as declining
-     it explicitly.
-  A user can skip straight through and land on an empty Today tab; that's
-  fine, but see below for what that empty state should do. If the resolved
-  Home address (step 2) or current location falls outside New Zealand, show
-  the regional-scope notice from Section 2.1 once, after onboarding
-  completes rather than as its own step — it's informational, not a
-  decision the user needs to make.
+- **First launch** (no `app_settings.onboarding_completed` flag set yet —
+  Section 4.1's original "no Inventory/no SavedLocation rows" definition
+  was already superseded by an explicit flag; see DECISIONS.md's
+  "Onboarding gate" entry): **one screen**, skippable outright:
+  - **"Where are you?"** — explain *why* first ("so we can show today's
+    conditions and suggest what to wear"), same rationale the original
+    location-permission priming step used, since a bare OS prompt with no
+    context has a much higher deny rate. Three equally-weighted paths:
+    "Use my current location" (triggers the OS permission dialog), typing
+    a general address/suburb (Google Places autocomplete, Section 2 —
+    resolves to a lat/lng + label, not a full `SavedLocation`), or "Skip
+    for now." Whatever's captured here is stored as a lightweight
+    `default_location` (`app_settings`, not a `SavedLocation` — it's a
+    fallback centre-point for the "Right now" card, Section 4.2, not a
+    place the user would plan journeys from) and used ahead of the
+    Auckland fallback whenever device location permission isn't granted.
+  - Finishing this one step (via any of the three paths, including skip)
+    completes onboarding and drops the user straight onto Today, where the
+    "Right now" card already shows real current-conditions weather and a
+    generic reduced recommendation (Section 4.2) — the old wizard's
+    separate "live demo" step is redundant with this, since it's no longer
+    gated behind three prior steps.
+- **Setup checklist (Today tab)** — replaces the old wizard's Home/Work,
+  gear-basics, and notification-permission steps with postponable hints
+  shown as small dismissible cards below the "Right now" card, each with a
+  one-line description and a single CTA:
+  1. **Add Home and Work** → the Locations tab's add flow (now Google
+     Places-backed, Section 4 "Locations" bullet).
+  2. **Plan your first journey** → the Plan tab.
+  3. **Add your gear** → the same checklist-style add flow (jacket/shoes/
+     umbrella + optional bottoms, self-report warmth question first) the
+     original wizard's step 4 specified — unchanged in content, just
+     reachable on demand instead of forced. See the original step-4
+     sub-bullets (self-report seeding `WarmthCalibration.offsetLevels`,
+     the 1-10 warmth slider, the `substitutesForMidlayer` toggle) — those
+     details didn't change, only when this flow is reached.
+  4. **Turn on notifications** → the original wizard's notification-
+     permission screen, unchanged, reachable the same way.
+  Each hint's "done" state is computed live (any `SavedLocation`/`Journey`/
+  inventory row exists; the OS notification permission is actually
+  granted) rather than tracked as a separate flag, so it disappears the
+  moment the underlying thing becomes true regardless of how it happened
+  (e.g. adding gear from the Gear tab directly, not through this
+  checklist). "Not now" dismisses a hint indefinitely — persisted per-task
+  id, not a snooze timer — with a "Show setup tips again" reset available
+  in Settings. The whole checklist section is omitted once every hint is
+  either done or dismissed, not shown empty.
+  - Crash-reporting opt-in (Section 10.5) is **not** part of this
+    checklist — it stays off by default and is only ever surfaced/changed
+    in Settings, since (unlike the four hints above) it doesn't improve
+    personalization and so has no reason to nag.
+  - If the resolved location (either path of the single onboarding step)
+    falls outside New Zealand, show the regional-scope notice from Section
+    2.1 once, after onboarding completes — it's informational, not a
+    decision the user needs to make.
 - **Today tab, empty (no journeys yet)**: primary CTA button straight to
   Plan, not just descriptive text.
 - **Today tab, journeys exist but Inventory is empty/sparse**: still show

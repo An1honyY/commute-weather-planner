@@ -23,13 +23,22 @@
    lightweight CI workflow (Section 12.3) — set these two up now so every
    later phase benefits from them rather than retrofitting.
 2. **Onboarding + Gear/Locations CRUD** — the first-run flow from Section 4.1
-   (permission priming → Home/Work → live demo card → self-report warmth
-   question (Section 4.1, 7.5.1) → gear basics with inline photo capture,
-   Section 3.3, using the 1-10 warmth slider and jacket-only
-   `substitutesForMidlayer` toggle from Section 9.1.2, plus the optional
-   fourth bottoms/trousers entry (Section 3, 7.13) → crash-reporting
-   opt-in), plus fully working add/edit/delete for all 4 inventory
-   categories and saved locations — including tag chips for accessories
+   as originally spec'd: permission priming → Home/Work → live demo card →
+   self-report warmth question (Section 4.1, 7.5.1) → gear basics with
+   inline photo capture, Section 3.3, using the 1-10 warmth slider and
+   jacket-only `substitutesForMidlayer` toggle from Section 9.1.2, plus the
+   optional fourth bottoms/trousers entry (Section 3, 7.13) → crash-
+   reporting opt-in.
+   > **Superseded 2026-07-21** — Section 4.1 now specs a single "where are
+   > you?" onboarding step, with Home/Work, gear basics, and notification
+   > permission moved to a postponable setup checklist on Today and
+   > crash-reporting opt-in dropped to Settings-only; see DECISIONS.md. The
+   > self-report/warmth-slider/substitutesForMidlayer implementation
+   > details above didn't change, only when that flow is reached.
+
+   Also built this phase: fully working add/edit/delete for all 4
+   inventory categories and saved locations — including tag chips for
+   accessories
    (Section 7.6), the same shared warmth slider/dual-purpose toggle in the
    full Gear CRUD form (Section 4, "Gear" bullet) now including the
    `"bottoms"` `ClothingType` option, photo capture/display
