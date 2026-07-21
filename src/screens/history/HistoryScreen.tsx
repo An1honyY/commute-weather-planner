@@ -6,6 +6,7 @@ import type { RootStackParamList } from "../../navigation/types";
 import { listPastJourneys } from "../../db/repositories/journeys";
 import { groupJourneysByDay, type HistorySection } from "../../lib/historyGrouping";
 import HistoryRow from "./HistoryRow";
+import useTheme from "../../theme/useTheme";
 import type { Journey } from "../../types";
 
 // Reverse-chronological read-only journey list — docs/04-screens-navigation.md
@@ -17,6 +18,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "History">;
 const PAGE_SIZE = 30;
 
 export default function HistoryScreen({ navigation }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [journeys, setJourneys] = useState<Journey[] | undefined>(undefined); // undefined = initial load
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -96,13 +99,15 @@ export default function HistoryScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  title: { fontSize: 20, fontWeight: "600" },
-  empty: { color: "#666" },
-  listContent: { padding: 16 },
-  sectionHeader: { fontSize: 13, fontWeight: "600", color: "#5C6478", marginBottom: 8, marginTop: 12 },
-  loadMoreButton: { alignItems: "center", paddingVertical: 12 },
-  loadMoreLabel: { fontWeight: "600", fontSize: 13 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+    title: { fontSize: 20, fontWeight: "600", color: theme.textPrimary },
+    empty: { color: theme.textSecondary },
+    listContent: { padding: 16 },
+    sectionHeader: { fontSize: 13, fontWeight: "600", color: theme.textSecondary, marginBottom: 8, marginTop: 12 },
+    loadMoreButton: { alignItems: "center", paddingVertical: 12 },
+    loadMoreLabel: { fontWeight: "600", fontSize: 13, color: theme.textPrimary },
+  });
+}

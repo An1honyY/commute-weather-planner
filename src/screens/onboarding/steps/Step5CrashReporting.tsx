@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { setCrashReportingEnabled } from "../../../db/repositories/settings";
 import { withTimeout } from "../../../lib/withTimeout";
+import useTheme from "../../../theme/useTheme";
 
 // docs/04-screens-navigation.md §4.1 step 5 — a single toggle, defaulted
 // off, changeable later in Settings (Phase 5). Skipping this step leaves
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export default function Step5CrashReporting({ onFinish }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [enabled, setEnabled] = useState(false);
 
   async function finish() {
@@ -37,12 +40,14 @@ export default function Step5CrashReporting({ onFinish }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "700" },
-  row: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 },
-  textCol: { flex: 1 },
-  body: { fontSize: 14, color: "#5C6478", lineHeight: 20 },
-  primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  primaryLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: theme.bg },
+    title: { fontSize: 22, fontWeight: "700", color: theme.textPrimary },
+    row: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 },
+    textCol: { flex: 1 },
+    body: { fontSize: 14, color: theme.textSecondary, lineHeight: 20 },
+    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    primaryLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
+  });
+}

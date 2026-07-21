@@ -1,4 +1,4 @@
-import { NavigationContainer } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabs from "./MainTabs";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
@@ -6,6 +6,8 @@ import JourneyDetailScreen from "../screens/journey-detail/JourneyDetailScreen";
 import HistoryScreen from "../screens/history/HistoryScreen";
 import LocalKnowledgeScreen from "../screens/local-knowledge/LocalKnowledgeScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
+import useTheme from "../theme/useTheme";
+import { darkTheme } from "../theme/tokens";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -20,8 +22,25 @@ interface Props {
 }
 
 export default function RootNavigator({ needsOnboarding = false }: Props) {
+  const theme = useTheme();
+  const isDark = theme === darkTheme;
+  // §9.1 — resolved token object already reflects system/light/dark, so
+  // React Navigation's own chrome (headers, tab bar) just needs its colors
+  // mapped from the same source rather than tracking theme separately.
+  const navigationTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      primary: theme.accentWalk,
+      background: theme.bg,
+      card: theme.surface,
+      text: theme.textPrimary,
+      border: theme.border,
+      notification: theme.conditionStorm,
+    },
+  };
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator initialRouteName={needsOnboarding ? "Onboarding" : "Main"}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />

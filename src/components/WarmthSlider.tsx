@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import useTheme from "../theme/useTheme";
 
 // Shared warmth-rating control — docs/09-design-system.md §9.1.2. A 1-10
 // stepped slider (implemented as ten tappable segments rather than a drag
@@ -10,7 +11,6 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 // basics step and the full Gear CRUD form (docs/04-screens-navigation.md
 // §4.1/§4).
 const SEGMENTS = Array.from({ length: 10 }, (_, i) => i + 1);
-const ACCENT = "#C97F2E"; // accentWalk (light theme) — full token system lands Phase 5
 
 interface Props {
   value: number;
@@ -27,6 +27,8 @@ export default function WarmthSlider({
   substitutesForMidlayer,
   onToggleSubstitutes,
 }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   return (
     <View>
       <Text style={styles.currentValue}>{value}</Text>
@@ -64,15 +66,17 @@ export default function WarmthSlider({
   );
 }
 
-const styles = StyleSheet.create({
-  currentValue: { textAlign: "center", fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  track: { flexDirection: "row", gap: 4, height: 44 },
-  segment: { flex: 1, borderRadius: 4, backgroundColor: "#DDE1EA" },
-  segmentFilled: { backgroundColor: ACCENT },
-  anchors: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  anchorLabel: { fontSize: 11, color: "#5C6478", flexShrink: 1, maxWidth: "48%" },
-  substitutesRow: { flexDirection: "row", alignItems: "center", marginTop: 16, gap: 12 },
-  substitutesTextCol: { flex: 1 },
-  substitutesLabel: { fontSize: 15, fontWeight: "600" },
-  substitutesContext: { fontSize: 13, color: "#5C6478", marginTop: 2 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    currentValue: { textAlign: "center", fontSize: 22, fontWeight: "700", marginBottom: 8, color: theme.textPrimary },
+    track: { flexDirection: "row", gap: 4, height: 44 },
+    segment: { flex: 1, borderRadius: 4, backgroundColor: theme.border },
+    segmentFilled: { backgroundColor: theme.accentWalk },
+    anchors: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+    anchorLabel: { fontSize: 11, color: theme.textSecondary, flexShrink: 1, maxWidth: "48%" },
+    substitutesRow: { flexDirection: "row", alignItems: "center", marginTop: 16, gap: 12 },
+    substitutesTextCol: { flex: 1 },
+    substitutesLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    substitutesContext: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  });
+}

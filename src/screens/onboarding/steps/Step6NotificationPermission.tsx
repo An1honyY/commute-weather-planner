@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LEAVE_BY_LEAD_MINUTES, requestNotificationPermission } from "../../../lib/notifications";
+import useTheme from "../../../theme/useTheme";
 
 // docs/07-recommendation-engine.md §7.3 — "request notification permission
 // from the onboarding flow... not silently on app launch." Modeled on
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export default function Step6NotificationPermission({ onNext }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [requesting, setRequesting] = useState(false);
 
   async function allow() {
@@ -40,12 +43,14 @@ export default function Step6NotificationPermission({ onNext }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "700" },
-  body: { fontSize: 15, color: "#5C6478", lineHeight: 22 },
-  primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  primaryLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
-  skipButton: { marginTop: 12, alignItems: "center", paddingVertical: 10 },
-  skipLabel: { color: "#5C6478" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: theme.bg },
+    title: { fontSize: 22, fontWeight: "700", color: theme.textPrimary },
+    body: { fontSize: 15, color: theme.textSecondary, lineHeight: 22 },
+    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    primaryLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
+    skipButton: { marginTop: 12, alignItems: "center", paddingVertical: 10 },
+    skipLabel: { color: theme.textSecondary },
+  });
+}

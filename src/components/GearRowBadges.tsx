@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
+import useTheme from "../theme/useTheme";
 
 // Unavailability + wash-reminder badges — docs/09-design-system.md §9.4.3.
 // Mutually exclusive: an item already out for laundry doesn't also show
@@ -30,6 +31,8 @@ interface Props {
 }
 
 export default function GearRowBadges({ item, onTapUnavailable, onTapWashReminder }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   // Date.now() is impure to call during render — the sanctioned pattern is
   // a useState lazy initializer, which only ever runs once at mount
   // (react-hooks/purity). Good enough for a list-row badge that re-renders
@@ -65,15 +68,17 @@ export default function GearRowBadges({ item, onTapUnavailable, onTapWashReminde
   return null;
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: "#DDE1EA",
-  },
-  washBadge: { backgroundColor: "#C97327" },
-  badgeLabel: { fontSize: 11, color: "#1A1E29" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    badge: {
+      alignSelf: "flex-start",
+      marginTop: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: theme.border,
+    },
+    washBadge: { backgroundColor: theme.uvBadge },
+    badgeLabel: { fontSize: 11, color: theme.textPrimary },
+  });
+}

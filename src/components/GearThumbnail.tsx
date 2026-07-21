@@ -1,4 +1,5 @@
 import { Image, StyleSheet, Text, View } from "react-native";
+import useTheme from "../theme/useTheme";
 
 // Small list-row thumbnail — docs/03-data-models.md §3.3: "~40px thumbnail
 // next to the item name wherever gear is listed... missing photo falls back
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export default function GearThumbnail({ photoUri, kind, dimmed }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   return (
     <View style={[styles.container, dimmed && styles.dimmed]}>
       {photoUri ? (
@@ -28,17 +31,19 @@ export default function GearThumbnail({ photoUri, kind, dimmed }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "#F6F7FA",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  dimmed: { opacity: 0.6 },
-  image: { width: "100%", height: "100%" },
-  glyph: { fontSize: 18 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
+      backgroundColor: theme.bg,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    dimmed: { opacity: 0.6 },
+    image: { width: "100%", height: "100%" },
+    glyph: { fontSize: 18 },
+  });
+}

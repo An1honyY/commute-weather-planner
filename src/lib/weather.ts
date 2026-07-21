@@ -18,6 +18,19 @@ export function classifyWeather(code: number, mm: number, windKph: number): Weat
   return { label: "Dry", icon: "☀", severity: 0 };
 }
 
+export type RainIntensity = "none" | "low" | "med" | "high";
+
+// §6, §9.5 — the hourly rain-intensity gauge's bucket, distinct from
+// classifyWeather()'s severity: gated on precipProbability first (a 90%
+// chance of a light shower reads differently from a 10% chance of the
+// same amount), then precipMm within that.
+export function rainIntensityBucket(precipMm: number, precipProbabilityPct: number): RainIntensity {
+  if (precipProbabilityPct < 20) return "none";
+  if (precipMm < 0.5) return "low";
+  if (precipMm <= 4) return "med";
+  return "high";
+}
+
 // Default indoor climate per mode — refine later if AT exposes vehicle data.
 // `null` means "no default guess to apply" (walk/cycle are outdoor, and
 // drive is treated as unaffected by outside weather either way) — only

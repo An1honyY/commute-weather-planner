@@ -4,10 +4,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import { createLocation, deleteLocation, listLocations, updateLocation } from "../../db/repositories/locations";
 import type { SavedLocation } from "../../types";
 import LocationForm, { type LocationFormValues } from "./LocationForm";
+import useTheme from "../../theme/useTheme";
 
 type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; location: SavedLocation };
 
 export default function LocationsScreen() {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [mode, setMode] = useState<Mode>({ kind: "list" });
@@ -94,7 +97,13 @@ export default function LocationsScreen() {
                   <Text style={styles.rowLabel}>{item.label}</Text>
                   <Text style={styles.rowAddress}>{item.address}</Text>
                 </View>
-                <Pressable onPress={() => toggleFavorite(item)} hitSlop={8} style={styles.starButton}>
+                <Pressable
+                  onPress={() => toggleFavorite(item)}
+                  hitSlop={8}
+                  style={styles.starButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.isFavorite ? `Remove ${item.label} from favorites` : `Add ${item.label} to favorites`}
+                >
                   <Text style={[styles.star, item.isFavorite && styles.starActive]}>
                     {item.isFavorite ? "★" : "☆"}
                   </Text>
@@ -108,27 +117,29 @@ export default function LocationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  title: { fontSize: 20, fontWeight: "600" },
-  empty: { color: "#666" },
-  listContent: { padding: 16, gap: 8 },
-  addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA", marginBottom: 8 },
-  addButtonLabel: { fontWeight: "600" },
-  divider: { height: 1, backgroundColor: "#DDE1EA", marginVertical: 8 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: "#F6F7FA",
-    marginBottom: 8,
-  },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  rowAddress: { fontSize: 13, color: "#5C6478", marginTop: 2 },
-  starButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  star: { fontSize: 20, color: "#5C6478" },
-  starActive: { color: "#B8860B" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    title: { fontSize: 20, fontWeight: "600", color: theme.textPrimary },
+    empty: { color: theme.textSecondary },
+    listContent: { padding: 16, gap: 8 },
+    addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border, marginBottom: 8 },
+    addButtonLabel: { fontWeight: "600", color: theme.textPrimary },
+    divider: { height: 1, backgroundColor: theme.border, marginVertical: 8 },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+      marginBottom: 8,
+    },
+    rowText: { flex: 1 },
+    rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    rowAddress: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+    starButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+    star: { fontSize: 20, color: theme.textSecondary },
+    starActive: { color: theme.favoriteStar },
+  });
+}

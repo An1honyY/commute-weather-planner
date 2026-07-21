@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import useTheme from "../../../theme/useTheme";
 
 // docs/04-screens-navigation.md §4.1 step 3 — "the payoff-before-effort
 // moment": one real Open-Meteo call before asking for any gear, explicitly
@@ -32,6 +33,8 @@ interface Props {
 }
 
 export default function Step3LiveDemo({ coords, onNext }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [weather, setWeather] = useState<DemoWeather | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -89,16 +92,18 @@ export default function Step3LiveDemo({ coords, onNext }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "700" },
-  fallbackLabel: { fontSize: 13, color: "#5C6478" },
-  card: { marginTop: 16, padding: 20, borderRadius: 12, backgroundColor: "#F6F7FA", gap: 8 },
-  temp: { fontSize: 36, fontWeight: "700" },
-  condition: { fontSize: 15, color: "#5C6478" },
-  body: { fontSize: 14, color: "#5C6478" },
-  placeholderRow: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#DDE1EA" },
-  placeholderText: { fontSize: 13, fontStyle: "italic", color: "#5C6478" },
-  primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  primaryLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: theme.bg },
+    title: { fontSize: 22, fontWeight: "700", color: theme.textPrimary },
+    fallbackLabel: { fontSize: 13, color: theme.textSecondary },
+    card: { marginTop: 16, padding: 20, borderRadius: 12, backgroundColor: theme.surface, gap: 8 },
+    temp: { fontSize: 36, fontWeight: "700", color: theme.textPrimary },
+    condition: { fontSize: 15, color: theme.textSecondary },
+    body: { fontSize: 14, color: theme.textSecondary },
+    placeholderRow: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.border },
+    placeholderText: { fontSize: 13, fontStyle: "italic", color: theme.textSecondary },
+    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    primaryLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
+  });
+}

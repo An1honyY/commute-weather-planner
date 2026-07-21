@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRecommendation } from "../../lib/useRecommendation";
+import useTheme from "../../theme/useTheme";
 import type { Journey } from "../../types";
 
 // History's compact row — docs/09-design-system.md §9.4.2: "same row
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export default function HistoryRow({ journey, onPress }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const snapshot = journey.recommendationSnapshot;
   // Only recompute against current inventory when there's no frozen
   // snapshot to read — useRecommendation no-ops on a null journey.
@@ -50,12 +53,14 @@ export default function HistoryRow({ journey, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: { padding: 12, borderRadius: 12, backgroundColor: "#F6F7FA", marginBottom: 12, gap: 6 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  route: { fontSize: 15, fontWeight: "600" },
-  time: { fontSize: 12, color: "#5C6478" },
-  recRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  topRecommendation: { fontSize: 13, color: "#1A1E29" },
-  recomputedTag: { fontSize: 11, color: "#5C6478" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    card: { padding: 12, borderRadius: 12, backgroundColor: theme.surface, marginBottom: 12, gap: 6 },
+    headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    route: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    time: { fontSize: 12, color: theme.textSecondary },
+    recRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    topRecommendation: { fontSize: 13, color: theme.textPrimary },
+    recomputedTag: { fontSize: 11, color: theme.textSecondary },
+  });
+}

@@ -1,4 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
+import useTheme from "../../theme/useTheme";
+import { conditionColorForSeverity } from "../../theme/tokens";
+import { classifyWeather } from "../../lib/weather";
+import { HIGH_WIND_KPH } from "../../lib/recommend";
 import type { JourneyLeg } from "../../types";
 
 // One row per JourneyLeg — docs/09-design-system.md §9.3 item 5.
@@ -38,11 +42,24 @@ interface Props {
 }
 
 export default function LegRow({ leg }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const icon = leg.isStationary ? "🧍" : !leg.outdoor ? (leg.climate === "ac" ? "AC" : leg.climate === "heated" ? "Heated" : "🏢") : MODE_ICON[leg.mode] ?? "•";
   const isPill = !leg.outdoor && !leg.isStationary;
+  const condition = leg.outdoor && leg.weather ? classifyWeather(leg.weather.weatherCode, leg.weather.precipMm, leg.weather.windKph) : undefined;
+  // §9.6 — one coherent screen-reader label per row (icon + text + badge
+  // read as a single stop) rather than three separate ones.
+  const accessibilityLabel = [
+    leg.label,
+    `${leg.durationMin} minutes`,
+    leg.weather ? `${Math.round(leg.weather.apparentTempC)} degrees` : undefined,
+    condition?.label,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
-    <View style={styles.row}>
+    <View style={styles.row} accessible accessibilityLabel={accessibilityLabel}>
       <View style={[styles.iconCircle, isPill && styles.pillCircle]}>
         <Text style={isPill ? styles.pillLabel : styles.iconGlyph}>{icon}</Text>
       </View>
@@ -54,9 +71,12 @@ export default function LegRow({ leg }: Props) {
         {annotationEffectLine(leg) && <Text style={styles.annotationLine}>{annotationEffectLine(leg)}</Text>}
       </View>
       <View style={styles.badgeColumn}>
-        {leg.outdoor && leg.weather && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{Math.round(leg.weather.apparentTempC)}°C</Text>
+        {leg.outdoor && leg.weather && condition && (
+          <View style={[styles.badge, { backgroundColor: conditionColorForSeverity(theme, condition.severity) }]}>
+            <Text style={styles.badgeText}>
+              {condition.icon} {Math.round(leg.weather.apparentTempC)}°C
+              {leg.weather.windKph > HIGH_WIND_KPH ? ` · ${Math.round(leg.weather.windKph)} km/h` : ""}
+            </Text>
           </View>
         )}
         {(leg.mode === "bus" || leg.mode === "train") && leg.delayMinutes !== undefined && (
@@ -69,21 +89,25 @@ export default function LegRow({ leg }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, backgroundColor: "#F6F7FA", marginBottom: 12 },
-  iconCircle: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#DDE1EA" },
-  pillCircle: { width: "auto", paddingHorizontal: 8, borderRadius: 8, backgroundColor: "#5CC8E8" },
-  iconGlyph: { fontSize: 16 },
-  pillLabel: { fontSize: 11, fontWeight: "600", color: "#FFFFFF" },
-  center: { flex: 1 },
-  label: { fontSize: 15, fontWeight: "600" },
-  meta: { fontSize: 12, color: "#5C6478", marginTop: 2 },
-  annotationLine: { fontSize: 12, color: "#C97F2E", marginTop: 2 },
-  badgeColumn: { alignItems: "flex-end", gap: 4 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#DDE1EA" },
-  badgeText: { fontSize: 12, fontWeight: "600" },
-  delayPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  delayPillOnTime: { backgroundColor: "#DDE1EA" },
-  delayPillLate: { backgroundColor: "#F0B95C" },
-  delayPillText: { fontSize: 11, fontWeight: "600" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, backgroundColor: theme.surface, marginBottom: 12 },
+    iconCircle: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: theme.border },
+    pillCircle: { width: "auto", paddingHorizontal: 8, borderRadius: 8, backgroundColor: theme.acBadge },
+    iconGlyph: { fontSize: 16 },
+    pillLabel: { fontSize: 11, fontWeight: "600", color: "#FFFFFF" },
+    center: { flex: 1 },
+    label: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    meta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
+    annotationLine: { fontSize: 12, color: theme.accentWalk, marginTop: 2 },
+    badgeColumn: { alignItems: "flex-end", gap: 4 },
+    badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: theme.border },
+    // White text on top of a condition* fill (§9.1) for contrast, matching
+    // the severe-weather banner's same badge-on-condition-color pattern.
+    badgeText: { fontSize: 12, fontWeight: "600", color: "#FFFFFF" },
+    delayPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+    delayPillOnTime: { backgroundColor: theme.border },
+    delayPillLate: { backgroundColor: theme.uvBadge },
+    delayPillText: { fontSize: 11, fontWeight: "600", color: theme.textPrimary },
+  });
+}

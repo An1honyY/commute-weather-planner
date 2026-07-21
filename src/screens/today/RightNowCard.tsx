@@ -1,6 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRightNow } from "../../lib/useRightNow";
 import { classifyWeather } from "../../lib/weather";
+import useTheme from "../../theme/useTheme";
 
 // "Right now" card — docs/09-design-system.md §9.3.1, docs/04-screens-
 // navigation.md §4.2. A smaller self-contained version of the gear
@@ -11,6 +12,8 @@ function pickLabel(pick: { name: string } | { fallbackText: string }): { text: s
 }
 
 export default function RightNowCard() {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const { loading, weather, recommendation, isFallbackLocation } = useRightNow();
 
   if (loading) {
@@ -68,18 +71,28 @@ export default function RightNowCard() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: { padding: 16, borderRadius: 12, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DDE1EA", gap: 8, marginBottom: 16 },
-  title: { fontSize: 15, fontWeight: "600" },
-  fallbackLocationLabel: { fontSize: 12, color: "#5C6478" },
-  conditionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  conditionIcon: { fontSize: 20 },
-  temp: { fontSize: 24, fontWeight: "700" },
-  conditionLabel: { fontSize: 14, color: "#5C6478" },
-  uvBadge: { marginLeft: "auto", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#C97327" },
-  uvBadgeText: { fontSize: 11, color: "#FFFFFF", fontWeight: "600" },
-  picksRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  pickText: { fontSize: 13, fontWeight: "600" },
-  fallback: { fontSize: 13, fontStyle: "italic", color: "#5C6478" },
-  asOf: { fontSize: 11, color: "#9AA3B8" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    card: {
+      padding: 16,
+      borderRadius: 12,
+      backgroundColor: theme.surfaceRaised,
+      borderWidth: theme.surfaceRaisedBorder === "transparent" ? 0 : 1,
+      borderColor: theme.surfaceRaisedBorder,
+      gap: 8,
+      marginBottom: 16,
+    },
+    title: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    fallbackLocationLabel: { fontSize: 12, color: theme.textSecondary },
+    conditionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    conditionIcon: { fontSize: 20 },
+    temp: { fontSize: 24, fontWeight: "700", color: theme.textPrimary },
+    conditionLabel: { fontSize: 14, color: theme.textSecondary },
+    uvBadge: { marginLeft: "auto", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: theme.uvBadge },
+    uvBadgeText: { fontSize: 11, color: "#FFFFFF", fontWeight: "600" },
+    picksRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    pickText: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
+    fallback: { fontSize: 13, fontStyle: "italic", color: theme.textSecondary },
+    asOf: { fontSize: 11, color: theme.textSecondary },
+  });
+}

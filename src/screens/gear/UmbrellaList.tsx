@@ -7,15 +7,32 @@ import UmbrellaForm from "./UmbrellaForm";
 import GearThumbnail from "../../components/GearThumbnail";
 import GearRowBadges from "../../components/GearRowBadges";
 import UnavailabilitySheet from "../../components/UnavailabilitySheet";
+import useTheme from "../../theme/useTheme";
 
 type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; item: UmbrellaItem };
 
-export default function UmbrellaList() {
+interface Props {
+  // §9.6 — set when GearRecommendationCard's fallback text sent the user
+  // here to add an umbrella; opens straight into the add form.
+  autoOpenAdd?: boolean;
+}
+
+export default function UmbrellaList({ autoOpenAdd }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [items, setItems] = useState<UmbrellaItem[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [mode, setMode] = useState<Mode>({ kind: "list" });
+  const [mode, setMode] = useState<Mode>(autoOpenAdd ? { kind: "add" } : { kind: "list" });
   const [unavailabilityTarget, setUnavailabilityTarget] = useState<UmbrellaItem | null>(null);
   const [nowMs] = useState(() => Date.now());
+
+  // "Adjusting state when a prop changes" (render-time, not an effect) —
+  // see ClothingList.tsx for why autoOpenAdd only ever holds true briefly.
+  const [consumedAutoOpenAdd, setConsumedAutoOpenAdd] = useState(autoOpenAdd);
+  if (autoOpenAdd !== consumedAutoOpenAdd) {
+    setConsumedAutoOpenAdd(autoOpenAdd);
+    if (autoOpenAdd) setMode({ kind: "add" });
+  }
 
   const reload = useCallback(() => {
     listUmbrellas().then((rows) => {
@@ -131,16 +148,18 @@ export default function UmbrellaList() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  empty: { color: "#666" },
-  listContent: { padding: 16, gap: 8 },
-  addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA", marginBottom: 8 },
-  addButtonLabel: { fontWeight: "600" },
-  row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 12, backgroundColor: "#F6F7FA", marginBottom: 8 },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  dimmedText: { opacity: 0.6 },
-  rowMeta: { fontSize: 13, color: "#5C6478", marginTop: 2 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    empty: { color: theme.textSecondary },
+    listContent: { padding: 16, gap: 8 },
+    addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border, marginBottom: 8 },
+    addButtonLabel: { fontWeight: "600", color: theme.textPrimary },
+    row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 12, backgroundColor: theme.surface, marginBottom: 8 },
+    rowText: { flex: 1 },
+    rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    dimmedText: { opacity: 0.6 },
+    rowMeta: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  });
+}

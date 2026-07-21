@@ -5,13 +5,14 @@ import * as Notifications from "expo-notifications";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getDb } from "./src/db";
-import { isOnboardingCompleted } from "./src/db/repositories/settings";
+import { getThemePreference, isOnboardingCompleted } from "./src/db/repositories/settings";
 import { listUpcomingJourneys } from "./src/db/repositories/journeys";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { withTimeout } from "./src/lib/withTimeout";
 import { freezeJourneyByIdIfDue } from "./src/lib/leaveBy";
 import { runCalibrationDecayIfDue } from "./src/lib/calibration";
 import { checkForecastDrift } from "./src/lib/forecastDrift";
+import { useThemeStore } from "./src/theme/useThemeStore";
 
 // §5.2 — same-day journeys get re-checked at 3h/30min out; this foreground
 // supplement instead just covers "anything departing soon enough that a
@@ -34,6 +35,12 @@ export default function App() {
       .then(() => withTimeout(isOnboardingCompleted(), false))
       .then((completed) => setNeedsOnboarding(!completed))
       .finally(() => setReady(true));
+    // §9.1 — load the persisted theme preference into the in-memory store
+    // once at startup; Settings writes both the DB row and the store on
+    // every change, so this is the only cold-start read needed.
+    withTimeout(getThemePreference(), "system").then((preference) =>
+      useThemeStore.getState().setThemePreference(preference)
+    );
   }, []);
 
   useEffect(() => {

@@ -7,11 +7,14 @@ import type { RootStackParamList } from "../../navigation/types";
 import type { Journey } from "../../types";
 import RightNowCard from "./RightNowCard";
 import JourneyCard from "./JourneyCard";
+import useTheme from "../../theme/useTheme";
 
 // Home/dashboard tab — docs/04-screens-navigation.md item 1, wired to real
 // recurring-journey materialization and the reduced "Right now" path
 // (docs/08-build-phases.md Phase 5).
 export default function TodayScreen() {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [journeys, setJourneys] = useState<Journey[] | null>(null);
   // Date.now() is impure to call during render — a useState lazy
@@ -63,9 +66,11 @@ export default function TodayScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 16 },
-  emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 48 },
-  empty: { color: "#666" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    content: { padding: 16 },
+    emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 48 },
+    empty: { color: theme.textSecondary },
+  });
+}

@@ -8,6 +8,8 @@ import { createSavedRoute, listSavedRoutes, touchSavedRoute } from "../../db/rep
 import { updateJourney } from "../../db/repositories/journeys";
 import { planJourney } from "../../lib/planJourney";
 import SavedLocationPicker from "../../components/SavedLocationPicker";
+import HourlyStrip from "../../components/HourlyStrip";
+import useTheme from "../../theme/useTheme";
 import type { CarryPreference, SavedLocation, SavedRoute, TravelMode } from "../../types";
 
 // Journey planner — docs/04-screens-navigation.md §4.3/§4.3.1, wired to the
@@ -39,6 +41,8 @@ function nowTimeStr(): string {
 }
 
 export default function PlanScreen() {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [locations, setLocations] = useState<SavedLocation[]>([]);
@@ -153,6 +157,12 @@ export default function PlanScreen() {
     }
   }
 
+  // §9.5 — feeds the hourly rain strip below the date/time fields; invalid
+  // in-progress typing (mid-edit date/time text) simply omits the strip
+  // rather than crashing on an "Invalid Date" .toISOString() call.
+  const selectedDepartTime = new Date(`${dateStr}T${timeStr}:00`);
+  const selectedDepartTimeIso = isNaN(selectedDepartTime.getTime()) ? undefined : selectedDepartTime.toISOString();
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {savedRoutes.length > 0 && (
@@ -198,6 +208,9 @@ export default function PlanScreen() {
         <TextInput style={[styles.input, styles.flex1]} value={dateStr} onChangeText={setDateStr} placeholder="YYYY-MM-DD" />
         <TextInput style={[styles.input, styles.flex1]} value={timeStr} onChangeText={setTimeStr} placeholder="HH:mm" />
       </View>
+      {origin && selectedDepartTimeIso && (
+        <HourlyStrip origin={{ lat: origin.lat, lng: origin.lng }} fromIso={selectedDepartTimeIso} />
+      )}
 
       <Text style={styles.label}>Mode</Text>
       <View style={styles.row}>
@@ -251,39 +264,41 @@ export default function PlanScreen() {
       </View>
 
       <Pressable onPress={handlePlanJourney} disabled={planning} style={[styles.planButton, planning && styles.planButtonDisabled]}>
-        {planning ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.planButtonLabel}>Plan journey</Text>}
+        {planning ? <ActivityIndicator color={theme.bg} /> : <Text style={styles.planButtonLabel}>Plan journey</Text>}
       </Pressable>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 4 },
-  chipRow: { marginBottom: 8 },
-  routeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: "#F6F7FA", marginRight: 8 },
-  routeChipLabel: { fontSize: 13, fontWeight: "600" },
-  waypointRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
-  waypointPicker: { flex: 1 },
-  removeStop: { width: 32, height: 44, alignItems: "center", justifyContent: "center" },
-  removeStopLabel: { fontSize: 18, color: "#5C6478" },
-  addStopLabel: { color: "#5C6478", fontSize: 13, marginTop: 8, marginBottom: 8 },
-  label: { fontSize: 13, color: "#5C6478", marginTop: 16, marginBottom: 4 },
-  row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  flex1: { flex: 1 },
-  input: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  modeChip: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  modeChipActive: { backgroundColor: "#1A1E29", borderColor: "#1A1E29" },
-  modeChipLabel: { fontSize: 13 },
-  modeChipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-  moreModesLabel: { color: "#5C6478", fontSize: 12, marginTop: 8 },
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16, minHeight: 44 },
-  carryChip: { alignSelf: "flex-start", marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  carryChipLabel: { fontSize: 13 },
-  dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DDE1EA" },
-  dayChipActive: { backgroundColor: "#1A1E29", borderColor: "#1A1E29" },
-  dayChipLabel: { fontSize: 11 },
-  dayChipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-  planButton: { marginTop: 24, marginBottom: 40, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  planButtonDisabled: { opacity: 0.6 },
-  planButtonLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 4, backgroundColor: theme.bg },
+    chipRow: { marginBottom: 8 },
+    routeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.surface, marginRight: 8 },
+    routeChipLabel: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
+    waypointRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+    waypointPicker: { flex: 1 },
+    removeStop: { width: 32, height: 44, alignItems: "center", justifyContent: "center" },
+    removeStopLabel: { fontSize: 18, color: theme.textSecondary },
+    addStopLabel: { color: theme.textSecondary, fontSize: 13, marginTop: 8, marginBottom: 8 },
+    label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
+    row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    flex1: { flex: 1 },
+    input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
+    modeChip: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    modeChipActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
+    modeChipLabel: { fontSize: 13, color: theme.textPrimary },
+    modeChipLabelActive: { color: theme.bg, fontWeight: "600" },
+    moreModesLabel: { color: theme.textSecondary, fontSize: 12, marginTop: 8 },
+    switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16, minHeight: 44 },
+    carryChip: { alignSelf: "flex-start", marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    carryChipLabel: { fontSize: 13, color: theme.textPrimary },
+    dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.border },
+    dayChipActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
+    dayChipLabel: { fontSize: 11, color: theme.textPrimary },
+    dayChipLabelActive: { color: theme.bg, fontWeight: "600" },
+    planButton: { marginTop: 24, marginBottom: 40, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    planButtonDisabled: { opacity: 0.6 },
+    planButtonLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
+  });
+}

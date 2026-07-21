@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import useTheme from "../theme/useTheme";
 
 // Quick-select tag chips — docs/07-recommendation-engine.md §7.6: "quick-
 // select chips in the Gear CRUD add/edit form, not free text, so the engine
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export default function TagChips({ options, selected, onChange }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   function toggle(tag: string) {
     onChange(selected.includes(tag) ? selected.filter((t) => t !== tag) : [...selected, tag]);
   }
@@ -38,18 +41,20 @@ export default function TagChips({ options, selected, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#DDE1EA",
-    minHeight: 36,
-    justifyContent: "center",
-  },
-  chipActive: { backgroundColor: "#C97F2E", borderColor: "#C97F2E" },
-  chipLabel: { fontSize: 13, color: "#1A1E29" },
-  chipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      minHeight: 36,
+      justifyContent: "center",
+    },
+    chipActive: { backgroundColor: theme.accentWalk, borderColor: theme.accentWalk },
+    chipLabel: { fontSize: 13, color: theme.textPrimary },
+    chipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
+  });
+}

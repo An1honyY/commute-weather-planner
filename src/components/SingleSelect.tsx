@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import useTheme from "../theme/useTheme";
 
 // Single-select chip row for small enum fields (ShoeType, grip, windRating,
 // VehicleType, weatherProtection, ClothingType) — same visual language as
@@ -11,6 +12,8 @@ interface Props<T extends string> {
 }
 
 export default function SingleSelect<T extends string>({ options, value, onChange, labels }: Props<T>) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   return (
     <View style={styles.row}>
       {options.map((option) => {
@@ -31,18 +34,20 @@ export default function SingleSelect<T extends string>({ options, value, onChang
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#DDE1EA",
-    minHeight: 36,
-    justifyContent: "center",
-  },
-  chipActive: { backgroundColor: "#1A1E29", borderColor: "#1A1E29" },
-  chipLabel: { fontSize: 13, color: "#1A1E29" },
-  chipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+      minHeight: 36,
+      justifyContent: "center",
+    },
+    chipActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
+    chipLabel: { fontSize: 13, color: theme.textPrimary },
+    chipLabelActive: { color: theme.bg, fontWeight: "600" },
+  });
+}

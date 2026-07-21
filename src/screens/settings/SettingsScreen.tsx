@@ -12,6 +12,8 @@ import {
 } from "../../db/repositories/settings";
 import { getAdvancedThresholds, saveAdvancedThresholds } from "../../db/repositories/advancedThresholds";
 import { getWarmthCalibration, setWindSensitivityOffset } from "../../db/repositories/calibration";
+import { useThemeStore } from "../../theme/useThemeStore";
+import useTheme from "../../theme/useTheme";
 import type { AdvancedWarmthThresholds, CarryPreference, WarmthCalibration } from "../../types";
 
 // docs/09-design-system.md §9.1/§9.1.1, docs/08-build-phases.md Phase 5's
@@ -46,6 +48,8 @@ const SEASON_LABELS: { key: "winter" | "summer" | "shoulder"; label: string }[] 
 ];
 
 export default function SettingsScreen() {
+  const colors = useTheme();
+  const styles = getStyles(colors);
   const [theme, setTheme] = useState<ThemePreference>("system");
   const [carryPreference, setCarryPreference] = useState<CarryPreference>("no-preference");
   const [crashReporting, setCrashReporting] = useState(false);
@@ -65,6 +69,7 @@ export default function SettingsScreen() {
 
   async function selectTheme(value: ThemePreference) {
     setTheme(value);
+    useThemeStore.getState().setThemePreference(value);
     await setThemePreference(value);
   }
 
@@ -220,23 +225,25 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 4 },
-  sectionTitle: { fontSize: 15, fontWeight: "600", marginTop: 24, marginBottom: 8 },
-  body: { fontSize: 13, color: "#5C6478" },
-  segmentRow: { flexDirection: "row", gap: 8 },
-  segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA", alignItems: "center" },
-  segmentActive: { backgroundColor: "#1A1E29", borderColor: "#1A1E29" },
-  segmentLabel: { fontSize: 13 },
-  segmentLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-  carryChip: { alignSelf: "flex-start", marginTop: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  carryChipLabel: { fontSize: 13 },
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 44 },
-  advancedHeader: { marginTop: 24 },
-  advancedBody: { marginTop: 12, gap: 4 },
-  label: { fontSize: 13, fontWeight: "600", marginTop: 12 },
-  windSensitivityLabel: { marginTop: 16 },
-  hint: { fontSize: 12, color: "#5C6478", marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  resetLabel: { color: "#C97F2E", marginTop: 16, fontSize: 13 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 4, backgroundColor: theme.bg },
+    sectionTitle: { fontSize: 15, fontWeight: "600", marginTop: 24, marginBottom: 8, color: theme.textPrimary },
+    body: { fontSize: 13, color: theme.textSecondary },
+    segmentRow: { flexDirection: "row", gap: 8 },
+    segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border, alignItems: "center" },
+    segmentActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
+    segmentLabel: { fontSize: 13, color: theme.textPrimary },
+    segmentLabelActive: { color: theme.bg, fontWeight: "600" },
+    carryChip: { alignSelf: "flex-start", marginTop: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    carryChipLabel: { fontSize: 13, color: theme.textPrimary },
+    switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 44 },
+    advancedHeader: { marginTop: 24 },
+    advancedBody: { marginTop: 12, gap: 4 },
+    label: { fontSize: 13, fontWeight: "600", marginTop: 12, color: theme.textPrimary },
+    windSensitivityLabel: { marginTop: 16 },
+    hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 4 },
+    input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
+    resetLabel: { color: theme.accentWalk, marginTop: 16, fontSize: 13 },
+  });
+}

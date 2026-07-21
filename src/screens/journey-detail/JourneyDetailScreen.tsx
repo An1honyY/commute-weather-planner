@@ -5,18 +5,21 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { deleteJourney, getJourney, updateJourney } from "../../db/repositories/journeys";
 import { createAnnotation, listAnnotations } from "../../db/repositories/annotations";
-import { applyAnnotationsToLegs } from "../../lib/annotations";
+import { applyAnnotationsToLegs, decodePolyline } from "../../lib/annotations";
 import { useRecommendation } from "../../lib/useRecommendation";
 import { freezeIfDue } from "../../lib/leaveBy";
 import { cancelLeaveByNotification } from "../../lib/notifications";
 import { recordGearFeedback } from "../../lib/calibration";
 import { checkForecastDrift } from "../../lib/forecastDrift";
 import { dominantMode } from "../../lib/journeyMode";
-import JourneyMap, { type MapCircle } from "../../components/JourneyMap";
+import { classifyWeather } from "../../lib/weather";
+import JourneyMap, { type ConditionMarker, type MapCircle } from "../../components/JourneyMap";
 import AnnotationForm, { type AnnotationFormValues } from "../local-knowledge/AnnotationForm";
 import GearRecommendationCard from "./GearRecommendationCard";
 import LegRow from "./LegRow";
-import type { GearFeedback, Journey } from "../../types";
+import useTheme from "../../theme/useTheme";
+import { conditionColorForSeverity } from "../../theme/tokens";
+import type { GearFeedback, Journey, JourneyLeg } from "../../types";
 
 // Core screen — docs/09-design-system.md §9.3, reading a real persisted
 // Journey (docs/08-build-phases.md Phase 4, src/db/repositories/journeys.ts)
@@ -24,13 +27,11 @@ import type { GearFeedback, Journey } from "../../types";
 // engine (Phase 5, src/lib/recommend.ts).
 type Props = NativeStackScreenProps<RootStackParamList, "JourneyDetail">;
 
-const MODE_ACCENT: Record<string, string> = {
-  walk: "#C97F2E",
-  cycle: "#C97F2E",
-  drive: "#5B63C9",
-  bus: "#2C8F86",
-  train: "#2C8F86",
-};
+function modeAccent(mode: string, theme: ReturnType<typeof useTheme>): string {
+  if (mode === "drive") return theme.accentDrive;
+  if (mode === "bus" || mode === "train") return theme.accentTransit;
+  return theme.accentWalk; // walk/cycle/hike (§9.1)
+}
 const FEEDBACK_OPTIONS: { value: GearFeedback; label: string }[] = [
   { value: "much_too_cold", label: "Much too cold" },
   { value: "too_cold", label: "Too cold" },
@@ -43,7 +44,33 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
+// §9.3 item 1 — one marker per outdoor leg with weather, at its polyline's
+// midpoint, colored/labeled from classifyWeather() via the active theme's
+// condition* tokens (§9.1). Legs without a polyline (or without weather —
+// Section 5.1's "conditions unknown" degrade) simply contribute no marker,
+// same "omit, don't placeholder" pattern used elsewhere in this screen.
+function conditionMarkersFor(legs: JourneyLeg[], theme: ReturnType<typeof useTheme>): ConditionMarker[] {
+  return legs.flatMap((leg) => {
+    if (!leg.outdoor || !leg.weather || !leg.polyline) return [];
+    const points = decodePolyline(leg.polyline);
+    if (points.length === 0) return [];
+    const mid = points[Math.floor(points.length / 2)];
+    const condition = classifyWeather(leg.weather.weatherCode, leg.weather.precipMm, leg.weather.windKph);
+    return [
+      {
+        lat: mid.lat,
+        lng: mid.lng,
+        color: conditionColorForSeverity(theme, condition.severity),
+        emoji: condition.icon,
+        label: `${leg.label}, ${condition.label}, ${Math.round(leg.weather.tempC)} degrees`,
+      },
+    ];
+  });
+}
+
 export default function JourneyDetailScreen({ route, navigation }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [journey, setJourney] = useState<Journey | undefined | null>(undefined); // undefined = loading, null = not found
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   // Date.now() is impure to call during render — a useState lazy
@@ -109,7 +136,8 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     ...(journey.waypoints?.map((w) => ({ lat: w.lat, lng: w.lng })) ?? []),
     { lat: journey.destination.lat, lng: journey.destination.lng },
   ];
-  const accentColor = MODE_ACCENT[dominantMode(journey.legs)] ?? "#1A1E29";
+  const accentColor = modeAccent(dominantMode(journey.legs), theme);
+  const conditionMarkers = conditionMarkersFor(journey.legs, theme);
 
   const totalDurationMin = journey.legs.reduce((sum, leg) => sum + leg.durationMin, 0);
   const journeyEndMs = new Date(journey.departTime).getTime() + totalDurationMin * 60_000;
@@ -194,6 +222,8 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
             accentColor={accentColor}
             onLongPress={openAnnotationSheet}
             previewCircle={previewCircle}
+            conditionMarkers={conditionMarkers}
+            previewColor={theme.annotationPin}
           />
         </View>
 
@@ -220,7 +250,12 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
         {journey.recommendationSnapshot ? (
           <GearRecommendationCard snapshot={journey.recommendationSnapshot} />
         ) : (
-          recommendation && <GearRecommendationCard recommendation={recommendation} />
+          recommendation && (
+            <GearRecommendationCard
+              recommendation={recommendation}
+              onAddGear={(target) => navigation.navigate("Main", { screen: "Gear", params: { openAdd: target } })}
+            />
+          )
         )}
 
         <View style={styles.legList}>
@@ -235,12 +270,19 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
           <Pressable
             onPress={() => navigation.push("JourneyDetail", { journeyId: journey.linkedReturnJourneyId! })}
             style={styles.returnLink}
+            accessibilityRole="button"
+            accessibilityLabel="View return trip"
           >
             <Text style={styles.returnLinkLabel}>⇄ Return trip</Text>
           </Pressable>
         )}
 
-        <Pressable onPress={confirmDelete} style={styles.deleteButton}>
+        <Pressable
+          onPress={confirmDelete}
+          style={styles.deleteButton}
+          accessibilityRole="button"
+          accessibilityLabel="Delete this journey"
+        >
           <Text style={styles.deleteButtonLabel}>Delete journey</Text>
         </Pressable>
 
@@ -259,6 +301,11 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
                   key={option.value}
                   onPress={() => giveFeedback(option.value)}
                   style={[styles.feedbackButton, option.value === "just_right" && styles.feedbackButtonPositive]}
+                  // §9.6 — 44×44pt minimum; invisible hitSlop padding keeps
+                  // the visible micro-text row at its speced size (§9.3 item 6).
+                  hitSlop={{ top: 10, bottom: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Gear was ${option.label.toLowerCase()}`}
                 >
                   <Text style={styles.feedbackLabel}>{option.label}</Text>
                 </Pressable>
@@ -293,38 +340,42 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  empty: { color: "#666" },
-  mapContainer: { height: 280, backgroundColor: "#F6F7FA" },
-  cachedBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#F2C94C" },
-  cachedBannerText: { fontSize: 12, color: "#1A1E29" },
-  severeBanner: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#8C3AB0" },
-  severeBannerText: { fontSize: 13, color: "#FFFFFF", fontWeight: "600" },
-  confidenceBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#F6F7FA" },
-  confidenceBannerText: { fontSize: 12, color: "#5C6478" },
-  legList: { paddingHorizontal: 16, paddingTop: 12 },
-  returnLink: { margin: 16, alignItems: "center", paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  returnLinkLabel: { fontWeight: "600" },
-  deleteButton: { marginHorizontal: 16, marginTop: 16, alignItems: "center", paddingVertical: 12 },
-  deleteButtonLabel: { color: "#C0392B", fontWeight: "600", fontSize: 13 },
-  feedbackContainer: { margin: 16, gap: 8 },
-  feedbackPrompt: { fontSize: 13, color: "#5C6478" },
-  feedbackRow: { flexDirection: "row", gap: 4 },
-  feedbackButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: "#F6F7FA" },
-  feedbackButtonPositive: { backgroundColor: "#3F9A5C" },
-  feedbackLabel: { fontSize: 10, textAlign: "center" },
-  calibrationToast: { marginHorizontal: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: "#1A1E29" },
-  calibrationToastText: { color: "#FFFFFF", fontSize: 12 },
-  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.35)" },
-  sheetDismissArea: { flex: 1 },
-  sheet: {
-    maxHeight: "75%",
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 12,
-  },
-  sheetTitle: { fontSize: 17, fontWeight: "600", textAlign: "center" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+    empty: { color: theme.textSecondary },
+    mapContainer: { height: 280, backgroundColor: theme.surface },
+    cachedBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.conditionLight },
+    cachedBannerText: { fontSize: 12, color: theme.textPrimary },
+    severeBanner: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: theme.conditionStorm },
+    severeBannerText: { fontSize: 13, color: "#FFFFFF", fontWeight: "600" },
+    confidenceBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.surface },
+    confidenceBannerText: { fontSize: 12, color: theme.confidenceLow },
+    legList: { paddingHorizontal: 16, paddingTop: 12 },
+    returnLink: { margin: 16, alignItems: "center", paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    returnLinkLabel: { fontWeight: "600", color: theme.textPrimary },
+    deleteButton: { marginHorizontal: 16, marginTop: 16, alignItems: "center", paddingVertical: 12 },
+    deleteButtonLabel: { color: theme.danger, fontWeight: "600", fontSize: 13 },
+    feedbackContainer: { margin: 16, gap: 8 },
+    feedbackPrompt: { fontSize: 13, color: theme.textSecondary },
+    feedbackRow: { flexDirection: "row", gap: 4 },
+    feedbackButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: theme.surface },
+    feedbackButtonPositive: { backgroundColor: theme.feedbackPositive },
+    feedbackLabel: { fontSize: 10, textAlign: "center", color: theme.textPrimary },
+    calibrationToast: { marginHorizontal: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: theme.surfaceRaised },
+    calibrationToastText: { color: theme.textPrimary, fontSize: 12 },
+    sheetBackdrop: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.35)" },
+    sheetDismissArea: { flex: 1 },
+    sheet: {
+      maxHeight: "75%",
+      backgroundColor: theme.surfaceRaised,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingTop: 12,
+      borderWidth: theme.surfaceRaisedBorder === "transparent" ? 0 : 1,
+      borderColor: theme.surfaceRaisedBorder,
+    },
+    sheetTitle: { fontSize: 17, fontWeight: "600", textAlign: "center", color: theme.textPrimary },
+  });
+}

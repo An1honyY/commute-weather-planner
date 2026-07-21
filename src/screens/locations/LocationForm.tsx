@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { SavedLocation } from "../../types";
+import useTheme from "../../theme/useTheme";
 
 // Add/edit form for a SavedLocation — docs/04-screens-navigation.md item 3.
 // Map pin-drop / Google Places address search are deferred: react-native-
@@ -39,6 +40,8 @@ interface Props {
 }
 
 export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [label, setLabel] = useState(initial?.label ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
   const [lat, setLat] = useState(initial ? String(initial.lat) : "");
@@ -120,24 +123,26 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 4 },
-  label: { fontSize: 13, color: "#5C6478", marginTop: 12, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  row: { flexDirection: "row", gap: 12 },
-  half: { flex: 1 },
-  favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, minHeight: 44 },
-  favoriteStar: { fontSize: 22, color: "#B8860B" },
-  segmentRow: { flexDirection: "row", gap: 8 },
-  segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA", alignItems: "center" },
-  segmentActive: { backgroundColor: "#1A1E29", borderColor: "#1A1E29" },
-  segmentLabel: { fontSize: 13 },
-  segmentLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-  actions: { flexDirection: "row", gap: 12, marginTop: 24 },
-  cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  saveButtonDisabled: { opacity: 0.4 },
-  saveLabel: { color: "#FFFFFF", fontWeight: "600" },
-  deleteButton: { marginTop: 16, alignItems: "center", paddingVertical: 10 },
-  deleteLabel: { color: "#B24FE3" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 4 },
+    label: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 4 },
+    input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
+    row: { flexDirection: "row", gap: 12 },
+    half: { flex: 1 },
+    favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, minHeight: 44 },
+    favoriteStar: { fontSize: 22, color: theme.favoriteStar },
+    segmentRow: { flexDirection: "row", gap: 8 },
+    segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border, alignItems: "center" },
+    segmentActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
+    segmentLabel: { fontSize: 13, color: theme.textPrimary },
+    segmentLabelActive: { color: theme.bg, fontWeight: "600" },
+    actions: { flexDirection: "row", gap: 12, marginTop: 24 },
+    cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    saveButtonDisabled: { opacity: 0.4 },
+    saveLabel: { color: theme.bg, fontWeight: "600" },
+    deleteButton: { marginTop: 16, alignItems: "center", paddingVertical: 10 },
+    deleteLabel: { color: theme.danger },
+  });
+}

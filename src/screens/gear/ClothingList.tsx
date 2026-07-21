@@ -2,22 +2,42 @@ import { useCallback, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { createClothing, deleteClothing, listClothing, updateClothing } from "../../db/repositories/clothing";
-import type { ClothingItem } from "../../types";
+import type { ClothingItem, ClothingType } from "../../types";
 import ClothingForm from "./ClothingForm";
 import GearThumbnail from "../../components/GearThumbnail";
 import GearRowBadges from "../../components/GearRowBadges";
 import UnavailabilitySheet from "../../components/UnavailabilitySheet";
+import useTheme from "../../theme/useTheme";
 
-type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; item: ClothingItem };
+type Mode = { kind: "list" } | { kind: "add"; presetType?: ClothingType } | { kind: "edit"; item: ClothingItem };
 
-export default function ClothingList() {
+interface Props {
+  // §9.6 — set when GearRecommendationCard's fallback text sent the user
+  // here to add a specific missing item type; opens straight into the add
+  // form pre-set to that type instead of the list.
+  autoOpenAddType?: ClothingType;
+}
+
+export default function ClothingList({ autoOpenAddType }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [mode, setMode] = useState<Mode>({ kind: "list" });
+  const [mode, setMode] = useState<Mode>(autoOpenAddType ? { kind: "add", presetType: autoOpenAddType } : { kind: "list" });
   const [unavailabilityTarget, setUnavailabilityTarget] = useState<ClothingItem | null>(null);
   // Date.now() is impure to call during render — a useState lazy
   // initializer (react-hooks/purity) only runs once at mount.
   const [nowMs] = useState(() => Date.now());
+
+  // "Adjusting state when a prop changes" (render-time, not an effect) —
+  // GearScreen clears route.params.openAdd itself right after navigating
+  // here, so autoOpenAddType only ever holds a real value for one render;
+  // tracking the previous value is what lets that one render open the form.
+  const [consumedAutoOpenAddType, setConsumedAutoOpenAddType] = useState(autoOpenAddType);
+  if (autoOpenAddType !== consumedAutoOpenAddType) {
+    setConsumedAutoOpenAddType(autoOpenAddType);
+    if (autoOpenAddType) setMode({ kind: "add", presetType: autoOpenAddType });
+  }
 
   const reload = useCallback(() => {
     listClothing().then((rows) => {
@@ -66,7 +86,7 @@ export default function ClothingList() {
   }
 
   if (mode.kind === "add") {
-    return <ClothingForm onSubmit={handleSubmit} onCancel={() => setMode({ kind: "list" })} />;
+    return <ClothingForm initialType={mode.presetType} onSubmit={handleSubmit} onCancel={() => setMode({ kind: "list" })} />;
   }
 
   if (mode.kind === "edit") {
@@ -155,16 +175,18 @@ export default function ClothingList() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  empty: { color: "#666" },
-  listContent: { padding: 16, gap: 8 },
-  addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA", marginBottom: 8 },
-  addButtonLabel: { fontWeight: "600" },
-  row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 12, backgroundColor: "#F6F7FA", marginBottom: 8 },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  dimmedText: { opacity: 0.6 },
-  rowMeta: { fontSize: 13, color: "#5C6478", marginTop: 2 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    empty: { color: theme.textSecondary },
+    listContent: { padding: 16, gap: 8 },
+    addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border, marginBottom: 8 },
+    addButtonLabel: { fontWeight: "600", color: theme.textPrimary },
+    row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 12, backgroundColor: theme.surface, marginBottom: 8 },
+    rowText: { flex: 1 },
+    rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    dimmedText: { opacity: 0.6 },
+    rowMeta: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  });
+}

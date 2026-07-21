@@ -6,6 +6,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 // copyAsync with a new File/Directory class API — `expo-file-system/legacy`
 // keeps the string-path API docs/03-data-models.md §3.3 is written against.
 import * as FileSystem from "expo-file-system/legacy";
+import useTheme from "../theme/useTheme";
 
 // Optional photo well for gear add/edit forms — docs/03-data-models.md §3.3.
 // Camera or library via an action sheet, resized/compressed to an 800px
@@ -45,6 +46,8 @@ async function processAndStore(uri: string, itemId: string): Promise<string> {
 }
 
 export default function PhotoPicker({ itemId, photoUri, onChange }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [busy, setBusy] = useState(false);
 
   async function pickFrom(source: "camera" | "library") {
@@ -107,20 +110,22 @@ export default function PhotoPicker({ itemId, photoUri, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { alignItems: "center", gap: 6 },
-  well: {
-    width: 96,
-    height: 96,
-    borderRadius: 12,
-    backgroundColor: "#F6F7FA",
-    borderWidth: 1,
-    borderColor: "#DDE1EA",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  photo: { width: "100%", height: "100%" },
-  placeholder: { fontSize: 12, color: "#5C6478", textAlign: "center", paddingHorizontal: 8 },
-  removeLabel: { fontSize: 12, color: "#B24FE3" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { alignItems: "center", gap: 6 },
+    well: {
+      width: 96,
+      height: 96,
+      borderRadius: 12,
+      backgroundColor: theme.bg,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    photo: { width: "100%", height: "100%" },
+    placeholder: { fontSize: 12, color: theme.textSecondary, textAlign: "center", paddingHorizontal: 8 },
+    removeLabel: { fontSize: 12, color: theme.conditionStorm },
+  });
+}

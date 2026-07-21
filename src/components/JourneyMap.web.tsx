@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import type { MapCircle, MapStop } from "./JourneyMap";
+import type { ConditionMarker, MapCircle, MapStop } from "./JourneyMap";
 
 // Web fallback for Journey Detail's map. react-native-maps' own MapView.web.ts
 // already resolves to an UnimplementedView, but its Marker/Polyline
@@ -16,6 +16,7 @@ interface Props {
   // native-only, like the map itself — accepted and ignored here.
   onLongPress?: (coordinate: { lat: number; lng: number }) => void;
   previewCircle?: MapCircle | null;
+  conditionMarkers?: ConditionMarker[];
 }
 
 export default function JourneyMap({ accentColor }: Props) {

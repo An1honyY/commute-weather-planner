@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { createLocation } from "../../../db/repositories/locations";
 import { withTimeout } from "../../../lib/withTimeout";
+import useTheme from "../../../theme/useTheme";
 
 // docs/04-screens-navigation.md §4.1 step 2 — "a minimal 2-field version
 // of the Locations add-flow, pre-labeled." Lat/lng stay manual per the
@@ -30,6 +31,8 @@ function MiniLocationRow({
   onChange: (fields: Fields) => void;
   onUseCurrentLocation?: () => void;
 }) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -65,6 +68,8 @@ function MiniLocationRow({
 }
 
 export default function Step2HomeWork({ currentCoords, onNext }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [home, setHome] = useState<Fields>({ address: "", lat: "", lng: "" });
   const [work, setWork] = useState<Fields>({ address: "", lat: "", lng: "" });
 
@@ -125,18 +130,20 @@ export default function Step2HomeWork({ currentCoords, onNext }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 24, gap: 4 },
-  title: { fontSize: 22, fontWeight: "700" },
-  body: { fontSize: 15, color: "#5C6478", marginTop: 4, marginBottom: 16 },
-  row: { marginBottom: 20, gap: 8 },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  input: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  coordRow: { flexDirection: "row", gap: 8 },
-  coordInput: { flex: 1 },
-  useCurrentLabel: { color: "#C97F2E", fontSize: 13 },
-  primaryButton: { marginTop: 12, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  primaryLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
-  skipButton: { marginTop: 12, alignItems: "center", paddingVertical: 10 },
-  skipLabel: { color: "#5C6478" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { padding: 24, gap: 4, backgroundColor: theme.bg },
+    title: { fontSize: 22, fontWeight: "700", color: theme.textPrimary },
+    body: { fontSize: 15, color: theme.textSecondary, marginTop: 4, marginBottom: 16 },
+    row: { marginBottom: 20, gap: 8 },
+    rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
+    coordRow: { flexDirection: "row", gap: 8 },
+    coordInput: { flex: 1 },
+    useCurrentLabel: { color: theme.accentWalk, fontSize: 13 },
+    primaryButton: { marginTop: 12, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    primaryLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
+    skipButton: { marginTop: 12, alignItems: "center", paddingVertical: 10 },
+    skipLabel: { color: theme.textSecondary },
+  });
+}

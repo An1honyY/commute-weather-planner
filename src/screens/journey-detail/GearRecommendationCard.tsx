@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Recommendation } from "../../lib/recommend";
+import useTheme from "../../theme/useTheme";
+import type { GearAddTarget } from "../../navigation/types";
 import type { RecommendationSnapshot } from "../../types";
 
 // Gear recommendation card — docs/09-design-system.md §9.3 item 4, now
@@ -23,9 +25,46 @@ interface Props {
   // have since changed. Snapshot names are flat strings — no fallback/
   // real-item distinction survives the freeze, so they render plainly.
   snapshot?: RecommendationSnapshot;
+  // §9.6 — "fallback text should read as an action... double tap to add
+  // one," matching the empty-state CTA pattern from §4.1. Only meaningful
+  // for a live `recommendation` (tap navigates to the matching Gear add
+  // form) — a frozen `snapshot` describes a past journey's pick, and
+  // there's nothing actionable about adding gear retroactively to it, so
+  // this is simply never passed/used in that branch.
+  onAddGear?: (target: GearAddTarget) => void;
 }
 
-export default function GearRecommendationCard({ recommendation, snapshot }: Props) {
+// A fallback Text becomes a Pressable when onAddGear is supplied (live
+// mode only — GearRecommendationCard never passes it in the snapshot
+// branch). Module-level, not nested in the component, so it isn't
+// recreated every render.
+function FallbackText({
+  text,
+  target,
+  style,
+  onAddGear,
+}: {
+  text: string;
+  target: GearAddTarget;
+  style: object;
+  onAddGear?: (target: GearAddTarget) => void;
+}) {
+  if (!onAddGear) return <Text style={style}>{text}</Text>;
+  return (
+    <Pressable
+      onPress={() => onAddGear(target)}
+      accessibilityRole="button"
+      accessibilityLabel={`${text} — double tap to add one`}
+      hitSlop={8}
+    >
+      <Text style={style}>{text}</Text>
+    </Pressable>
+  );
+}
+
+export default function GearRecommendationCard({ recommendation, snapshot, onAddGear }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   if (snapshot) {
     const layersTopDown = [...snapshot.layerNames].reverse();
     return (
@@ -84,8 +123,19 @@ export default function GearRecommendationCard({ recommendation, snapshot }: Pro
         <View style={styles.layerStack}>
           {layersTopDown.map((pick, i) => {
             const { text, isFallback } = pickLabel(pick);
+            if (isFallback && "layerType" in pick) {
+              return (
+                <FallbackText
+                  key={i}
+                  text={text}
+                  target={{ kind: "clothing", clothingType: pick.layerType }}
+                  style={styles.fallback}
+                  onAddGear={onAddGear}
+                />
+              );
+            }
             return (
-              <Text key={i} style={isFallback ? styles.fallback : styles.layerText}>
+              <Text key={i} style={styles.layerText}>
                 {text}
               </Text>
             );
@@ -97,8 +147,19 @@ export default function GearRecommendationCard({ recommendation, snapshot }: Pro
         <View style={styles.accessoriesRow}>
           {recommendation.accessories.map((pick, i) => {
             const { text, isFallback } = pickLabel(pick);
+            if (isFallback) {
+              return (
+                <FallbackText
+                  key={i}
+                  text={text}
+                  target={{ kind: "clothing", clothingType: "accessory" }}
+                  style={styles.fallback}
+                  onAddGear={onAddGear}
+                />
+              );
+            }
             return (
-              <Text key={i} style={isFallback ? styles.fallback : styles.accessoryText}>
+              <Text key={i} style={styles.accessoryText}>
                 {text}
               </Text>
             );
@@ -107,13 +168,34 @@ export default function GearRecommendationCard({ recommendation, snapshot }: Pro
       )}
 
       <View style={styles.slotsRow}>
-        {bottomsLabel && (
-          <Text style={bottomsLabel.isFallback ? styles.fallback : styles.slotText}>{bottomsLabel.text}</Text>
-        )}
-        {shoesLabel && <Text style={shoesLabel.isFallback ? styles.fallback : styles.slotText}>{shoesLabel.text}</Text>}
-        {umbrellaLabel && (
-          <Text style={umbrellaLabel.isFallback ? styles.fallback : styles.slotText}>{umbrellaLabel.text}</Text>
-        )}
+        {bottomsLabel &&
+          (bottomsLabel.isFallback ? (
+            <FallbackText
+              text={bottomsLabel.text}
+              target={{ kind: "clothing", clothingType: "bottoms" }}
+              style={styles.fallback}
+              onAddGear={onAddGear}
+            />
+          ) : (
+            <Text style={styles.slotText}>{bottomsLabel.text}</Text>
+          ))}
+        {shoesLabel &&
+          (shoesLabel.isFallback ? (
+            <FallbackText text={shoesLabel.text} target={{ kind: "shoe" }} style={styles.fallback} onAddGear={onAddGear} />
+          ) : (
+            <Text style={styles.slotText}>{shoesLabel.text}</Text>
+          ))}
+        {umbrellaLabel &&
+          (umbrellaLabel.isFallback ? (
+            <FallbackText
+              text={umbrellaLabel.text}
+              target={{ kind: "umbrella" }}
+              style={styles.fallback}
+              onAddGear={onAddGear}
+            />
+          ) : (
+            <Text style={styles.slotText}>{umbrellaLabel.text}</Text>
+          ))}
       </View>
 
       {recommendation.notes.length > 0 && (
@@ -129,15 +211,25 @@ export default function GearRecommendationCard({ recommendation, snapshot }: Pro
   );
 }
 
-const styles = StyleSheet.create({
-  card: { margin: 16, padding: 16, borderRadius: 12, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DDE1EA", gap: 12 },
-  layerStack: { gap: 4 },
-  layerText: { fontSize: 15, fontWeight: "600" },
-  fallback: { fontSize: 14, fontStyle: "italic", color: "#5C6478" },
-  accessoriesRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  accessoryText: { fontSize: 13 },
-  slotsRow: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  slotText: { fontSize: 13, fontWeight: "600" },
-  notes: { gap: 4 },
-  note: { fontSize: 12, color: "#5C6478" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    card: {
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      backgroundColor: theme.surfaceRaised,
+      borderWidth: theme.surfaceRaisedBorder === "transparent" ? 0 : 1,
+      borderColor: theme.surfaceRaisedBorder,
+      gap: 12,
+    },
+    layerStack: { gap: 4 },
+    layerText: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    fallback: { fontSize: 14, fontStyle: "italic", color: theme.textSecondary },
+    accessoriesRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    accessoryText: { fontSize: 13, color: theme.textPrimary },
+    slotsRow: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+    slotText: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
+    notes: { gap: 4 },
+    note: { fontSize: 12, color: theme.textSecondary },
+  });
+}

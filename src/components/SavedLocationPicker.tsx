@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { listLocations } from "../db/repositories/locations";
+import useTheme from "../theme/useTheme";
 import type { SavedLocation } from "../types";
 
 // Origin/destination/waypoint picker for the Plan screen —
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export default function SavedLocationPicker({ label, value, onChange, placeholder }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState<SavedLocation[]>([]);
 
@@ -66,17 +69,19 @@ export default function SavedLocationPicker({ label, value, onChange, placeholde
   );
 }
 
-const styles = StyleSheet.create({
-  label: { fontSize: 13, color: "#5C6478", marginTop: 12, marginBottom: 4 },
-  field: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12, minHeight: 44, justifyContent: "center" },
-  valueText: { fontSize: 15 },
-  placeholderText: { fontSize: 15, color: "#9AA3B8" },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: "70%" },
-  sheetTitle: { fontSize: 17, fontWeight: "600", marginBottom: 12 },
-  empty: { color: "#5C6478", paddingVertical: 20, textAlign: "center" },
-  option: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#DDE1EA", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  star: { color: "#B8860B" },
-  optionLabel: { fontSize: 15, fontWeight: "600" },
-  optionAddress: { fontSize: 12, color: "#5C6478" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    label: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 4 },
+    field: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12, minHeight: 44, justifyContent: "center" },
+    valueText: { fontSize: 15, color: theme.textPrimary },
+    placeholderText: { fontSize: 15, color: theme.textSecondary },
+    backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+    sheet: { backgroundColor: theme.surfaceRaised, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: "70%" },
+    sheetTitle: { fontSize: 17, fontWeight: "600", marginBottom: 12, color: theme.textPrimary },
+    empty: { color: theme.textSecondary, paddingVertical: 20, textAlign: "center" },
+    option: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+    star: { color: theme.favoriteStar },
+    optionLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    optionAddress: { fontSize: 12, color: theme.textSecondary },
+  });
+}

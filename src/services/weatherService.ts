@@ -2,7 +2,7 @@
 // Free, keyless. Requests apparent_temperature, wind_gusts_10m,
 // relative_humidity_2m, uv_index, is_day per §2/§6.2, plus `past_days=1`
 // for recentPrecipMm6h (docs/05-data-wiring.md §5.5, Phase 6).
-import { forecastConfidence } from "../lib/weather";
+import { forecastConfidence, rainIntensityBucket, type RainIntensity } from "../lib/weather";
 import type { WeatherSnapshot } from "../types";
 import type { ServiceResult } from "./types";
 
@@ -76,11 +76,9 @@ function sumRecentPrecipMm6h(hourly: OpenMeteoHourly, nowMs: number): number {
   return sum;
 }
 
-export async function getForecast(points: ForecastPoint[]): Promise<ServiceResult<WeatherSnapshot[]>> {
-  if (points.length === 0) return { data: [] };
-
-  const latitude = points.map((p) => p.lat).join(",");
-  const longitude = points.map((p) => p.lng).join(",");
+// Shared by getForecast() and getHourlyForecast() — both read the same
+// Open-Meteo hourly response shape, just extract different slices of it.
+async function fetchOpenMeteoHourly(latitude: string, longitude: string): Promise<ServiceResult<OpenMeteoLocationResponse[]>> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
     `&hourly=${HOURLY_VARS}&timezone=UTC&forecast_days=16&past_days=1`;
@@ -105,7 +103,18 @@ export async function getForecast(points: ForecastPoint[]): Promise<ServiceResul
 
   // Open-Meteo returns a bare object for a single lat/lng pair and an array
   // once more than one is requested — normalize to an array either way.
-  const locations = Array.isArray(payload) ? payload : [payload];
+  return { data: Array.isArray(payload) ? payload : [payload] };
+}
+
+export async function getForecast(points: ForecastPoint[]): Promise<ServiceResult<WeatherSnapshot[]>> {
+  if (points.length === 0) return { data: [] };
+
+  const latitude = points.map((p) => p.lat).join(",");
+  const longitude = points.map((p) => p.lng).join(",");
+  const result = await fetchOpenMeteoHourly(latitude, longitude);
+  if ("error" in result) return result;
+
+  const locations = result.data;
   const fetchedAt = new Date().toISOString();
   const recentPrecipMm6h = sumRecentPrecipMm6h(locations[0].hourly, new Date(fetchedAt).getTime());
 
@@ -126,6 +135,46 @@ export async function getForecast(points: ForecastPoint[]): Promise<ServiceResul
       isDaylight: hourly.is_day[index] === 1,
       forecastConfidence: forecastConfidence(point.time, fetchedAt),
       recentPrecipMm6h,
+    };
+  });
+
+  return { data };
+}
+
+// §9.5 — one reading per hour for the Plan/Today hourly strip's rain-
+// intensity gauge. A single-location read (unlike getForecast()'s
+// multi-leg batching) since the strip shows one place's outlook, not a
+// per-leg breakdown.
+export interface HourlyReading {
+  time: string; // ISO
+  tempC: number;
+  weatherCode: number;
+  rainIntensity: RainIntensity;
+}
+
+export async function getHourlyForecast(
+  point: { lat: number; lng: number },
+  fromIso: string,
+  hours: number
+): Promise<ServiceResult<HourlyReading[]>> {
+  const result = await fetchOpenMeteoHourly(String(point.lat), String(point.lng));
+  if ("error" in result) return result;
+
+  const hourly = result.data[0].hourly;
+  const fromMs = new Date(fromIso).getTime();
+  // Open-Meteo's hourly.time entries have no timezone suffix under
+  // timezone=UTC — appending "Z" is what makes them parse as UTC instead
+  // of the runtime's local time (same quirk nearestHourlyIndex() handles).
+  const startIndex = hourly.time.findIndex((t) => new Date(`${t}Z`).getTime() >= fromMs);
+  if (startIndex === -1) return { data: [] };
+
+  const data: HourlyReading[] = hourly.time.slice(startIndex, startIndex + hours).map((time, i) => {
+    const index = startIndex + i;
+    return {
+      time: `${time}Z`,
+      tempC: hourly.temperature_2m[index],
+      weatherCode: hourly.weather_code[index],
+      rainIntensity: rainIntensityBucket(hourly.precipitation[index], hourly.precipitation_probability[index]),
     };
   });
 

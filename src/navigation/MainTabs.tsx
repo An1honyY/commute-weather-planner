@@ -14,14 +14,29 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // docs/09-design-system.md until that pass lands — functionally these are
 // the History (§4.4), Settings (§9.1 — "reached from the Today tab header,
 // alongside the History icon"), and Local knowledge (§4.5) entry points.
+// §9.6 — 44×44pt minimum touch target; these text-button stand-ins are
+// visually smaller than that, so padding fills the gap without changing
+// the visible label size.
+const headerButtonStyle = { minHeight: 44, minWidth: 44, alignItems: "center" as const, justifyContent: "center" as const };
+
 function TodayHeaderButtons() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <View style={{ flexDirection: "row", gap: 16 }}>
-      <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={8}>
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      <Pressable
+        onPress={() => navigation.navigate("Settings")}
+        style={headerButtonStyle}
+        accessibilityRole="button"
+        accessibilityLabel="Settings"
+      >
         <Text>Settings</Text>
       </Pressable>
-      <Pressable onPress={() => navigation.navigate("History")} hitSlop={8}>
+      <Pressable
+        onPress={() => navigation.navigate("History")}
+        style={headerButtonStyle}
+        accessibilityRole="button"
+        accessibilityLabel="History"
+      >
         <Text>History</Text>
       </Pressable>
     </View>
@@ -31,7 +46,12 @@ function TodayHeaderButtons() {
 function LocalKnowledgeButton() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Pressable onPress={() => navigation.navigate("LocalKnowledge")} hitSlop={8}>
+    <Pressable
+      onPress={() => navigation.navigate("LocalKnowledge")}
+      style={headerButtonStyle}
+      accessibilityRole="button"
+      accessibilityLabel="Local knowledge"
+    >
       <Text>Local knowledge</Text>
     </Pressable>
   );

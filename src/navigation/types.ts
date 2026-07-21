@@ -1,16 +1,28 @@
 // Navigation param lists — see docs/04-screens-navigation.md §4 for the
 // screen list this mirrors.
+import type { NavigatorScreenParams } from "@react-navigation/native";
+import type { ClothingType } from "../types";
+
+// §9.6 — the gear-recommendation card's fallback slots (Journey Detail)
+// navigate here to jump straight into the matching Gear add form, one tab
+// over. clothingType carries which slot (base/midlayer/jacket/accessory/
+// bottoms) so ClothingForm opens pre-set to the right type rather than
+// always defaulting to "jacket".
+export type GearAddTarget =
+  | { kind: "clothing"; clothingType: ClothingType }
+  | { kind: "shoe" }
+  | { kind: "umbrella" };
 
 export type MainTabParamList = {
   Today: undefined;
   Plan: undefined;
   Locations: undefined;
-  Gear: undefined;
+  Gear: { openAdd?: GearAddTarget } | undefined;
 };
 
 export type RootStackParamList = {
   Onboarding: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   // cachedFromDate is set only when planJourney() (§5.1) fell back to a
   // previously-saved route between the same origin/destination — Journey
   // Detail shows the "using a saved route from…" banner when present.

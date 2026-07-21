@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import useTheme from "../theme/useTheme";
 
 // "Mark unavailable until…" action — docs/07-recommendation-engine.md §7.7,
 // §7.16, docs/09-design-system.md §9.4.3. A reason picker (Laundry / Repair
@@ -44,6 +45,8 @@ interface Props {
 }
 
 export default function UnavailabilitySheet({ onClose, onConfirm, initialReason }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [reason, setReason] = useState<UnavailableReason>(initialReason ?? "laundry");
   const [days, setDays] = useState<number | null>(DEFAULT_DAYS[initialReason ?? "laundry"]);
 
@@ -107,29 +110,31 @@ export default function UnavailabilitySheet({ onClose, onConfirm, initialReason 
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 16 },
-  title: { fontSize: 17, fontWeight: "600" },
-  reasonRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  reasonChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  reasonChipActive: { backgroundColor: "#C97F2E", borderColor: "#C97F2E" },
-  reasonLabel: { fontSize: 14 },
-  reasonLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-  stepperRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16 },
-  stepperButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#DDE1EA",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperButtonLabel: { fontSize: 18, fontWeight: "600" },
-  turnaround: { fontSize: 14, color: "#5C6478", textAlign: "center" },
-  actions: { flexDirection: "row", gap: 12, justifyContent: "flex-end" },
-  cancelButton: { paddingHorizontal: 16, paddingVertical: 10 },
-  confirmButton: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#1A1E29", borderRadius: 8 },
-  confirmLabel: { color: "#FFFFFF", fontWeight: "600" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+    sheet: { backgroundColor: theme.surfaceRaised, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 16 },
+    title: { fontSize: 17, fontWeight: "600", color: theme.textPrimary },
+    reasonRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    reasonChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    reasonChipActive: { backgroundColor: theme.accentWalk, borderColor: theme.accentWalk },
+    reasonLabel: { fontSize: 14, color: theme.textPrimary },
+    reasonLabelActive: { color: "#FFFFFF", fontWeight: "600" },
+    stepperRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16 },
+    stepperButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    stepperButtonLabel: { fontSize: 18, fontWeight: "600", color: theme.textPrimary },
+    turnaround: { fontSize: 14, color: theme.textSecondary, textAlign: "center" },
+    actions: { flexDirection: "row", gap: 12, justifyContent: "flex-end" },
+    cancelButton: { paddingHorizontal: 16, paddingVertical: 10 },
+    confirmButton: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: theme.textPrimary, borderRadius: 8 },
+    confirmLabel: { color: theme.bg, fontWeight: "600" },
+  });
+}

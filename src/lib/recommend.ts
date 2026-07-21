@@ -44,7 +44,7 @@ const COOL_UPPER_C = 14;
 export const WARM_OUTDOOR_C = 18;
 export const WARMUP_WALK_MIN_MINUTES = 15;
 export const WARMUP_CYCLE_MIN_MINUTES = 8;
-const HIGH_WIND_KPH = 30; // gust speed requiring a wind-rated umbrella
+export const HIGH_WIND_KPH = 30; // gust speed requiring a wind-rated umbrella; also §9.3's leg-badge wind-display threshold
 const ACCESSORY_WARMTH_LEVEL = 3;
 const HIGH_UV_INDEX = 6;
 const HIGH_REFLECTION_UV_OFFSET = 1;
@@ -213,6 +213,15 @@ export function recommendGear(
   const anyRainCovered = outdoorLegs.some((l) => l.rainCovered);
 
   const notes: string[] = [];
+
+  // §5.1 point 2 — Open-Meteo failed for at least one outdoor leg while
+  // Routes succeeded; that leg is silently excluded from outdoorLegs above
+  // (its weather-driven gear calls degrade to shoes/umbrella-only), so
+  // surface why rather than leaving a thinner-than-usual recommendation
+  // unexplained.
+  if (journey.legs.some((l) => l.outdoor && !l.weather)) {
+    notes.push("Couldn't fetch weather — showing route only");
+  }
 
   // --- Umbrella ---
   let umbrella: Recommendation["umbrella"];

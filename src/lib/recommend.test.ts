@@ -123,6 +123,89 @@ describe("recommendGear — warmth levels", () => {
   });
 });
 
+describe("recommendGear — advanced threshold overrides (§3.6, §7, §11.1)", () => {
+  const fullInventory = inventory({
+    clothing: [
+      clothingItem({ type: "base", warmth: 1 }),
+      clothingItem({ type: "midlayer", warmth: 5 }),
+      clothingItem({ type: "jacket", warmth: 8 }),
+    ],
+  });
+
+  // Default coolUpperC is 14 — 13°C is normally "cool" (level 2, jacket only).
+  it("a custom coolUpperC moves warmthLevelFromTemp()'s boundary", () => {
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 13 }) })]);
+    const defaultResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    expect(defaultResult.layers.map((l) => ("id" in l ? l.type : l.layerType))).toEqual(["jacket"]);
+
+    // With coolUpperC lowered to 10, 13°C now falls into the next bucket up
+    // (mild, level 1: midlayer only) since it's no longer below the cutoff.
+    const overriddenResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference", { coolUpperC: 10 });
+    expect(overriddenResult.layers.map((l) => ("id" in l ? l.type : l.layerType))).toEqual(["midlayer"]);
+  });
+
+  it("a custom freezingC moves the freezing boundary", () => {
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 3 }) })]);
+    // Default freezingC is 2 — 3°C isn't freezing (falls into level 3: midlayer + jacket).
+    const defaultResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    expect(defaultResult.layers.map((l) => ("id" in l ? l.type : l.layerType))).toEqual(["midlayer", "jacket"]);
+
+    // Raising freezingC to 5 makes 3°C count as freezing (level 4: base + midlayer + jacket).
+    const overriddenResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference", { freezingC: 5 });
+    expect(overriddenResult.layers.map((l) => ("id" in l ? l.type : l.layerType))).toEqual(["base", "midlayer", "jacket"]);
+  });
+
+  it("no override supplied leaves the default named constants untouched", () => {
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 13 }) })]);
+    const noArgResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    const emptyOverrideResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference", {});
+    expect(emptyOverrideResult.layers).toEqual(noArgResult.layers);
+  });
+
+  it("a custom warmOutdoorC changes when the summer AC-contrast note triggers", () => {
+    const busLeg = walkLeg({ id: "bus", mode: "bus", outdoor: false, climate: "ac", weather: undefined });
+    // 16°C is below the default warmOutdoorC (18) — no AC-contrast note.
+    const journey = journeyWithLegs(
+      [walkLeg({ weather: weather({ apparentTempC: 16 }) }), busLeg],
+      { departTime: "2026-01-15T08:00:00.000Z" } // summer
+    );
+    const defaultResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    expect(defaultResult.notes.some((n) => n.includes("AC on the bus/train will feel cold"))).toBe(false);
+
+    // Lowering warmOutdoorC to 15 makes 16°C count as warm enough to trigger it.
+    const overriddenResult = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference", { warmOutdoorC: 15 });
+    expect(overriddenResult.notes.some((n) => n.includes("AC on the bus/train will feel cold"))).toBe(true);
+  });
+});
+
+describe("recommendGear — missing weather note (§5.1 point 2)", () => {
+  const fullInventory = inventory({
+    clothing: [clothingItem({ type: "jacket", warmth: 8 })],
+  });
+
+  it("an outdoor leg with no weather (Open-Meteo failed) adds the fallback note", () => {
+    const journey = journeyWithLegs([
+      walkLeg({ weather: weather({ apparentTempC: 1 }) }),
+      walkLeg({ id: "leg-2", label: "Walk from station", weather: undefined }),
+    ]);
+    const result = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    expect(result.notes).toContain("Couldn't fetch weather — showing route only");
+  });
+
+  it("every outdoor leg has weather: no fallback note", () => {
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 1 }) })]);
+    const result = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    expect(result.notes).not.toContain("Couldn't fetch weather — showing route only");
+  });
+
+  it("an indoor leg with no weather doesn't trigger the note (expected, not a failure)", () => {
+    const busLeg = walkLeg({ id: "bus", mode: "bus", outdoor: false, climate: "ac", weather: undefined });
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 10 }) }), busLeg]);
+    const result = recommendGear(journey, fullInventory, NO_CALIBRATION, "no-preference");
+    expect(result.notes).not.toContain("Couldn't fetch weather — showing route only");
+  });
+});
+
 describe("recommendGear — AC contrast (§6.1)", () => {
   const busLeg = walkLeg({
     id: "bus",

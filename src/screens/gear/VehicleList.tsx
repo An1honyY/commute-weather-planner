@@ -5,10 +5,13 @@ import { createVehicle, deleteVehicle, listVehicles, updateVehicle } from "../..
 import type { VehicleItem } from "../../types";
 import VehicleForm from "./VehicleForm";
 import GearThumbnail from "../../components/GearThumbnail";
+import useTheme from "../../theme/useTheme";
 
 type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; item: VehicleItem };
 
 export default function VehicleList() {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [items, setItems] = useState<VehicleItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [mode, setMode] = useState<Mode>({ kind: "list" });
@@ -90,15 +93,17 @@ export default function VehicleList() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  empty: { color: "#666" },
-  listContent: { padding: 16, gap: 8 },
-  addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA", marginBottom: 8 },
-  addButtonLabel: { fontWeight: "600" },
-  row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 12, backgroundColor: "#F6F7FA", marginBottom: 8 },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  rowMeta: { fontSize: 13, color: "#5C6478", marginTop: 2 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    empty: { color: theme.textSecondary },
+    listContent: { padding: 16, gap: 8 },
+    addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border, marginBottom: 8 },
+    addButtonLabel: { fontWeight: "600", color: theme.textPrimary },
+    row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 12, backgroundColor: theme.surface, marginBottom: 8 },
+    rowText: { flex: 1 },
+    rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    rowMeta: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  });
+}

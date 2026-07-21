@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
 import { newId } from "../../db/rowMapping";
+import useTheme from "../../theme/useTheme";
 import type { ShoeItem, ShoeType } from "../../types";
 
 const TYPE_OPTIONS: ShoeType[] = ["sneaker", "boot", "sandal", "formal", "waterproof-boot"];
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export default function ShoeForm({ initial, onSubmit, onCancel, onDelete, onMarkUnavailable }: Props) {
+  const theme = useTheme();
+  const styles = getStyles(theme);
   const [id] = useState(() => initial?.id ?? newId());
   const [name, setName] = useState(initial?.name ?? "");
   const [type, setType] = useState<ShoeType>(initial?.type ?? "sneaker");
@@ -71,19 +74,21 @@ export default function ShoeForm({ initial, onSubmit, onCancel, onDelete, onMark
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 4, alignItems: "stretch" },
-  label: { fontSize: 13, color: "#5C6478", marginTop: 16, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, minHeight: 44 },
-  switchLabel: { fontSize: 15 },
-  actions: { flexDirection: "row", gap: 12, marginTop: 24 },
-  cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: "#DDE1EA" },
-  saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: "#1A1E29" },
-  saveButtonDisabled: { opacity: 0.4 },
-  saveLabel: { color: "#FFFFFF", fontWeight: "600" },
-  secondaryButton: { marginTop: 16, alignItems: "center", paddingVertical: 10 },
-  secondaryLabel: { color: "#1A1E29", fontWeight: "600" },
-  deleteButton: { marginTop: 8, alignItems: "center", paddingVertical: 10 },
-  deleteLabel: { color: "#B24FE3" },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 4, alignItems: "stretch" },
+    label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
+    input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
+    switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, minHeight: 44 },
+    switchLabel: { fontSize: 15, color: theme.textPrimary },
+    actions: { flexDirection: "row", gap: 12, marginTop: 24 },
+    cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    saveButtonDisabled: { opacity: 0.4 },
+    saveLabel: { color: theme.bg, fontWeight: "600" },
+    secondaryButton: { marginTop: 16, alignItems: "center", paddingVertical: 10 },
+    secondaryLabel: { color: theme.textPrimary, fontWeight: "600" },
+    deleteButton: { marginTop: 8, alignItems: "center", paddingVertical: 10 },
+    deleteLabel: { color: theme.danger },
+  });
+}

@@ -1,4 +1,4 @@
-import { acFeelsCold, classifyWeather, forecastConfidence, getSeason } from "./weather";
+import { acFeelsCold, classifyWeather, forecastConfidence, getSeason, rainIntensityBucket } from "./weather";
 import type { Journey, JourneyLeg } from "../types";
 
 // docs/11-testing-strategy.md §11.1 — table-driven over the full WMO code
@@ -31,6 +31,22 @@ describe("classifyWeather", () => {
     const result = classifyWeather(code, mm, windKph);
     expect(result.label).toBe(label);
     expect(result.severity).toBe(severity);
+  });
+});
+
+// §6/§9.5 — the hourly rain-intensity gauge's bucket boundaries.
+describe("rainIntensityBucket", () => {
+  it.each([
+    [0, 19, "none"], // below the probability gate regardless of mm
+    [10, 19, "none"],
+    [0, 20, "low"], // at the probability boundary, mm below 0.5
+    [0.4, 20, "low"],
+    [0.5, 20, "med"], // mm boundary: < 0.5, not <=
+    [4, 20, "med"],
+    [4.01, 20, "high"], // mm boundary: <= 4, not <
+    [10, 100, "high"],
+  ] as const)("mm=%s probability=%s -> %s", (mm, probability, expected) => {
+    expect(rainIntensityBucket(mm, probability)).toBe(expected);
   });
 });
 
