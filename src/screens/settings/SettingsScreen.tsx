@@ -4,7 +4,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import {
   getCarryPreferenceDefault,
   getCrashReportingEnabled,
+  getDismissedSetupTasks,
   getThemePreference,
+  resetDismissedSetupTasks,
   setCarryPreferenceDefault,
   setCrashReportingEnabled,
   setThemePreference,
@@ -60,6 +62,7 @@ export default function SettingsScreen() {
   const [calibration, setCalibration] = useState<WarmthCalibration>({ offsetLevels: 0, sampleCount: 0 });
   const [exportBusy, setExportBusy] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
+  const [dismissedSetupTaskCount, setDismissedSetupTaskCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,8 +71,14 @@ export default function SettingsScreen() {
       getCrashReportingEnabled().then(setCrashReporting);
       getAdvancedThresholds().then(setThresholds);
       getWarmthCalibration().then(setCalibration);
+      getDismissedSetupTasks().then((ids) => setDismissedSetupTaskCount(ids.length));
     }, [])
   );
+
+  async function showSetupTipsAgain() {
+    await resetDismissedSetupTasks();
+    setDismissedSetupTaskCount(0);
+  }
 
   async function selectTheme(value: ThemePreference) {
     setTheme(value);
@@ -232,6 +241,19 @@ export default function SettingsScreen() {
           <Text style={styles.dataButtonLabel}>{importBusy ? "Importing…" : "Import data"}</Text>
         </Pressable>
       </View>
+
+      {dismissedSetupTaskCount > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Setup tips</Text>
+          <Text style={styles.body}>
+            You&apos;ve postponed {dismissedSetupTaskCount} setup {dismissedSetupTaskCount === 1 ? "tip" : "tips"} on
+            the Today tab.
+          </Text>
+          <Pressable onPress={showSetupTipsAgain} style={styles.dataButton}>
+            <Text style={styles.dataButtonLabel}>Show setup tips again</Text>
+          </Pressable>
+        </>
+      )}
 
       <Text style={styles.sectionTitle}>About</Text>
       <Text style={styles.body}>
