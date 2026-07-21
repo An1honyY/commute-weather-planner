@@ -127,16 +127,18 @@ the original 5-step forced wizard with the design below.
   - **"Where are you?"** — explain *why* first ("so we can show today's
     conditions and suggest what to wear"), same rationale the original
     location-permission priming step used, since a bare OS prompt with no
-    context has a much higher deny rate. Three equally-weighted paths:
+    context has a much higher deny rate. Four equally-weighted paths:
     "Use my current location" (triggers the OS permission dialog), typing
     a general address/suburb (Google Places autocomplete, Section 2 —
-    resolves to a lat/lng + label, not a full `SavedLocation`), or "Skip
+    resolves to a lat/lng + label, not a full `SavedLocation`), dropping a
+    pin on a map (`LocationPickerMap`, native only — reverse-geocoded to a
+    label on confirm, same as the Locations form's map picker), or "Skip
     for now." Whatever's captured here is stored as a lightweight
     `default_location` (`app_settings`, not a `SavedLocation` — it's a
     fallback centre-point for the "Right now" card, Section 4.2, not a
     place the user would plan journeys from) and used ahead of the
     Auckland fallback whenever device location permission isn't granted.
-  - Finishing this one step (via any of the three paths, including skip)
+  - Finishing this one step (via any of the four paths, including skip)
     completes onboarding and drops the user straight onto Today, where the
     "Right now" card already shows real current-conditions weather and a
     generic reduced recommendation (Section 4.2) — the old wizard's
