@@ -16,12 +16,17 @@ import { createShoe, listShoes, updateShoeWearTracking } from "./shoes";
 import { createUmbrella, listUmbrellas } from "./umbrellas";
 import { createVehicle, listVehicles } from "./vehicles";
 import {
+  dismissSetupTask,
   getCarryPreferenceDefault,
   getCrashReportingEnabled,
+  getDefaultLocation,
+  getDismissedSetupTasks,
   getThemePreference,
   isOnboardingCompleted,
+  resetDismissedSetupTasks,
   setCarryPreferenceDefault,
   setCrashReportingEnabled,
+  setDefaultLocation,
   setOnboardingCompleted,
   setThemePreference,
 } from "./settings";
@@ -170,6 +175,28 @@ describe("repository round-trips", () => {
 
     expect(await getThemePreference()).toBe("dark");
     expect(await getCarryPreferenceDefault()).toBe("avoid-spares");
+  });
+
+  it("settings: default location is unset until saved, then round-trips", async () => {
+    expect(await getDefaultLocation()).toBeUndefined();
+
+    await setDefaultLocation({ lat: -36.85, lng: 174.76, label: "Ponsonby" });
+
+    expect(await getDefaultLocation()).toEqual({ lat: -36.85, lng: 174.76, label: "Ponsonby" });
+  });
+
+  it("settings: dismissed setup tasks accumulate, dedupe, and reset", async () => {
+    expect(await getDismissedSetupTasks()).toEqual([]);
+
+    await dismissSetupTask("gear");
+    await dismissSetupTask("notifications");
+    await dismissSetupTask("gear"); // duplicate dismiss shouldn't add a second entry
+
+    expect(await getDismissedSetupTasks()).toEqual(["gear", "notifications"]);
+
+    await resetDismissedSetupTasks();
+
+    expect(await getDismissedSetupTasks()).toEqual([]);
   });
 
   it("advanced warmth thresholds: default to {} (undefined fields) and persist a partial override", async () => {

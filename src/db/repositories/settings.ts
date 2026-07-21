@@ -68,3 +68,58 @@ export async function getCarryPreferenceDefault(): Promise<CarryPreference> {
 export async function setCarryPreferenceDefault(preference: CarryPreference): Promise<void> {
   await setSetting("carry_preference_default", preference);
 }
+
+// docs/04-screens-navigation.md §4.1 (2026-07-21 minimal-onboarding rework)
+// — the general location captured by onboarding's single "Where are you?"
+// step. Deliberately not a SavedLocation: it's a lightweight fallback
+// centre-point for the "Right now" card (useRightNow.ts), not a saved
+// Home/Work place a user would plan journeys from — see DECISIONS.md.
+export interface DefaultLocation {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
+export async function getDefaultLocation(): Promise<DefaultLocation | undefined> {
+  const raw = await getSetting("default_location");
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.lat === "number" && typeof parsed.lng === "number" && typeof parsed.label === "string") {
+      return parsed;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function setDefaultLocation(location: DefaultLocation): Promise<void> {
+  await setSetting("default_location", JSON.stringify(location));
+}
+
+// docs/04-screens-navigation.md §4.1 — postponable setup hints on Today
+// (SetupChecklist.tsx). A task disappears once its underlying data exists
+// (computed live, not stored) OR once explicitly dismissed here — dismissal
+// is a plain id list, not per-task state, since "postpone indefinitely" is
+// the only state a dismissed task has (no snooze-until timestamp).
+export async function getDismissedSetupTasks(): Promise<string[]> {
+  const raw = await getSetting("dismissed_setup_tasks");
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v) => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function dismissSetupTask(taskId: string): Promise<void> {
+  const current = await getDismissedSetupTasks();
+  if (current.includes(taskId)) return;
+  await setSetting("dismissed_setup_tasks", JSON.stringify([...current, taskId]));
+}
+
+export async function resetDismissedSetupTasks(): Promise<void> {
+  await setSetting("dismissed_setup_tasks", JSON.stringify([]));
+}
