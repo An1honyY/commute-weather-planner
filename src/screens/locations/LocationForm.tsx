@@ -2,13 +2,17 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { SavedLocation } from "../../types";
 import useTheme from "../../theme/useTheme";
+import AddressAutocomplete from "../../components/AddressAutocomplete";
 
 // Add/edit form for a SavedLocation — docs/04-screens-navigation.md item 3.
-// Map pin-drop / Google Places address search are deferred: react-native-
-// maps has no web target (would break the web dev-mode smoke-check this
-// project already relies on) and Google Places billing/wiring belongs with
-// the rest of Section 2's live APIs in Phase 4 — logged in DECISIONS.md.
-// This form covers the same data with plain text/number fields instead.
+// Address search now uses real Google Places autocomplete (AddressAutocomplete,
+// docs/02-external-apis.md §2) — lat/lng resolve automatically from the
+// selected suggestion and are no longer a primary-UX field; a collapsed
+// "Advanced" section still exposes them as manual overrides for power users
+// or when Places is unconfigured/offline (2026-07-21 onboarding rework,
+// see DECISIONS.md; supersedes the earlier "text/number fields, Places
+// deferred to Phase 4" decision). Map pin-drop is still deferred —
+// react-native-maps has no web target, the same reasoning as before.
 type ClimateOverride = "yes" | "no" | "default";
 
 function toClimateOverride(value: boolean | undefined): ClimateOverride {
@@ -48,6 +52,11 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
   const [lng, setLng] = useState(initial ? String(initial.lng) : "");
   const [isFavorite, setIsFavorite] = useState(initial?.isFavorite ?? false);
   const [climate, setClimate] = useState<ClimateOverride>(toClimateOverride(initial?.hasReliableClimateControl));
+  // Collapsed by default, same pattern as Settings' "Advanced" threshold
+  // override — auto-expanded when editing an existing location, since its
+  // lat/lng are already meaningful values rather than blank fields waiting
+  // on a Places selection.
+  const [advancedExpanded, setAdvancedExpanded] = useState(!!initial);
 
   const latNum = Number(lat);
   const lngNum = Number(lng);
@@ -59,18 +68,38 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
       <TextInput style={styles.input} value={label} onChangeText={setLabel} placeholder="Home" />
 
       <Text style={styles.label}>Address</Text>
-      <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="123 Queen St, Auckland" />
+      <AddressAutocomplete
+        value={address}
+        onChangeText={setAddress}
+        onSelectPlace={(result) => {
+          setAddress(result.address);
+          setLat(String(result.lat));
+          setLng(String(result.lng));
+        }}
+        placeholder="123 Queen St, Auckland"
+      />
 
-      <View style={styles.row}>
-        <View style={styles.half}>
-          <Text style={styles.label}>Latitude</Text>
-          <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
-        </View>
-        <View style={styles.half}>
-          <Text style={styles.label}>Longitude</Text>
-          <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
-        </View>
-      </View>
+      <Pressable onPress={() => setAdvancedExpanded((v) => !v)} style={styles.advancedHeader}>
+        <Text style={styles.label}>{advancedExpanded ? "▾" : "▸"} Advanced — set exact coordinates</Text>
+      </Pressable>
+      {advancedExpanded && (
+        <>
+          <Text style={styles.hint}>
+            Filled in automatically when you pick an address above — only change these if the search didn&apos;t
+            find the right spot.
+          </Text>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.label}>Latitude</Text>
+              <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.label}>Longitude</Text>
+              <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
+            </View>
+          </View>
+        </>
+      )}
 
       <Pressable onPress={() => setIsFavorite((v) => !v)} style={styles.favoriteRow}>
         <Text style={styles.favoriteStar}>{isFavorite ? "★" : "☆"}</Text>
@@ -130,6 +159,8 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     row: { flexDirection: "row", gap: 12 },
     half: { flex: 1 },
+    advancedHeader: { marginTop: 16 },
+    hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 4 },
     favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, minHeight: 44 },
     favoriteStar: { fontSize: 22, color: theme.favoriteStar },
     segmentRow: { flexDirection: "row", gap: 8 },
