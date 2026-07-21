@@ -262,3 +262,40 @@ data (that's static-GTFS territory too). A reasonable default per §5.6
 point 1's own wording ("inferred from the AT GTFS stop type if available,
 **otherwise default to transit-stop**"), just a smarter default than a
 blanket transit-stop for both modes.
+
+---
+
+## 2026-07-21 — Fixed web bundling (`metro.config.js`), added `withTimeout()` as a defense-in-depth backstop, not the primary fix
+
+**What**: added `metro.config.js` registering `"wasm"` on
+`resolver.assetExts`, and extracted `App.tsx`'s inline startup-timeout
+helper into `src/lib/withTimeout.ts`, applying it to every onboarding
+step's DB write (`Step2HomeWork`, `Step4GearBasics`, `Step5CrashReporting`,
+`OnboardingScreen.finish`).
+
+**Why this needed a decision**: earlier in this project's history, `expo
+start --web` failed to bundle at all with "Unable to resolve
+./wa-sqlite/wa-sqlite.wasm" (`expo-sqlite`'s web backend imports a `.wasm`
+binary Metro's default asset-extension list doesn't recognize), which was
+treated as a pre-existing, unfixable environment limitation and worked
+around with `App.tsx`'s `withStartupTimeout` — a timeout+fallback around
+the *startup* `getDb()`/`isOnboardingCompleted()` calls only. That
+narrower guard meant every *other* DB write in the app (onboarding steps,
+eventually every screen) still hung indefinitely and silently on web,
+which is what actually surfaced as "the crash-reporting Done button
+doesn't work."
+
+**Resolution**: the wasm resolution failure turned out to be a one-line
+Metro config gap, not a structural web-incompatibility — pushing `"wasm"`
+onto `resolver.assetExts` fixes bundling outright, and once fixed,
+`expo-sqlite`'s web backend (OPFS-based) worked correctly with no
+COOP/COEP-related errors in this dev environment (contrary to
+`App.tsx`'s original comment speculating that headers would also be
+needed — they weren't, at least not for local `expo start --web`).
+**The `withTimeout()` extraction is kept anyway**, applied more broadly
+than before, as a defense-in-depth backstop — a DB call hanging for some
+other reason (a different browser's OPFS quirks, a future regression)
+should still degrade to "onboarding step didn't save, but the button
+isn't stuck" rather than freezing the UI silently, the same reasoning
+`App.tsx`'s original guard was built on. This is belt-and-suspenders, not
+a substitute for the real fix.

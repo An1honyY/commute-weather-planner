@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { setCrashReportingEnabled } from "../../../db/repositories/settings";
+import { withTimeout } from "../../../lib/withTimeout";
 
 // docs/04-screens-navigation.md §4.1 step 5 — a single toggle, defaulted
 // off, changeable later in Settings (Phase 5). Skipping this step leaves
@@ -13,7 +14,7 @@ export default function Step5CrashReporting({ onFinish }: Props) {
   const [enabled, setEnabled] = useState(false);
 
   async function finish() {
-    await setCrashReportingEnabled(enabled);
+    await withTimeout(setCrashReportingEnabled(enabled), undefined);
     onFinish();
   }
 

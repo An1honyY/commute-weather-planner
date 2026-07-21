@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { createLocation } from "../../../db/repositories/locations";
+import { withTimeout } from "../../../lib/withTimeout";
 
 // docs/04-screens-navigation.md §4.1 step 2 — "a minimal 2-field version
 // of the Locations add-flow, pre-labeled." Lat/lng stay manual per the
@@ -91,7 +92,9 @@ export default function Step2HomeWork({ currentCoords, onNext }: Props) {
         })
       );
     }
-    await Promise.all(jobs);
+    // A DB write that never settles shouldn't be able to strand the user on
+    // this screen — see withTimeout.ts.
+    await withTimeout(Promise.all(jobs), []);
     onNext();
   }
 

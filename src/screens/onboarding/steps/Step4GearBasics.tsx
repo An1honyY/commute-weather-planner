@@ -7,6 +7,7 @@ import { createClothing } from "../../../db/repositories/clothing";
 import { createShoe } from "../../../db/repositories/shoes";
 import { createUmbrella } from "../../../db/repositories/umbrellas";
 import { newId } from "../../../db/rowMapping";
+import { withTimeout } from "../../../lib/withTimeout";
 import type { ClothingType } from "../../../types";
 
 // docs/04-screens-navigation.md §4.1 step 4 — "a short checklist-style add
@@ -81,17 +82,20 @@ function WarmthEntry({
       <Pressable
         disabled={!name.trim()}
         onPress={async () => {
-          await createClothing({
-            id,
-            name: name.trim(),
-            type: clothingType,
-            warmth,
-            waterproof: false,
-            windproof: false,
-            packable: false,
-            substitutesForMidlayer: showSubstitutesToggle ? substitutesForMidlayer : undefined,
-            photoUri,
-          });
+          await withTimeout(
+            createClothing({
+              id,
+              name: name.trim(),
+              type: clothingType,
+              warmth,
+              waterproof: false,
+              windproof: false,
+              packable: false,
+              substitutesForMidlayer: showSubstitutesToggle ? substitutesForMidlayer : undefined,
+              photoUri,
+            }),
+            undefined
+          );
           setState("done");
           onSaved();
         }}
@@ -156,9 +160,15 @@ function SimpleEntry({
         disabled={!name.trim()}
         onPress={async () => {
           if (kind === "shoes") {
-            await createShoe({ id, name: name.trim(), type: "sneaker", waterproof: false, grip: "med", photoUri });
+            await withTimeout(
+              createShoe({ id, name: name.trim(), type: "sneaker", waterproof: false, grip: "med", photoUri }),
+              undefined
+            );
           } else {
-            await createUmbrella({ id, name: name.trim(), type: "compact", windRating: "med", photoUri });
+            await withTimeout(
+              createUmbrella({ id, name: name.trim(), type: "compact", windRating: "med", photoUri }),
+              undefined
+            );
           }
           setState("done");
           onSaved();
@@ -182,7 +192,7 @@ export default function Step4GearBasics({ onNext }: Props) {
   const [selfReportDone, setSelfReportDone] = useState(false);
 
   async function selectSelfReport(offset: number) {
-    await seedWarmthCalibration(offset);
+    await withTimeout(seedWarmthCalibration(offset), undefined);
     setSelfReportDone(true);
   }
 

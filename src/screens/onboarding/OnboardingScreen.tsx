@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SafeAreaView, StyleSheet } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { setOnboardingCompleted } from "../../db/repositories/settings";
+import { withTimeout } from "../../lib/withTimeout";
 import type { RootStackParamList } from "../../navigation/types";
 import Step1LocationPermission from "./steps/Step1LocationPermission";
 import Step2HomeWork from "./steps/Step2HomeWork";
@@ -24,7 +25,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
 
   async function finish() {
-    await setOnboardingCompleted();
+    await withTimeout(setOnboardingCompleted(), undefined);
     // reset, not navigate — onboarding shouldn't be reachable via back-nav
     // once finished.
     navigation.reset({ index: 0, routes: [{ name: "Main" }] });
