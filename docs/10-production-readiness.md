@@ -104,18 +104,19 @@ accident:
     `NSLocationWhenInUseUsageDescription` should say *why* ("to set your
     current location as a journey starting point"), not just "location
     access required"
-- **App icon concept**, translating the utilitarian/personal character
-  from Section 9.0 into a mark rather than leaving "make an icon" totally
-  open-ended: a single, simple silhouette (an umbrella or a jacket — pick
-  one, don't combine both into a busier mark) rendered flat and geometric
-  (utilitarian — reads clearly at 40px on a home screen, no gradient or
-  photographic rendering), filled in one of the app's own warm accent hues
-  from Section 9.1 (`accentWalk`'s amber is a reasonable default — personal,
-  distinct from the blue/green most weather apps default to) against the
-  dark `bg` token as background. Avoid literal weather iconography
-  (sun/cloud combos) for the icon specifically — that's exactly what every
-  generic weather app's icon looks like, and the whole point of this app is
-  that it's not that.
+- **App icon** (2026-07-21 redesign — see DECISIONS.md): an NZ-outdoors
+  bucket hat, khaki/tan with a faceted straight-edge illustration style and
+  a glossy highlight detail, against the dark `bg` token (`#171B36`) as
+  background. `icon.png`, `android-icon-foreground/background/
+  monochrome.png`, and `favicon.png` (`assets/`) are all generated from the
+  same source illustration, supplied directly by the app's owner during the
+  Paua Pop design review rather than drawn from scratch — regenerate all
+  five together from that source (not just one) if the crop or background
+  color ever needs to change, so they stay a matched set. Avoids literal
+  weather iconography (sun/cloud combos) same as the original umbrella/
+  jacket concept this replaced — that's exactly what every generic weather
+  app's icon looks like, and the whole point of this app is that it's not
+  that.
 - iOS: fill in the **Privacy Manifest** (`PrivacyInfo.xcprivacy`, required
   since 2024 for apps using location and network APIs) declaring the
   location API usage reason code and confirming no data is sold/shared
