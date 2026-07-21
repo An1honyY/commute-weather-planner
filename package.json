@@ -18,8 +18,10 @@
     "expo-sharing": "~57.0.6",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "leaflet": "^1.9.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-leaflet": "^5.0.0",
     "react-native": "0.86.0",
     "react-native-dotenv": "^3.4.11",
     "react-native-maps": "1.27.2",
@@ -35,6 +37,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "29.5.14",
+    "@types/leaflet": "^1.9.21",
     "@types/react": "~19.2.2",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-preset-expo": "~57.0.0",
