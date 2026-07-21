@@ -137,6 +137,67 @@ export async function updateJourney(journey: Journey): Promise<void> {
   );
 }
 
+// docs/10-production-readiness.md §10.3 — "Export my data" needs every
+// Journey (past, upcoming, and recurring templates alike), unlike the
+// other list queries above which are each scoped to one screen's need.
+export async function listAllJourneys(): Promise<Journey[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<JourneyRow>("SELECT * FROM journeys ORDER BY depart_time DESC");
+  return rows.map(fromRow);
+}
+
+// Import upserts by id, preserving the exported id/origin/destination
+// snapshot exactly rather than routing through createJourney's insert-only
+// path — see clothing.ts's upsertClothing for the same reasoning.
+export async function upsertJourney(journey: Journey): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO journeys
+      (id, origin_id, origin_label, origin_address, origin_lat, origin_lng, origin_has_reliable_climate_control,
+       destination_id, destination_label, destination_address, destination_lat, destination_lng, destination_has_reliable_climate_control,
+       depart_time, legs, recurrence, template_id, linked_return_journey_id, feedback, saved_route_id,
+       recommendation_snapshot, waypoints, carry_preference, formal)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       origin_id = excluded.origin_id, origin_label = excluded.origin_label, origin_address = excluded.origin_address,
+       origin_lat = excluded.origin_lat, origin_lng = excluded.origin_lng,
+       origin_has_reliable_climate_control = excluded.origin_has_reliable_climate_control,
+       destination_id = excluded.destination_id, destination_label = excluded.destination_label,
+       destination_address = excluded.destination_address, destination_lat = excluded.destination_lat,
+       destination_lng = excluded.destination_lng,
+       destination_has_reliable_climate_control = excluded.destination_has_reliable_climate_control,
+       depart_time = excluded.depart_time, legs = excluded.legs, recurrence = excluded.recurrence,
+       template_id = excluded.template_id, linked_return_journey_id = excluded.linked_return_journey_id,
+       feedback = excluded.feedback, saved_route_id = excluded.saved_route_id,
+       recommendation_snapshot = excluded.recommendation_snapshot, waypoints = excluded.waypoints,
+       carry_preference = excluded.carry_preference, formal = excluded.formal`,
+    journey.id,
+    journey.origin.id,
+    journey.origin.label,
+    journey.origin.address,
+    journey.origin.lat,
+    journey.origin.lng,
+    toSqlBool(journey.origin.hasReliableClimateControl),
+    journey.destination.id,
+    journey.destination.label,
+    journey.destination.address,
+    journey.destination.lat,
+    journey.destination.lng,
+    toSqlBool(journey.destination.hasReliableClimateControl),
+    journey.departTime,
+    toSqlJson(journey.legs) ?? "[]",
+    toSqlJson(journey.recurrence),
+    journey.templateId ?? null,
+    journey.linkedReturnJourneyId ?? null,
+    journey.feedback ?? null,
+    journey.savedRouteId ?? null,
+    toSqlJson(journey.recommendationSnapshot),
+    toSqlJson(journey.waypoints),
+    journey.carryPreference ?? null,
+    toSqlBool(journey.formal)
+  );
+}
+
 // §7.3 — the delete side of "cancel with cancelScheduledNotificationAsync
 // if the user deletes the journey." Notification cancellation itself is
 // the caller's job (src/lib/journeyActions.ts), not this repo's.

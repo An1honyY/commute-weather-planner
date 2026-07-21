@@ -61,6 +61,26 @@ export async function updateUmbrella(item: UmbrellaItem): Promise<void> {
   );
 }
 
+// docs/10-production-readiness.md §10.3 — import upserts by id, see
+// clothing.ts's upsertClothing for why this differs from createUmbrella.
+export async function upsertUmbrella(item: UmbrellaItem): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO umbrella_items (id, name, type, wind_rating, unavailable_until, color, photo_uri)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name, type = excluded.type, wind_rating = excluded.wind_rating,
+       unavailable_until = excluded.unavailable_until, color = excluded.color, photo_uri = excluded.photo_uri`,
+    item.id,
+    item.name,
+    item.type,
+    item.windRating,
+    item.unavailableUntil ?? null,
+    item.color ?? null,
+    item.photoUri ?? null
+  );
+}
+
 export async function deleteUmbrella(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM umbrella_items WHERE id = ?", id);

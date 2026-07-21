@@ -51,6 +51,22 @@ export async function updateVehicle(item: VehicleItem): Promise<void> {
   );
 }
 
+// docs/10-production-readiness.md §10.3 — import upserts by id, see
+// clothing.ts's upsertClothing for why this differs from createVehicle.
+export async function upsertVehicle(item: VehicleItem): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO vehicle_items (id, name, type, weather_protection, photo_uri) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name, type = excluded.type, weather_protection = excluded.weather_protection, photo_uri = excluded.photo_uri`,
+    item.id,
+    item.name,
+    item.type,
+    item.weatherProtection,
+    item.photoUri ?? null
+  );
+}
+
 export async function deleteVehicle(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM vehicle_items WHERE id = ?", id);

@@ -36,6 +36,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-preset-expo": "~57.0.0",
     "better-sqlite3": "^12.11.1",
     "eslint": "^9.0.0",

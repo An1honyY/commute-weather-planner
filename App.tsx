@@ -12,6 +12,7 @@ import { withTimeout } from "./src/lib/withTimeout";
 import { freezeJourneyByIdIfDue } from "./src/lib/leaveBy";
 import { runCalibrationDecayIfDue } from "./src/lib/calibration";
 import { checkForecastDrift } from "./src/lib/forecastDrift";
+import { initCrashReportingIfEnabled } from "./src/lib/crashReporting";
 import { useThemeStore } from "./src/theme/useThemeStore";
 
 // §5.2 — same-day journeys get re-checked at 3h/30min out; this foreground
@@ -41,6 +42,10 @@ export default function App() {
     withTimeout(getThemePreference(), "system").then((preference) =>
       useThemeStore.getState().setThemePreference(preference)
     );
+    // §10.5 — only initializes the provider when the stored preference is
+    // already true (set during onboarding or a prior Settings visit); a
+    // fresh install with the setting still at its default stays fully off.
+    initCrashReportingIfEnabled().catch(() => {});
   }, []);
 
   useEffect(() => {
