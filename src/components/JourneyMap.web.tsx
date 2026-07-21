@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import type { MapStop } from "./JourneyMap";
+import type { MapCircle, MapStop } from "./JourneyMap";
 
 // Web fallback for Journey Detail's map. react-native-maps' own MapView.web.ts
 // already resolves to an UnimplementedView, but its Marker/Polyline
@@ -12,6 +12,10 @@ import type { MapStop } from "./JourneyMap";
 interface Props {
   stops: MapStop[];
   accentColor: string;
+  // Phase 6's long-press annotation capture and radius preview are
+  // native-only, like the map itself — accepted and ignored here.
+  onLongPress?: (coordinate: { lat: number; lng: number }) => void;
+  previewCircle?: MapCircle | null;
 }
 
 export default function JourneyMap({ accentColor }: Props) {

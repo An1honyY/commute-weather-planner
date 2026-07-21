@@ -59,6 +59,27 @@ describe("weatherService.getForecast", () => {
     expect(result.data[1]).toMatchObject({ tempC: 25, apparentTempC: 23 }); // 10+15, 8+15
   });
 
+  it("requests past_days=1 and sums the 6 hours before now into recentPrecipMm6h", async () => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-07-20T12:30:00.000Z"));
+    try {
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockOpenMeteoResponse(1),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await getForecast([{ lat: -36.8485, lng: 174.7633, time: "2026-07-20T15:00:00.000Z" }]);
+
+      expect(fetchMock.mock.calls[0][0]).toContain("past_days=1");
+      expect("data" in result).toBe(true);
+      if (!("data" in result)) return;
+      // Window (06:30, 12:30] covers the 07:00–12:00 readings — 6 × 2mm.
+      expect(result.data[0].recentPrecipMm6h).toBe(12);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("maps a network error to { error: 'network' }", async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
     const result = await getForecast([{ lat: 0, lng: 0, time: "2026-07-20T00:00:00.000Z" }]);

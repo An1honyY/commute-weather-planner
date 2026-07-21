@@ -1,10 +1,9 @@
 // Gear recommendation engine — docs/07-recommendation-engine.md §7.
-// Ported from the spec's reference implementation. Per DECISIONS.md ("Phase
-// 5's recommendGear() omits the annotation-gated wind/sun deltas and puddle
-// risk"), the §7.8 wind-tunnel/sun-exposure/puddle-risk block is deferred
-// to Phase 6 (it has no real inputs — EnvironmentAnnotation matching and
-// recentPrecipMm6h — until then); the stationary-wait aggravation (§7.9)
-// is included now since it only needs data Phase 4 already provides.
+// Ported from the spec's reference implementation, including the §7.8
+// annotation-gated wind/sun/reflection deltas and puddle-risk/rain-cover
+// handling added in Phase 6 (their inputs — EnvironmentAnnotation matching
+// and recentPrecipMm6h — exist from Phase 6's wiring in §5.5).
+import { clamp } from "./utils";
 import { acFeelsCold, classifyWeather, getSeason, resolveWarmthOffset } from "./weather";
 import type {
   AdvancedWarmthThresholds,
@@ -47,7 +46,15 @@ const HIGH_WIND_KPH = 30; // gust speed requiring a wind-rated umbrella
 const ACCESSORY_WARMTH_LEVEL = 3;
 const HIGH_UV_INDEX = 6;
 const HIGH_REFLECTION_UV_OFFSET = 1;
-const WIND_CHILL_KPH = 15; // used here only to pick the stationary-wait threshold (§7.9); the wind-tunnel envDelta itself is Phase 6
+const WIND_CHILL_KPH = 15; // §6.2/§7.8 — effective SUSTAINED wind (not gust) at/above which a wind-tunnel annotation justifies an extra warmth bump; deliberately 15, not 20 — see §7.8 on Auckland's 14-18kph average
+const WIND_TUNNEL_MULTIPLIER = 1.5; // felt-wind multiplier for a leg flagged windEffect === "amplified"
+// §7.8 — "sheltered" legs are informational-only (no dampening delta):
+// apparentTempC is a single combined figure with no exposed wind-driven
+// breakdown, so there's no reliable amount to offset for a sheltered spot.
+// The multiplier is named here for symmetry/tuning but deliberately unread.
+export const WIND_SHELTERED_MULTIPLIER = 0.5;
+export const PUDDLE_RISK_PRECIP_MM_6H = 5; // cumulative mm over the past 6h at/above which puddle risk is flagged for footwear (§7.8) — exported for planJourney's fetch-time leg stamping (§3.4)
+const WIND_SENSITIVITY_OFFSET_CLAMP = 1; // §7.5.2 — clamps windSensitivityOffset to ±1; only ever nudges the annotation-gated wind-chill bump, never the base warmthLevel
 const APPARENT_TEMP_DIVERGENCE_NOTE_C = 2;
 const STATIONARY_WAIT_MIN_MINUTES = 10;
 const STATIONARY_WAIT_WINDY_MIN_MINUTES = 5;
@@ -190,10 +197,13 @@ export function recommendGear(
   const stationaryMinutes = totalOutdoorStationaryMinutes(journey);
   const isFormal = journey.formal ?? false;
   const needsWaterproof = outdoorLegs.some((l) => condition(l.weather!).severity >= 2);
-  // Puddle risk needs recentPrecipMm6h (§5.5), added in Phase 6 alongside
-  // the annotation wiring — always false until then, per DECISIONS.md.
-  const puddleRisk = false;
-  const anyRainCovered = false; // rainCovered comes from annotation matching, Phase 6
+  // Puddle risk affects footwear only, independent of current rain (§7.8) —
+  // either stamped on the leg at fetch time (§3.4) or derived here from the
+  // snapshot's recentPrecipMm6h.
+  const puddleRisk = outdoorLegs.some(
+    (l) => l.puddleRisk || (l.weather!.recentPrecipMm6h ?? 0) >= PUDDLE_RISK_PRECIP_MM_6H
+  );
+  const anyRainCovered = outdoorLegs.some((l) => l.rainCovered);
 
   const notes: string[] = [];
 
@@ -240,9 +250,44 @@ export function recommendGear(
     Math.min(4, warmthLevelFromTemp(minTemp, thresholds) + resolveWarmthOffset(calibration, season))
   ) as 0 | 1 | 2 | 3 | 4;
 
-  // 1.5. Stationary-wait aggravation only (§7.9) — the wind-tunnel/sun
-  // envDelta block (§7.8) is Phase 6, see DECISIONS.md.
+  // 1.5. Hyper-local wind/sun/reflection adjustments (§7.8) and
+  // stationary-wait adjustment (§7.9). The wind/sun checks fire ONLY in the
+  // presence of an EnvironmentAnnotation (windEffect/sunEffect/
+  // highReflection) — there is deliberately no general ambient wind-chill
+  // or sun-warming check here, since apparentTempC (used for minTemp
+  // above) already folds in the citywide ambient wind/humidity/solar
+  // picture; a general check on top would double-count. These deltas
+  // represent only the *extra* local deviation a specific street or spot
+  // adds beyond that baseline.
   let envDelta = 0;
+  const windLeg = outdoorLegs.find(
+    (l) => l.windEffect === "amplified" && l.weather!.windKph * WIND_TUNNEL_MULTIPLIER >= WIND_CHILL_KPH
+  );
+  if (windLeg && !isFormal) {
+    // §7.10 — a formal occasion relies on the umbrella pick + note rather
+    // than an added layer, since a bulky wind-chill layer is more likely to
+    // be visually wrong for the occasion than useful.
+    // §7.5.2 — windSensitivityOffset scales this one bump only, clamped;
+    // this is the sole place it's read.
+    const windBump =
+      1 + clamp(calibration.windSensitivityOffset ?? 0, -WIND_SENSITIVITY_OFFSET_CLAMP, WIND_SENSITIVITY_OFFSET_CLAMP);
+    envDelta += windBump;
+    notes.push(`Wind tunnel on ${windLeg.label} — dressing warmer for that stretch`);
+  }
+  const sunLeg = outdoorLegs.find(
+    (l) =>
+      l.sunEffect === "exposed" &&
+      l.weather!.isDaylight &&
+      l.weather!.uvIndex >= HIGH_UV_INDEX - (l.highReflection ? HIGH_REFLECTION_UV_OFFSET : 0)
+  );
+  if (sunLeg) {
+    envDelta -= 1;
+    notes.push(
+      sunLeg.highReflection
+        ? `Direct sun and reflection on ${sunLeg.label} will feel warmer than the temperature alone suggests`
+        : `Direct sun on ${sunLeg.label} will feel warmer than the temperature alone suggests`
+    );
+  }
   const stationaryLegWindy = outdoorLegs.some((l) => l.isStationary && l.weather!.windKph >= WIND_CHILL_KPH);
   const stationaryThreshold = stationaryLegWindy ? STATIONARY_WAIT_WINDY_MIN_MINUTES : STATIONARY_WAIT_MIN_MINUTES;
   if (stationaryMinutes >= stationaryThreshold && minTemp < thresholds.coolUpperC) {

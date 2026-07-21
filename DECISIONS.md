@@ -185,3 +185,34 @@ bolt onto this phase.
 **Resolution**: split by data dependency, not by section number. Stationary-wait aggravation needs only `JourneyLeg.isStationary` and `WeatherSnapshot.windKph`/`apparentTempC`, both real since Phase 4 — included in Phase 5. Wind-tunnel/sun-exposure/reflection/puddle-risk need annotation-matching and `recentPrecipMm6h`, both Phase 6 — deferred there, exactly as `docs/08-build-phases.md` Phase 6 already describes, so Phase 6 only has to *add* that block to an already-built function rather than reconcile a conflicting reading.
 
 ---
+
+## 2026-07-21 — Annotation UI simplifications: no embedded-map repositioning, no swipe-to-delete, stepped radius chips, no row map thumbnails (Section 4.5)
+
+**What**: Phase 6's `EnvironmentAnnotation` UI deviates from §4.5's wording
+in four small ways: (1) editing an annotation from the Local knowledge list
+repositions via lat/lng number fields, not "a small embedded map"; (2) list
+rows delete via a per-row ✕ button (plus a delete action inside the edit
+form), not swipe-to-delete; (3) the radius control is a stepped chip row
+(50/100/150/200/250/300m, default 100), not a continuous 50–300m drag
+slider; (4) list rows show an effect icon, not "a small static map
+thumbnail centered on it."
+
+**Why this needed a decision**: each is the same shape of gap already
+logged for earlier phases rather than a new judgment: `react-native-maps`
+has no web target (breaking the browser smoke-check this project verifies
+every phase with — the exact reasoning in the "Locations CRUD uses
+text/number fields" entry), no slider or swipe-gesture dependency is in
+`docs/01-tech-stack.md`'s table (the same reasoning as the WarmthSlider
+stepped-segments and plain-text date-picker entries), and a static map
+thumbnail per row would need either a Maps Static API call (billing, a new
+network dependency for pure decoration) or a live embedded map per row.
+
+**Resolution**: kept every §4.5 behavior — add-in-context via map
+long-press with live radius-circle preview (native), edit/delete/review
+from the list, per-effect placeholder copy, the 4.1 empty state — with
+those four presentation details simplified to match the established
+precedents. The map long-press add flow itself IS built with the real
+map circle preview, since Journey Detail's native map already exists;
+only the list/edit screen avoids map dependencies. Revisit alongside the
+same future pass the Locations entry already anticipates (if a map
+pin-drop/slider dependency is ever deliberately added).

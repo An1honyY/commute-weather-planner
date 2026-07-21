@@ -1,7 +1,7 @@
 // Open-Meteo (api.open-meteo.com/v1/forecast) — docs/02-external-apis.md §2.
 // Free, keyless. Requests apparent_temperature, wind_gusts_10m,
-// relative_humidity_2m, uv_index, is_day per §2/§6.2. `past_days` for
-// recentPrecipMm6h is Phase 6 (docs/05-data-wiring.md §5.5), not added here.
+// relative_humidity_2m, uv_index, is_day per §2/§6.2, plus `past_days=1`
+// for recentPrecipMm6h (docs/05-data-wiring.md §5.5, Phase 6).
 import { forecastConfidence } from "../lib/weather";
 import type { WeatherSnapshot } from "../types";
 import type { ServiceResult } from "./types";
@@ -60,6 +60,22 @@ function nearestHourlyIndex(times: string[], targetIso: string): number {
   return bestIndex;
 }
 
+// §5.5 — cumulative precipitation over the 6 hours immediately before
+// "now" (fetch time, NOT the journey's future departure — puddle risk is
+// about current ground conditions). Computed once from the first location
+// and reused across every point: a deliberately citywide-ish single value,
+// since legs within one journey are rarely far enough apart for recent
+// rain history to differ meaningfully between them.
+function sumRecentPrecipMm6h(hourly: OpenMeteoHourly, nowMs: number): number {
+  const sixHoursAgoMs = nowMs - 6 * 3_600_000;
+  let sum = 0;
+  for (let i = 0; i < hourly.time.length; i++) {
+    const hourMs = new Date(`${hourly.time[i]}Z`).getTime();
+    if (hourMs > sixHoursAgoMs && hourMs <= nowMs) sum += hourly.precipitation[i];
+  }
+  return sum;
+}
+
 export async function getForecast(points: ForecastPoint[]): Promise<ServiceResult<WeatherSnapshot[]>> {
   if (points.length === 0) return { data: [] };
 
@@ -67,7 +83,7 @@ export async function getForecast(points: ForecastPoint[]): Promise<ServiceResul
   const longitude = points.map((p) => p.lng).join(",");
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
-    `&hourly=${HOURLY_VARS}&timezone=UTC&forecast_days=16`;
+    `&hourly=${HOURLY_VARS}&timezone=UTC&forecast_days=16&past_days=1`;
 
   let response: Response;
   try {
@@ -91,6 +107,7 @@ export async function getForecast(points: ForecastPoint[]): Promise<ServiceResul
   // once more than one is requested — normalize to an array either way.
   const locations = Array.isArray(payload) ? payload : [payload];
   const fetchedAt = new Date().toISOString();
+  const recentPrecipMm6h = sumRecentPrecipMm6h(locations[0].hourly, new Date(fetchedAt).getTime());
 
   const data: WeatherSnapshot[] = points.map((point, i) => {
     const hourly = locations[i].hourly;
@@ -108,6 +125,7 @@ export async function getForecast(points: ForecastPoint[]): Promise<ServiceResul
       uvIndex: hourly.uv_index[index],
       isDaylight: hourly.is_day[index] === 1,
       forecastConfidence: forecastConfidence(point.time, fetchedAt),
+      recentPrecipMm6h,
     };
   });
 

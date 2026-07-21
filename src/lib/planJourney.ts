@@ -6,7 +6,10 @@
 import { computeRoute, type RoutePoint, type RouteStep } from "../services/routesService";
 import { getForecast } from "../services/weatherService";
 import { createJourney, findRecentJourneyBetween } from "../db/repositories/journeys";
+import { listAnnotations } from "../db/repositories/annotations";
 import { newId } from "../db/rowMapping";
+import { applyAnnotationsToLegs } from "./annotations";
+import { PUDDLE_RISK_PRECIP_MM_6H } from "./recommend";
 import { CLIMATE_BY_MODE } from "./weather";
 import type { CarryPreference, Journey, JourneyLeg, RecurrenceRule, SavedLocation, TravelMode } from "../types";
 
@@ -187,12 +190,28 @@ async function assembleJourney(
     }
   }
 
+  // §5.5 — puddle risk is derived at fetch time from the citywide
+  // recentPrecipMm6h stamped on each snapshot; a time-based signal, no
+  // annotation matching involved (§3.4).
+  legs.forEach((leg) => {
+    if (leg.outdoor && leg.weather && (leg.weather.recentPrecipMm6h ?? 0) >= PUDDLE_RISK_PRECIP_MM_6H) {
+      leg.puddleRisk = true;
+    }
+  });
+
+  // §5.5 — match each outdoor leg's polyline against every saved
+  // EnvironmentAnnotation (loaded once per plan — at most a few dozen rows)
+  // and stamp windEffect/sunEffect/highReflection/rainCovered/
+  // matchedAnnotationIds per §3.4's point-radius rules.
+  const annotations = await listAnnotations();
+  const stampedLegs = annotations.length > 0 ? applyAnnotationsToLegs(legs, annotations) : legs;
+
   return {
     id: newId(),
     origin: input.origin,
     destination: input.destination,
     departTime: input.departTime,
-    legs,
+    legs: stampedLegs,
     recurrence: input.recurrence,
     templateId: input.templateId,
     waypoints: input.waypoints.length > 0 ? input.waypoints : undefined,

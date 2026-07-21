@@ -7,8 +7,8 @@ import type { ClothingItem, Journey, JourneyLeg, ShoeItem, UmbrellaItem, WarmthC
 // calibration offset, cycling-vs-walking warmup split, carryPreference
 // override, formal-mode overrides, dual-purpose jacket, bottoms triggers,
 // severe-weather advisory, hot-weather note, sun/darkness accessories, and
-// the stationary-wait aggravation. Puddle risk and the annotation-gated
-// wind/sun deltas (§7.8) are Phase 6 (DECISIONS.md) and have no tests here.
+// the stationary-wait aggravation, plus (Phase 6) puddle risk, rain-cover,
+// and the annotation-gated wind/sun/reflection deltas (§7.8).
 
 const HOME = { id: "home", label: "Home", address: "1 Home St", lat: -36.8485, lng: 174.7633 };
 const WORK = { id: "work", label: "Work", address: "2 Work St", lat: -36.86, lng: 174.77 };
@@ -464,5 +464,149 @@ describe("recommendGear — pickLayer resolves against the widened 1-10 warmth s
     );
     const jacketPick = result.layers.find((l) => "id" in l && l.type === "jacket");
     expect(jacketPick).toMatchObject({ id: closeJacket.id });
+  });
+});
+
+describe("recommendGear — §7.8 annotation-gated wind/sun/reflection deltas (Phase 6)", () => {
+  const layered = inventory({
+    clothing: [
+      clothingItem({ type: "base", warmth: 1 }),
+      clothingItem({ type: "midlayer", warmth: 5 }),
+      clothingItem({ type: "jacket", warmth: 8 }),
+    ],
+  });
+  const layerTypes = (result: ReturnType<typeof recommendGear>) =>
+    result.layers.map((l) => ("id" in l ? l.type : l.layerType));
+
+  it("wind-tunnel leg whose amplified wind clears WIND_CHILL_KPH bumps one warmth level", () => {
+    // 10°C = level 2; windKph 10 × 1.5 = 15 >= 15 → level 3.
+    const journey = journeyWithLegs([
+      walkLeg({ windEffect: "amplified", weather: weather({ apparentTempC: 10, windKph: 10 }) }),
+    ]);
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(layerTypes(result)).toEqual(["midlayer", "jacket"]);
+    expect(result.notes.some((n) => n.startsWith("Wind tunnel on"))).toBe(true);
+  });
+
+  it("wind-tunnel leg below the effective threshold does not bump", () => {
+    // windKph 9 × 1.5 = 13.5 < 15.
+    const journey = journeyWithLegs([
+      walkLeg({ windEffect: "amplified", weather: weather({ apparentTempC: 10, windKph: 9 }) }),
+    ]);
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(layerTypes(result)).toEqual(["jacket"]);
+  });
+
+  it("a sheltered leg never bumps — the delta is amplified-only", () => {
+    const journey = journeyWithLegs([
+      walkLeg({ windEffect: "sheltered", weather: weather({ apparentTempC: 10, windKph: 40 }) }),
+    ]);
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(layerTypes(result)).toEqual(["jacket"]);
+  });
+
+  it("a formal occasion skips the wind-tunnel bump (§7.10)", () => {
+    const journey = journeyWithLegs(
+      [walkLeg({ windEffect: "amplified", weather: weather({ apparentTempC: 10, windKph: 10 }) })],
+      { formal: true }
+    );
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(result.notes.some((n) => n.startsWith("Wind tunnel on"))).toBe(false);
+  });
+
+  it("windSensitivityOffset scales the bump and is clamped to ±1 (§7.5.2)", () => {
+    const journey = journeyWithLegs([
+      walkLeg({ windEffect: "amplified", weather: weather({ apparentTempC: 10, windKph: 10 }) }),
+    ]);
+    const moreSensitive: WarmthCalibration = { offsetLevels: 0, sampleCount: 0, windSensitivityOffset: 1 };
+    expect(layerTypes(recommendGear(journey, layered, moreSensitive, "no-preference"))).toEqual([
+      "base",
+      "midlayer",
+      "jacket",
+    ]); // level 2 + bump 2 = 4
+    const outOfRange: WarmthCalibration = { offsetLevels: 0, sampleCount: 0, windSensitivityOffset: 5 };
+    expect(layerTypes(recommendGear(journey, layered, outOfRange, "no-preference"))).toEqual([
+      "base",
+      "midlayer",
+      "jacket",
+    ]); // clamped to the same +2 total, never further
+  });
+
+  it("sun-exposed leg at high UV in daylight drops one warmth level", () => {
+    const journey = journeyWithLegs([
+      walkLeg({ sunEffect: "exposed", weather: weather({ apparentTempC: 10, uvIndex: 6 }) }),
+    ]);
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(layerTypes(result)).toEqual(["midlayer"]); // level 2 - 1 = 1
+    expect(result.notes.some((n) => n.startsWith("Direct sun on"))).toBe(true);
+  });
+
+  it("sun-exposed leg after dark does not fire", () => {
+    const journey = journeyWithLegs([
+      walkLeg({ sunEffect: "exposed", weather: weather({ apparentTempC: 10, uvIndex: 6, isDaylight: false }) }),
+    ]);
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(layerTypes(result)).toEqual(["jacket"]);
+  });
+
+  it("highReflection lowers the effective UV threshold by HIGH_REFLECTION_UV_OFFSET", () => {
+    const atUv5 = (highReflection: boolean) =>
+      recommendGear(
+        journeyWithLegs([
+          walkLeg({ sunEffect: "exposed", highReflection, weather: weather({ apparentTempC: 10, uvIndex: 5 }) }),
+        ]),
+        layered,
+        NO_CALIBRATION,
+        "no-preference"
+      );
+    expect(layerTypes(atUv5(false))).toEqual(["jacket"]); // 5 < 6, no reduction
+    const reflected = atUv5(true); // 5 >= 6 - 1, fires
+    expect(layerTypes(reflected)).toEqual(["midlayer"]);
+    expect(reflected.notes.some((n) => n.includes("sun and reflection"))).toBe(true);
+  });
+
+  it("highReflection without a sun-exposed pin has no warmth effect (§3.4)", () => {
+    const journey = journeyWithLegs([
+      walkLeg({ highReflection: true, weather: weather({ apparentTempC: 10, uvIndex: 6 }) }),
+    ]);
+    const result = recommendGear(journey, layered, NO_CALIBRATION, "no-preference");
+    expect(layerTypes(result)).toEqual(["jacket"]);
+  });
+});
+
+describe("recommendGear — puddle risk & rain cover (§7.8, Phase 6)", () => {
+  it("dry now but recent rain: requires waterproof shoes with the puddle note", () => {
+    const wetGround = weather({ recentPrecipMm6h: 6 }); // >= PUDDLE_RISK_PRECIP_MM_6H, dry conditions
+    const boots = shoeItem({ id: "boots", name: "Boots", waterproof: true });
+    const journey = journeyWithLegs([walkLeg({ weather: wetGround })]);
+    const result = recommendGear(
+      journey,
+      inventory({ shoes: [shoeItem(), boots] }),
+      NO_CALIBRATION,
+      "no-preference"
+    );
+    expect(result.shoes).toMatchObject({ id: "boots" });
+    expect(result.notes.some((n) => n.startsWith("Rain earlier today"))).toBe(true);
+    expect(result.umbrella).toBeUndefined(); // footwear only — never umbrella/jacket (§7.8)
+  });
+
+  it("a stamped leg.puddleRisk flag triggers the same path without the snapshot field", () => {
+    const journey = journeyWithLegs([walkLeg({ puddleRisk: true })]);
+    const result = recommendGear(journey, inventory(), NO_CALIBRATION, "no-preference");
+    expect(result.shoes).toMatchObject({ fallbackText: "No waterproof shoes owned or available" });
+  });
+
+  it("below the 6h threshold nothing changes", () => {
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ recentPrecipMm6h: 3 }) })]);
+    const result = recommendGear(journey, inventory(), NO_CALIBRATION, "no-preference");
+    expect(result.notes.some((n) => n.startsWith("Rain earlier today"))).toBe(false);
+  });
+
+  it("a rain-covered stretch adds the informational note without changing the umbrella pick", () => {
+    const rainy = weather({ weatherCode: 61, precipMm: 2 });
+    const journey = journeyWithLegs([walkLeg({ weather: rainy, rainCovered: true })]);
+    const result = recommendGear(journey, inventory(), NO_CALIBRATION, "no-preference");
+    expect(result.umbrella).toMatchObject({ id: "umbrella-1" });
+    expect(result.notes.some((n) => n.startsWith("Part of this route is covered"))).toBe(true);
   });
 });

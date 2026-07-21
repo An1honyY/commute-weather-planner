@@ -1,12 +1,15 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { getJourney, updateJourney } from "../../db/repositories/journeys";
+import { createAnnotation, listAnnotations } from "../../db/repositories/annotations";
+import { applyAnnotationsToLegs } from "../../lib/annotations";
 import { useRecommendation } from "../../lib/useRecommendation";
 import { dominantMode } from "../../lib/journeyMode";
-import JourneyMap from "../../components/JourneyMap";
+import JourneyMap, { type MapCircle } from "../../components/JourneyMap";
+import AnnotationForm, { type AnnotationFormValues } from "../local-knowledge/AnnotationForm";
 import GearRecommendationCard from "./GearRecommendationCard";
 import LegRow from "./LegRow";
 import type { GearFeedback, Journey } from "../../types";
@@ -42,6 +45,11 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // Date.now() is impure to call during render — a useState lazy
   // initializer (react-hooks/purity) only runs once at mount.
   const [nowMs] = useState(() => Date.now());
+  // §4.5 — the in-context annotation add flow: a long-press on the map
+  // opens a bottom sheet pre-filled with the tapped coordinates, with the
+  // affected radius previewed live on the map underneath.
+  const [annotationCoordinate, setAnnotationCoordinate] = useState<{ lat: number; lng: number } | null>(null);
+  const [previewCircle, setPreviewCircle] = useState<MapCircle | null>(null);
   const recommendation = useRecommendation(journey);
 
   useFocusEffect(
@@ -93,6 +101,27 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
       return confidenceRank[legConfidence] > confidenceRank[worst] ? legConfidence : worst;
     }, "high");
 
+  function openAnnotationSheet(coordinate: { lat: number; lng: number }) {
+    setAnnotationCoordinate(coordinate);
+    setPreviewCircle({ ...coordinate, radiusM: 100 });
+  }
+
+  function closeAnnotationSheet() {
+    setAnnotationCoordinate(null);
+    setPreviewCircle(null);
+  }
+
+  // §4.5 — save, then immediately re-run annotation matching for this
+  // journey's legs so the effect is visible here without navigating away.
+  async function saveAnnotation(values: AnnotationFormValues) {
+    await createAnnotation(values);
+    const annotations = await listAnnotations();
+    const updated = { ...journey!, legs: applyAnnotationsToLegs(journey!.legs, annotations) };
+    await updateJourney(updated);
+    setJourney(updated);
+    closeAnnotationSheet();
+  }
+
   async function giveFeedback(feedback: GearFeedback) {
     const updated = { ...journey!, feedback };
     await updateJourney(updated);
@@ -104,7 +133,12 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <ScrollView>
         <View style={styles.mapContainer}>
-          <JourneyMap stops={stops} accentColor={accentColor} />
+          <JourneyMap
+            stops={stops}
+            accentColor={accentColor}
+            onLongPress={openAnnotationSheet}
+            previewCircle={previewCircle}
+          />
         </View>
 
         {route.params.cachedFromDate && (
@@ -161,6 +195,28 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={annotationCoordinate !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAnnotationSheet}
+      >
+        <View style={styles.sheetBackdrop}>
+          <Pressable style={styles.sheetDismissArea} onPress={closeAnnotationSheet} />
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>Mark this spot</Text>
+            {annotationCoordinate && (
+              <AnnotationForm
+                initialCoordinate={annotationCoordinate}
+                onSave={saveAnnotation}
+                onCancel={closeAnnotationSheet}
+                onPreviewChange={setPreviewCircle}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -185,4 +241,14 @@ const styles = StyleSheet.create({
   feedbackButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: "#F6F7FA" },
   feedbackButtonPositive: { backgroundColor: "#3F9A5C" },
   feedbackLabel: { fontSize: 10, textAlign: "center" },
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.35)" },
+  sheetDismissArea: { flex: 1 },
+  sheet: {
+    maxHeight: "75%",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 12,
+  },
+  sheetTitle: { fontSize: 17, fontWeight: "600", textAlign: "center" },
 });

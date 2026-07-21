@@ -1,26 +1,32 @@
 import { StyleSheet, View } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Circle, Marker, Polyline } from "react-native-maps";
 
 // Journey Detail's map — docs/09-design-system.md §9.3 item 1. Native
 // (iOS/Android) implementation; see JourneyMap.web.tsx for why web gets a
 // separate file rather than importing react-native-maps directly (
 // DECISIONS.md, "Locations CRUD uses text/number fields, not map pin-drop").
-// Phase 3 has no real routed polyline yet (Phase 4) — a straight line
-// through the ordered stops is the honest mock, and since the Plan screen
-// only offers one mode per whole trip right now, a single accent color
-// already matches §9.3's "per-segment matching each leg's mode" for this
-// phase's actual data shape.
+// Phase 6 adds the long-press entry point for EnvironmentAnnotation capture
+// (§4.5) and the live radius-circle preview shown while the annotation
+// sheet is open.
 export interface MapStop {
   lat: number;
   lng: number;
 }
 
+export interface MapCircle {
+  lat: number;
+  lng: number;
+  radiusM: number;
+}
+
 interface Props {
   stops: MapStop[];
   accentColor: string;
+  onLongPress?: (coordinate: { lat: number; lng: number }) => void;
+  previewCircle?: MapCircle | null;
 }
 
-export default function JourneyMap({ stops, accentColor }: Props) {
+export default function JourneyMap({ stops, accentColor, onLongPress, previewCircle }: Props) {
   if (stops.length === 0) return <View style={styles.container} />;
 
   const coordinates = stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
@@ -38,6 +44,10 @@ export default function JourneyMap({ stops, accentColor }: Props) {
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       }}
+      onLongPress={(event) => {
+        const { latitude, longitude } = event.nativeEvent.coordinate;
+        onLongPress?.({ lat: latitude, lng: longitude });
+      }}
     >
       <Polyline coordinates={coordinates} strokeColor={accentColor} strokeWidth={4} />
       {coordinates.map((coordinate, i) => (
@@ -48,6 +58,14 @@ export default function JourneyMap({ stops, accentColor }: Props) {
           <View style={[styles.conditionMarker, { backgroundColor: accentColor }]} />
         </Marker>
       ))}
+      {previewCircle && (
+        <Circle
+          center={{ latitude: previewCircle.lat, longitude: previewCircle.lng }}
+          radius={previewCircle.radiusM}
+          strokeColor={accentColor}
+          fillColor="rgba(201, 127, 46, 0.15)"
+        />
+      )}
     </MapView>
   );
 }

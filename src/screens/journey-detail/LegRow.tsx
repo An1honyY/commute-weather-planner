@@ -18,6 +18,21 @@ function formatTimeRange(startTime: string, durationMin: number): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
+// §3.4/§9.3 — the leg-level "why" line when saved EnvironmentAnnotations
+// (Phase 6) apply to this stretch. Labels mirror effectMeta.ts's picker
+// copy so the leg note and the Local knowledge screen speak the same
+// language.
+function annotationEffectLine(leg: JourneyLeg): string | null {
+  const parts: string[] = [];
+  if (leg.windEffect === "amplified") parts.push("🌬️ Wind tunnel");
+  if (leg.windEffect === "sheltered") parts.push("🏘️ Wind-sheltered");
+  if (leg.sunEffect === "exposed") parts.push("☀️ Sun-exposed");
+  if (leg.sunEffect === "shaded") parts.push("🌳 Shaded");
+  if (leg.highReflection) parts.push("🏖️ High reflection");
+  if (leg.rainCovered) parts.push("☂️ Covered from rain");
+  return parts.length > 0 ? `${parts.join(" · ")} — a spot you've marked` : null;
+}
+
 interface Props {
   leg: JourneyLeg;
 }
@@ -36,6 +51,7 @@ export default function LegRow({ leg }: Props) {
         <Text style={styles.meta}>
           {leg.durationMin} min · {formatTimeRange(leg.startTime, leg.durationMin)}
         </Text>
+        {annotationEffectLine(leg) && <Text style={styles.annotationLine}>{annotationEffectLine(leg)}</Text>}
       </View>
       {leg.outdoor && leg.weather && (
         <View style={styles.badge}>
@@ -55,6 +71,7 @@ const styles = StyleSheet.create({
   center: { flex: 1 },
   label: { fontSize: 15, fontWeight: "600" },
   meta: { fontSize: 12, color: "#5C6478", marginTop: 2 },
+  annotationLine: { fontSize: 12, color: "#C97F2E", marginTop: 2 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: "#DDE1EA" },
   badgeText: { fontSize: 12, fontWeight: "600" },
 });

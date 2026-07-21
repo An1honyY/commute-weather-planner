@@ -2,6 +2,7 @@ import { planJourney } from "./planJourney";
 import { computeRoute } from "../services/routesService";
 import { getForecast } from "../services/weatherService";
 import { createJourney, findRecentJourneyBetween } from "../db/repositories/journeys";
+import { listAnnotations } from "../db/repositories/annotations";
 import type { SavedLocation, WeatherSnapshot } from "../types";
 
 // Explicit factories, not bare jest.mock(path) — an auto-mock still loads
@@ -15,11 +16,13 @@ jest.mock("../db/repositories/journeys", () => ({
   createJourney: jest.fn(),
   findRecentJourneyBetween: jest.fn(),
 }));
+jest.mock("../db/repositories/annotations", () => ({ listAnnotations: jest.fn() }));
 
 const mockComputeRoute = computeRoute as jest.Mock;
 const mockGetForecast = getForecast as jest.Mock;
 const mockCreateJourney = createJourney as jest.Mock;
 const mockFindRecentJourneyBetween = findRecentJourneyBetween as jest.Mock;
+const mockListAnnotations = listAnnotations as jest.Mock;
 
 const HOME: SavedLocation = { id: "home", label: "Home", address: "1 Home St", lat: -36.8485, lng: 174.7633 };
 const WORK: SavedLocation = { id: "work", label: "Work", address: "2 Work St", lat: -36.86, lng: 174.77 };
@@ -56,6 +59,7 @@ describe("planJourney", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateJourney.mockImplementation(async (j) => j);
+    mockListAnnotations.mockResolvedValue([]);
   });
 
   it("live route success: builds legs and merges weather", async () => {
@@ -103,6 +107,35 @@ describe("planJourney", () => {
     expect(points[0].lng).toBeCloseTo(hop0Mid.lng, 6);
     expect(points[1].lat).toBeCloseTo(hop1Mid.lat, 6);
     expect(points[1].lng).toBeCloseTo(hop1Mid.lng, 6);
+  });
+
+  it("stamps annotation effects and puddle risk onto outdoor legs (§5.5)", async () => {
+    // "_p~iF~ps|U" decodes to the single point (38.5, -120.2) — the
+    // wind-tunnel annotation sits right on it.
+    mockComputeRoute.mockResolvedValue({
+      data: [{ mode: "walk", label: "Walk to Work", durationMin: 20, polyline: "_p~iF~ps|U" }],
+    });
+    mockGetForecast.mockResolvedValue({ data: [{ ...fakeWeather(), recentPrecipMm6h: 6 }] });
+    mockListAnnotations.mockResolvedValue([
+      {
+        id: "wt",
+        label: "Wind tunnel",
+        effect: "wind-tunnel",
+        lat: 38.5,
+        lng: -120.2,
+        radiusM: 100,
+        createdAt: "2026-07-01T00:00:00.000Z",
+      },
+    ]);
+
+    const result = await planJourney(baseInput);
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    const [leg] = result.journey.legs;
+    expect(leg.windEffect).toBe("amplified");
+    expect(leg.matchedAnnotationIds).toEqual(["wt"]);
+    expect(leg.puddleRisk).toBe(true); // recentPrecipMm6h 6 >= PUDDLE_RISK_PRECIP_MM_6H (5)
   });
 
   it("weather failure degrades gracefully: legs still build, weather stays undefined", async () => {
