@@ -1,4 +1,4 @@
-import { autocompletePlaces, getPlaceLocation, hasPlacesApiKey, newSessionToken } from "./placesService";
+import { autocompletePlaces, getPlaceLocation, hasPlacesApiKey, newSessionToken, reverseGeocode } from "./placesService";
 
 describe("placesService", () => {
   const originalFetch = global.fetch;
@@ -77,6 +77,52 @@ describe("placesService", () => {
     global.fetch = jest.fn();
 
     const result = await getPlaceLocation("abc123", "session-1");
+
+    expect(result).toEqual({ error: "unreachable" });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("reverseGeocode resolves a formatted address from lat/lng", async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY = "test-key";
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "OK", results: [{ formatted_address: "1 Queen St, Auckland" }] }),
+    }) as unknown as typeof fetch;
+
+    const result = await reverseGeocode(-36.85, 174.76);
+
+    expect(result).toEqual({ data: { formattedAddress: "1 Queen St, Auckland" } });
+  });
+
+  it("reverseGeocode maps OVER_QUERY_LIMIT to { error: 'rate-limited' }", async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY = "test-key";
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "OVER_QUERY_LIMIT", results: [] }),
+    }) as unknown as typeof fetch;
+
+    const result = await reverseGeocode(-36.85, 174.76);
+
+    expect(result).toEqual({ error: "rate-limited" });
+  });
+
+  it("reverseGeocode returns { error: 'unreachable' } with no results", async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY = "test-key";
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "ZERO_RESULTS", results: [] }),
+    }) as unknown as typeof fetch;
+
+    const result = await reverseGeocode(-36.85, 174.76);
+
+    expect(result).toEqual({ error: "unreachable" });
+  });
+
+  it("reverseGeocode returns { error: 'unreachable' } when no key is configured", async () => {
+    delete process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY;
+    global.fetch = jest.fn();
+
+    const result = await reverseGeocode(-36.85, 174.76);
 
     expect(result).toEqual({ error: "unreachable" });
     expect(global.fetch).not.toHaveBeenCalled();

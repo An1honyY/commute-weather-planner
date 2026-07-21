@@ -23,6 +23,13 @@ export interface PlaceLocation {
 
 const AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete";
 const PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places";
+// Reverse geocoding (lat/lng -> address) has no equivalent in Places API
+// (New) — it's still the older Geocoding API, a different host/response
+// shape, but the same GCP project/key (needs "Geocoding API" enabled
+// alongside "Places API (New)" and "Routes API"). Only used by
+// LocationPickerMap's confirm step, to fill in a human-readable address
+// for a dropped pin rather than leaving the label blank.
+const REVERSE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 
 function apiKey(): string | undefined {
   return process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY;
@@ -145,4 +152,38 @@ export async function getPlaceLocation(placeId: string, sessionToken: string): P
       formattedAddress: payload.formattedAddress ?? "",
     },
   };
+}
+
+interface GoogleGeocodeResponse {
+  status?: string;
+  results?: { formatted_address?: string }[];
+}
+
+export async function reverseGeocode(lat: number, lng: number): Promise<ServiceResult<{ formattedAddress: string }>> {
+  const key = apiKey();
+  if (!key) return { error: "unreachable" };
+
+  let response: Response;
+  try {
+    response = await fetch(`${REVERSE_GEOCODE_URL}?latlng=${lat},${lng}&key=${key}`);
+  } catch {
+    return { error: "network" };
+  }
+
+  if (!response.ok) {
+    return { error: response.status === 429 ? "rate-limited" : "unreachable" };
+  }
+
+  let payload: GoogleGeocodeResponse;
+  try {
+    payload = await response.json();
+  } catch {
+    return { error: "unreachable" };
+  }
+
+  if (payload.status === "OVER_QUERY_LIMIT") return { error: "rate-limited" };
+  const formattedAddress = payload.results?.[0]?.formatted_address;
+  if (!formattedAddress) return { error: "unreachable" };
+
+  return { data: { formattedAddress } };
 }
