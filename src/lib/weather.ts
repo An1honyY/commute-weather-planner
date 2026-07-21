@@ -89,3 +89,27 @@ export function resolveWarmthOffset(calibration: WarmthCalibration, season: Seas
   }
   return calibration.offsetLevels;
 }
+
+// §9.1 (2026-07-21 "Paua Pop" redesign) — the Today tab's screen tint
+// reacts to current conditions: cool when it's cold and wet, the default
+// mid palette otherwise, warm when it's genuinely warm and sunny. Read off
+// the same apparentTempC/severity the recommendation engine already uses,
+// not a new weather field.
+export type WeatherMood = "cold" | "mild" | "warm";
+
+export const COLD_MOOD_MAX_C = 8;
+export const WARM_MOOD_MIN_C = 22;
+// A warm-but-stormy reading should still read as "cold" mood (matches how
+// classifyWeather()'s severity already treats heavy rain/storms as the
+// dominant signal) — severity 3 (Heavy rain) and 4 (Stormy) both force cold.
+const COLD_MOOD_MIN_SEVERITY = 3;
+// Warm mood is reserved for genuinely clear/dry conditions — anything at or
+// above severity 2 (Rain) stays mild even on a warm day, since "warm and
+// sunny" is specifically what the gold/warm tint communicates.
+const WARM_MOOD_MAX_SEVERITY = 1;
+
+export function resolveWeatherMood(apparentTempC: number, severity: number): WeatherMood {
+  if (apparentTempC <= COLD_MOOD_MAX_C || severity >= COLD_MOOD_MIN_SEVERITY) return "cold";
+  if (apparentTempC >= WARM_MOOD_MIN_C && severity <= WARM_MOOD_MAX_SEVERITY) return "warm";
+  return "mild";
+}
