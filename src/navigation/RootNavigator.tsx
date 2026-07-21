@@ -8,6 +8,7 @@ import LocalKnowledgeScreen from "../screens/local-knowledge/LocalKnowledgeScree
 import SettingsScreen from "../screens/settings/SettingsScreen";
 import GearBasicsSetup from "../screens/setup/GearBasicsSetup";
 import NotificationsSetup from "../screens/setup/NotificationsSetup";
+import DevMenuScreen from "../screens/dev/DevMenuScreen";
 import useTheme from "../theme/useTheme";
 import { darkTheme } from "../theme/tokens";
 import type { RootStackParamList } from "./types";
@@ -65,6 +66,11 @@ export default function RootNavigator({ needsOnboarding = false }: Props) {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="SetupGearBasics" component={SetupGearBasicsScreen} options={{ title: "Add gear basics" }} />
         <Stack.Screen name="SetupNotifications" component={SetupNotificationsScreen} options={{ title: "Notifications" }} />
+        {/* docs/12-dev-workflow-ci.md §12.2 — only registered in dev/preview
+            builds; `__DEV__` compiles to a literal `false` in release,
+            so this branch (and DevMenuScreen's own code) is dead-code-
+            eliminated rather than merely hidden behind a runtime check. */}
+        {__DEV__ && <Stack.Screen name="DevMenu" component={DevMenuScreen} options={{ title: "Debug menu" }} />}
       </Stack.Navigator>
     </NavigationContainer>
   );

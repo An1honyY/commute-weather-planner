@@ -37,4 +37,7 @@ export type RootStackParamList = {
   // onboarding steps.
   SetupGearBasics: undefined;
   SetupNotifications: undefined;
+  // docs/12-dev-workflow-ci.md §12.2 — only registered on the navigator
+  // when `__DEV__` (RootNavigator.tsx), never reachable in a release build.
+  DevMenu: undefined;
 };

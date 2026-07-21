@@ -24,6 +24,7 @@ import {
   getThemePreference,
   isOnboardingCompleted,
   resetDismissedSetupTasks,
+  resetOnboardingAndPreferences,
   setCarryPreferenceDefault,
   setCrashReportingEnabled,
   setDefaultLocation,
@@ -196,6 +197,22 @@ describe("repository round-trips", () => {
 
     await resetDismissedSetupTasks();
 
+    expect(await getDismissedSetupTasks()).toEqual([]);
+  });
+
+  it("settings: resetOnboardingAndPreferences clears first-run state", async () => {
+    await setOnboardingCompleted();
+    await setCrashReportingEnabled(true);
+    await setThemePreference("dark");
+    await setDefaultLocation({ lat: -36.85, lng: 174.76, label: "Ponsonby" });
+    await dismissSetupTask("gear");
+
+    await resetOnboardingAndPreferences();
+
+    expect(await isOnboardingCompleted()).toBe(false);
+    expect(await getCrashReportingEnabled()).toBe(false);
+    expect(await getThemePreference()).toBe("system");
+    expect(await getDefaultLocation()).toBeUndefined();
     expect(await getDismissedSetupTasks()).toEqual([]);
   });
 

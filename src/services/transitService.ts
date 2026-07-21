@@ -16,6 +16,7 @@
 // static-GTFS stop/route lookup table this app doesn't build. A mismatch
 // simply falls through to "no matching entity found," which is treated the
 // same as `unreachable` (§5.6's flat 5-minute fallback already covers it).
+import { getDevOverrides } from "../lib/devOverrides";
 import type { ServiceResult } from "./types";
 
 export interface RealtimeDelay {
@@ -55,6 +56,17 @@ interface GtfsFeedMessage {
 export async function getRealtimeDelay(
   params: GetRealtimeDelayParams
 ): Promise<ServiceResult<RealtimeDelay>> {
+  // §12.2 — dev-menu overrides: force an error to exercise §5.1's fallback
+  // UX, or simulate a chosen delay to exercise the stationary wait-leg
+  // sizing logic (§5.6, 7.9) without waiting for a real-world delay.
+  if (__DEV__) {
+    const devOverrides = getDevOverrides();
+    if (devOverrides.transitError) return { error: devOverrides.transitError };
+    if (devOverrides.transitDelayMinutes !== undefined) {
+      return { data: { delayMinutes: devOverrides.transitDelayMinutes, stopType: params.mode === "train" ? "platform" : "street-stop" } };
+    }
+  }
+
   const key = apiKey();
   if (!key || !params.stopId || !params.routeId) {
     return { error: "unreachable" };

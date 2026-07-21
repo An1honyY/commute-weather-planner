@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../navigation/types";
 import {
   getCarryPreferenceDefault,
   getCrashReportingEnabled,
@@ -54,6 +56,7 @@ const SEASON_LABELS: { key: "winter" | "summer" | "shoulder"; label: string }[] 
 export default function SettingsScreen() {
   const colors = useTheme();
   const styles = getStyles(colors);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [theme, setTheme] = useState<ThemePreference>("system");
   const [carryPreference, setCarryPreference] = useState<CarryPreference>("no-preference");
   const [crashReporting, setCrashReporting] = useState(false);
@@ -303,6 +306,19 @@ export default function SettingsScreen() {
             <Text style={styles.resetLabel}>Reset to defaults</Text>
           </Pressable>
         </View>
+      )}
+
+      {/* docs/12-dev-workflow-ci.md §12.2 — `__DEV__` compiles to a literal
+          `false` in release builds, so this row (and the DevMenu route
+          itself, RootNavigator.tsx) is dead-code-eliminated, not merely
+          hidden behind a runtime check. */}
+      {__DEV__ && (
+        <>
+          <Text style={styles.sectionTitle}>Developer</Text>
+          <Pressable onPress={() => navigation.navigate("DevMenu")} style={styles.dataButton}>
+            <Text style={styles.dataButtonLabel}>Debug menu</Text>
+          </Pressable>
+        </>
       )}
     </ScrollView>
   );

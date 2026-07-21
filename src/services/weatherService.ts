@@ -3,6 +3,7 @@
 // relative_humidity_2m, uv_index, is_day per §2/§6.2, plus `past_days=1`
 // for recentPrecipMm6h (docs/05-data-wiring.md §5.5, Phase 6).
 import { forecastConfidence, rainIntensityBucket, type RainIntensity } from "../lib/weather";
+import { getDevOverrides } from "../lib/devOverrides";
 import type { WeatherSnapshot } from "../types";
 import type { ServiceResult } from "./types";
 
@@ -79,6 +80,13 @@ function sumRecentPrecipMm6h(hourly: OpenMeteoHourly, nowMs: number): number {
 // Shared by getForecast() and getHourlyForecast() — both read the same
 // Open-Meteo hourly response shape, just extract different slices of it.
 async function fetchOpenMeteoHourly(latitude: string, longitude: string): Promise<ServiceResult<OpenMeteoLocationResponse[]>> {
+  // §12.2 — dev-menu "force this service to error" toggle. One seam here
+  // covers both getForecast() and getHourlyForecast(), since both funnel
+  // through this shared fetch.
+  if (__DEV__ && getDevOverrides().weatherError) {
+    return { error: getDevOverrides().weatherError! };
+  }
+
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
     `&hourly=${HOURLY_VARS}&timezone=UTC&forecast_days=16&past_days=1`;

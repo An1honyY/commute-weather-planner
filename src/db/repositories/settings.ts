@@ -123,3 +123,21 @@ export async function dismissSetupTask(taskId: string): Promise<void> {
 export async function resetDismissedSetupTasks(): Promise<void> {
   await setSetting("dismissed_setup_tasks", JSON.stringify([]));
 }
+
+// docs/12-dev-workflow-ci.md §12.2 point 4 — dev-menu "reset onboarding
+// state and clear the crash-reporting/theme preferences... to re-test
+// first-run flows without reinstalling." Also clears the two settings the
+// 2026-07-21 onboarding rework introduced (default_location,
+// dismissed_setup_tasks) — both are first-run-adjacent state a real reset
+// should include, even though the original spec predates them.
+export async function resetOnboardingAndPreferences(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `DELETE FROM app_settings WHERE key IN (?, ?, ?, ?, ?)`,
+    "onboarding_completed",
+    "crash_reporting_enabled",
+    "theme_preference",
+    "default_location",
+    "dismissed_setup_tasks"
+  );
+}
