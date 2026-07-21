@@ -77,6 +77,29 @@ export async function updateLocation(location: SavedLocation): Promise<void> {
   );
 }
 
+// docs/10-production-readiness.md §10.3 — import upserts by id (preserving
+// the exported id, unlike createLocation() which always mints a fresh one).
+export async function upsertLocation(location: SavedLocation): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO saved_locations (id, label, address, lat, lng, icon, is_favorite, last_used_at, has_reliable_climate_control)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       label = excluded.label, address = excluded.address, lat = excluded.lat, lng = excluded.lng,
+       icon = excluded.icon, is_favorite = excluded.is_favorite, last_used_at = excluded.last_used_at,
+       has_reliable_climate_control = excluded.has_reliable_climate_control`,
+    location.id,
+    location.label,
+    location.address,
+    location.lat,
+    location.lng,
+    location.icon ?? null,
+    toSqlBool(location.isFavorite),
+    location.lastUsedAt ?? null,
+    toSqlBool(location.hasReliableClimateControl)
+  );
+}
+
 export async function deleteLocation(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM saved_locations WHERE id = ?", id);

@@ -86,6 +86,35 @@ export async function updateShoe(item: ShoeItem): Promise<void> {
   );
 }
 
+// docs/10-production-readiness.md §10.3 — import upserts by id, see
+// clothing.ts's upsertClothing for why this differs from createShoe.
+export async function upsertShoe(item: ShoeItem): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO shoe_items
+      (id, name, type, waterproof, grip, unavailable_until, unavailable_reason,
+       wears_since_clean, last_worn_at, needs_cleaning, color, photo_uri)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name, type = excluded.type, waterproof = excluded.waterproof, grip = excluded.grip,
+       unavailable_until = excluded.unavailable_until, unavailable_reason = excluded.unavailable_reason,
+       wears_since_clean = excluded.wears_since_clean, last_worn_at = excluded.last_worn_at,
+       needs_cleaning = excluded.needs_cleaning, color = excluded.color, photo_uri = excluded.photo_uri`,
+    item.id,
+    item.name,
+    item.type,
+    toSqlBool(item.waterproof),
+    item.grip,
+    item.unavailableUntil ?? null,
+    item.unavailableReason ?? null,
+    item.wearsSinceClean ?? null,
+    item.lastWornAt ?? null,
+    toSqlBool(item.needsCleaning),
+    item.color ?? null,
+    item.photoUri ?? null
+  );
+}
+
 export async function deleteShoe(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM shoe_items WHERE id = ?", id);

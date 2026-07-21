@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   getCarryPreferenceDefault,
@@ -12,6 +12,8 @@ import {
 } from "../../db/repositories/settings";
 import { getAdvancedThresholds, saveAdvancedThresholds } from "../../db/repositories/advancedThresholds";
 import { getWarmthCalibration, setWindSensitivityOffset } from "../../db/repositories/calibration";
+import { exportData, importData } from "../../lib/dataExport";
+import { initCrashReportingIfEnabled } from "../../lib/crashReporting";
 import { useThemeStore } from "../../theme/useThemeStore";
 import useTheme from "../../theme/useTheme";
 import type { AdvancedWarmthThresholds, CarryPreference, WarmthCalibration } from "../../types";
@@ -56,6 +58,8 @@ export default function SettingsScreen() {
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [thresholds, setThresholds] = useState<AdvancedWarmthThresholds>({});
   const [calibration, setCalibration] = useState<WarmthCalibration>({ offsetLevels: 0, sampleCount: 0 });
+  const [exportBusy, setExportBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -81,6 +85,37 @@ export default function SettingsScreen() {
   async function toggleCrashReporting(value: boolean) {
     setCrashReporting(value);
     await setCrashReportingEnabled(value);
+    // §10.5 — flipping the toggle takes effect immediately: initializes the
+    // provider the moment it's turned on, and the provider itself stays
+    // uninitialized (no telemetry connection at all) whenever it's off.
+    await initCrashReportingIfEnabled();
+  }
+
+  async function handleExport() {
+    setExportBusy(true);
+    try {
+      await exportData();
+    } catch (error) {
+      Alert.alert("Export failed", error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function handleImport() {
+    setImportBusy(true);
+    try {
+      const result = await importData();
+      if (result.error) {
+        Alert.alert("Import failed", result.error);
+      } else if (result.imported) {
+        Alert.alert("Import complete", "Your data has been restored.");
+      }
+    } catch (error) {
+      Alert.alert("Import failed", error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setImportBusy(false);
+    }
   }
 
   async function updateThreshold(field: keyof AdvancedWarmthThresholds, text: string) {
@@ -172,6 +207,32 @@ export default function SettingsScreen() {
         <Switch value={crashReporting} onValueChange={toggleCrashReporting} />
       </View>
 
+      <Text style={styles.sectionTitle}>Your data</Text>
+      <Text style={styles.body}>
+        Export a backup of your gear, locations, and journey history — including gear photos — as a single
+        file, or restore from one after a reinstall.
+      </Text>
+      <View style={styles.dataButtonRow}>
+        <Pressable
+          onPress={handleExport}
+          disabled={exportBusy}
+          style={[styles.dataButton, exportBusy && styles.dataButtonDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Export my data"
+        >
+          <Text style={styles.dataButtonLabel}>{exportBusy ? "Exporting…" : "Export my data"}</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleImport}
+          disabled={importBusy}
+          style={[styles.dataButton, importBusy && styles.dataButtonDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Import data"
+        >
+          <Text style={styles.dataButtonLabel}>{importBusy ? "Importing…" : "Import data"}</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.sectionTitle}>About</Text>
       <Text style={styles.body}>
         Commute Weather Planner is built for one person&apos;s wardrobe and one commute at a time.
@@ -238,6 +299,10 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     carryChip: { alignSelf: "flex-start", marginTop: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     carryChipLabel: { fontSize: 13, color: theme.textPrimary },
     switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 44 },
+    dataButtonRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+    dataButton: { flex: 1, minHeight: 44, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" },
+    dataButtonDisabled: { opacity: 0.5 },
+    dataButtonLabel: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
     advancedHeader: { marginTop: 24 },
     advancedBody: { marginTop: 12, gap: 4 },
     label: { fontSize: 13, fontWeight: "600", marginTop: 12, color: theme.textPrimary },

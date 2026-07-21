@@ -105,6 +105,42 @@ export async function updateClothing(item: ClothingItem): Promise<void> {
   );
 }
 
+// docs/10-production-readiness.md §10.3 — Import data upserts by id (an
+// item may already exist from a prior import or partial re-sync), unlike
+// createClothing() which always inserts a fresh row.
+export async function upsertClothing(item: ClothingItem): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO clothing_items
+      (id, name, type, warmth, waterproof, windproof, packable, substitutes_for_midlayer, tags,
+       unavailable_until, unavailable_reason, wears_since_clean, last_worn_at, needs_cleaning, color, photo_uri)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name, type = excluded.type, warmth = excluded.warmth,
+       waterproof = excluded.waterproof, windproof = excluded.windproof, packable = excluded.packable,
+       substitutes_for_midlayer = excluded.substitutes_for_midlayer, tags = excluded.tags,
+       unavailable_until = excluded.unavailable_until, unavailable_reason = excluded.unavailable_reason,
+       wears_since_clean = excluded.wears_since_clean, last_worn_at = excluded.last_worn_at,
+       needs_cleaning = excluded.needs_cleaning, color = excluded.color, photo_uri = excluded.photo_uri`,
+    item.id,
+    item.name,
+    item.type,
+    item.warmth,
+    toSqlBool(item.waterproof),
+    toSqlBool(item.windproof),
+    toSqlBool(item.packable),
+    toSqlBool(item.substitutesForMidlayer),
+    toSqlJson(item.tags),
+    item.unavailableUntil ?? null,
+    item.unavailableReason ?? null,
+    item.wearsSinceClean ?? null,
+    item.lastWornAt ?? null,
+    toSqlBool(item.needsCleaning),
+    item.color ?? null,
+    item.photoUri ?? null
+  );
+}
+
 export async function deleteClothing(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync("DELETE FROM clothing_items WHERE id = ?", id);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { setCrashReportingEnabled } from "../../../db/repositories/settings";
+import { initCrashReportingIfEnabled } from "../../../lib/crashReporting";
 import { withTimeout } from "../../../lib/withTimeout";
 import useTheme from "../../../theme/useTheme";
 
@@ -18,6 +19,7 @@ export default function Step5CrashReporting({ onFinish }: Props) {
 
   async function finish() {
     await withTimeout(setCrashReportingEnabled(enabled), undefined);
+    await withTimeout(initCrashReportingIfEnabled(), undefined);
     onFinish();
   }
 
