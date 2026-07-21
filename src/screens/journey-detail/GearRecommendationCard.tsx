@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { Recommendation } from "../../lib/recommend";
+import type { RecommendationSnapshot } from "../../types";
 
 // Gear recommendation card — docs/09-design-system.md §9.3 item 4, now
 // backed by the real recommendGear() engine (docs/07-recommendation-
@@ -15,10 +16,60 @@ function pickLabel(pick: { name: string } | { fallbackText: string }): { text: s
 }
 
 interface Props {
-  recommendation: Recommendation;
+  recommendation?: Recommendation;
+  // docs/09-design-system.md §9.4.2 — History's detail view swaps the live
+  // Recommendation for the frozen RecommendationSnapshot fields where one
+  // exists, rather than re-running the engine against inventory that may
+  // have since changed. Snapshot names are flat strings — no fallback/
+  // real-item distinction survives the freeze, so they render plainly.
+  snapshot?: RecommendationSnapshot;
 }
 
-export default function GearRecommendationCard({ recommendation }: Props) {
+export default function GearRecommendationCard({ recommendation, snapshot }: Props) {
+  if (snapshot) {
+    const layersTopDown = [...snapshot.layerNames].reverse();
+    return (
+      <View style={styles.card}>
+        {layersTopDown.length > 0 && (
+          <View style={styles.layerStack}>
+            {layersTopDown.map((name, i) => (
+              <Text key={i} style={styles.layerText}>
+                {name}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {snapshot.accessoryNames.length > 0 && (
+          <View style={styles.accessoriesRow}>
+            {snapshot.accessoryNames.map((name, i) => (
+              <Text key={i} style={styles.accessoryText}>
+                {name}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.slotsRow}>
+          {snapshot.shoeName && <Text style={styles.slotText}>{snapshot.shoeName}</Text>}
+          {snapshot.umbrellaName && <Text style={styles.slotText}>{snapshot.umbrellaName}</Text>}
+        </View>
+
+        {snapshot.notes.length > 0 && (
+          <View style={styles.notes}>
+            {snapshot.notes.map((note, i) => (
+              <Text key={i} style={styles.note}>
+                · {note}
+              </Text>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  if (!recommendation) return null;
+
   // §9.3 — visually base at the bottom working up to jacket on top;
   // layerPlanForWarmthLevel resolves base-first, so reverse for display.
   const layersTopDown = [...recommendation.layers].reverse();

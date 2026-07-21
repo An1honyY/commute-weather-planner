@@ -178,6 +178,20 @@ export async function listJourneysOnDate(dateIso: string): Promise<Journey[]> {
   return rows.map(fromRow);
 }
 
+// docs/04-screens-navigation.md §4.4 — History is a query, not a new data
+// model: every journey whose departTime is already in the past, most recent
+// first, paginated for the "load more" affordance rather than one big fetch.
+export async function listPastJourneys(beforeIso: string, limit: number, offset: number): Promise<Journey[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<JourneyRow>(
+    `SELECT * FROM journeys WHERE depart_time < ? ORDER BY depart_time DESC LIMIT ? OFFSET ?`,
+    beforeIso,
+    limit,
+    offset
+  );
+  return rows.map(fromRow);
+}
+
 // docs/05-data-wiring.md §5.1 — the offline-planning fallback: "a
 // previously-saved Journey between the same origin/destination pair (exact
 // SavedLocation.id match) within the last 30 days." Most recent first.

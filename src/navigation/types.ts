@@ -14,7 +14,9 @@ export type RootStackParamList = {
   // cachedFromDate is set only when planJourney() (§5.1) fell back to a
   // previously-saved route between the same origin/destination — Journey
   // Detail shows the "using a saved route from…" banner when present.
-  JourneyDetail: { journeyId: string; cachedFromDate?: string };
+  // readOnly is set when opened from History (§4.4) — hides the
+  // return-trip toggle, which doesn't apply to something already past.
+  JourneyDetail: { journeyId: string; cachedFromDate?: string; readOnly?: boolean };
   History: undefined;
   LocalKnowledge: undefined;
   Settings: undefined;

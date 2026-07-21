@@ -351,3 +351,13 @@ should still degrade to "onboarding step didn't save, but the button
 isn't stuck" rather than freezing the UI silently, the same reasoning
 `App.tsx`'s original guard was built on. This is belt-and-suspenders, not
 a substitute for the real fix.
+
+---
+
+## 2026-07-21 — Phase 9 (History): JourneyDetailScreen now prefers `recommendationSnapshot` over a live recompute whenever one exists, not just when opened read-only from History
+
+**What**: `GearRecommendationCard` gained a second render path (`snapshot: RecommendationSnapshot` prop, alongside its existing `recommendation: Recommendation` prop), and `JourneyDetailScreen` now renders from `journey.recommendationSnapshot` whenever it's set, falling back to the live `useRecommendation()` result only when it isn't — for every journey the screen opens, not only ones opened `readOnly` from the new History screen.
+
+**Why this needed a decision**: docs/09-design-system.md §9.4.2 only describes this swap for History's detail view ("reuses the Journey Detail component from 9.3... swaps the live Recommendation for the frozen recommendationSnapshot fields where present"), which reads as History-scoped. But the Phase 8 entry above already flagged this exact gap and said it would resolve "automatically" once Phase 9 built History — that framing assumed Journey Detail would end up branching on `readOnly`/History-origin specifically. On inspection, `RecommendationSnapshot`'s doc comment (docs/03-data-models.md) states its purpose plainly: it exists so any past-journey view "reads this instead of re-running the live engine" — that's about the journey being in the past, not about which screen happens to be showing it. Gating the swap behind `readOnly` would leave a real bug: viewing an old journey directly (not through History — e.g. a `linkedReturnJourneyId` link, or Today's list before a journey's flagged past) would keep recomputing against whatever the inventory looks like *now*, silently misrepresenting what was actually recommended at leave-by time — exactly the drift `recommendationSnapshot` was built to prevent.
+
+**Resolution**: scoped the swap to "does a snapshot exist," not "is this screen read-only" — the two are related but not identical (a journey can have a snapshot independent of being opened from History). `readOnly` itself stays narrow, used only to hide the return-trip Pressable (the one piece of UI §4.4 says doesn't apply to a past journey). Severe-weather/confidence banners still read the live `recommendation`, since `RecommendationSnapshot` doesn't carry those fields — a narrower, separate gap this pass doesn't attempt to close.

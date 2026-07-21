@@ -28,7 +28,14 @@ import {
 import { getAdvancedThresholds, saveAdvancedThresholds } from "./advancedThresholds";
 import { getWarmthCalibration, seedWarmthCalibration } from "./calibration";
 import { createSavedRoute, deleteSavedRoute, listSavedRoutes, touchSavedRoute } from "./savedRoutes";
-import { createJourney, deleteJourney, findRecentJourneyBetween, getJourney, updateJourney } from "./journeys";
+import {
+  createJourney,
+  deleteJourney,
+  findRecentJourneyBetween,
+  getJourney,
+  listPastJourneys,
+  updateJourney,
+} from "./journeys";
 import { newId } from "../rowMapping";
 import type { Journey, SavedLocation } from "../../types";
 
@@ -240,6 +247,30 @@ describe("repository round-trips", () => {
 
     await deleteJourney(journey.id);
     expect(await getJourney(journey.id)).toBeUndefined();
+  });
+
+  it("journeys: listPastJourneys returns rows before the cutoff, most recent first, paginated", async () => {
+    const home: SavedLocation = { id: "home", label: "Home", address: "1 Home St", lat: -36.8485, lng: 174.7633 };
+    const work: SavedLocation = { id: "work", label: "Work", address: "2 Work St", lat: -36.86, lng: 174.77 };
+    const makeJourney = (departTime: string): Journey => ({
+      id: newId(),
+      origin: home,
+      destination: work,
+      departTime,
+      legs: [],
+    });
+
+    const past1 = await createJourney(makeJourney("2026-07-18T08:00:00.000Z"));
+    const past2 = await createJourney(makeJourney("2026-07-19T08:00:00.000Z"));
+    const past3 = await createJourney(makeJourney("2026-07-20T08:00:00.000Z"));
+    await createJourney(makeJourney("2026-07-22T08:00:00.000Z")); // future — excluded
+
+    const cutoff = "2026-07-21T00:00:00.000Z";
+    const firstPage = await listPastJourneys(cutoff, 2, 0);
+    expect(firstPage.map((j) => j.id)).toEqual([past3.id, past2.id]);
+
+    const secondPage = await listPastJourneys(cutoff, 2, 2);
+    expect(secondPage.map((j) => j.id)).toEqual([past1.id]);
   });
 
   it("§7.16 wear tracking: updateClothingWearTracking/updateShoeWearTracking patch only the three tracked fields", async () => {

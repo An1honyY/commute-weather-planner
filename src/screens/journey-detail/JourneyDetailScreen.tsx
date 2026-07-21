@@ -197,7 +197,11 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {recommendation && <GearRecommendationCard recommendation={recommendation} />}
+        {journey.recommendationSnapshot ? (
+          <GearRecommendationCard snapshot={journey.recommendationSnapshot} />
+        ) : (
+          recommendation && <GearRecommendationCard recommendation={recommendation} />
+        )}
 
         <View style={styles.legList}>
           {journey.legs.map((leg) => (
@@ -205,7 +209,9 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
           ))}
         </View>
 
-        {journey.linkedReturnJourneyId && (
+        {/* §4.4/§9.4.2 — the return-trip toggle doesn't apply to something
+            already past, so History's read-only view hides it. */}
+        {!route.params.readOnly && journey.linkedReturnJourneyId && (
           <Pressable
             onPress={() => navigation.push("JourneyDetail", { journeyId: journey.linkedReturnJourneyId! })}
             style={styles.returnLink}
