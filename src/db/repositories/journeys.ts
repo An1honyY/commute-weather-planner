@@ -192,6 +192,22 @@ export async function listPastJourneys(beforeIso: string, limit: number, offset:
   return rows.map(fromRow);
 }
 
+// docs/05-data-wiring.md §5.2 — the foreground forecast-drift re-check's
+// candidate list: every still-upcoming Journey departing within the given
+// window, earliest first, regardless of which calendar day it falls on
+// (unlike listJourneysOnDate, which is Today-tab-scoped).
+export async function listUpcomingJourneys(withinHours: number): Promise<Journey[]> {
+  const db = await getDb();
+  const nowIso = new Date().toISOString();
+  const untilIso = new Date(Date.now() + withinHours * 3_600_000).toISOString();
+  const rows = await db.getAllAsync<JourneyRow>(
+    `SELECT * FROM journeys WHERE depart_time > ? AND depart_time <= ? ORDER BY depart_time ASC`,
+    nowIso,
+    untilIso
+  );
+  return rows.map(fromRow);
+}
+
 // docs/05-data-wiring.md §5.1 — the offline-planning fallback: "a
 // previously-saved Journey between the same origin/destination pair (exact
 // SavedLocation.id match) within the last 30 days." Most recent first.

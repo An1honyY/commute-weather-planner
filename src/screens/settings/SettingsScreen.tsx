@@ -11,7 +11,8 @@ import {
   type ThemePreference,
 } from "../../db/repositories/settings";
 import { getAdvancedThresholds, saveAdvancedThresholds } from "../../db/repositories/advancedThresholds";
-import type { AdvancedWarmthThresholds, CarryPreference } from "../../types";
+import { getWarmthCalibration, setWindSensitivityOffset } from "../../db/repositories/calibration";
+import type { AdvancedWarmthThresholds, CarryPreference, WarmthCalibration } from "../../types";
 
 // docs/09-design-system.md §9.1/§9.1.1, docs/08-build-phases.md Phase 5's
 // scoped Settings screen: theme picker, CarryPreference default, the
@@ -30,12 +31,27 @@ const DEFAULT_FREEZING_C = 2;
 const DEFAULT_COOL_UPPER_C = 14;
 const DEFAULT_WARM_OUTDOOR_C = 18;
 
+// §7.5.2/§9.1.1 — fixed three-position control, not a free slider (there's
+// no natural feedback loop to learn this axis from automatically).
+const WIND_SENSITIVITY_OPTIONS: { value: number; label: string }[] = [
+  { value: -1, label: "Less bothered by wind" },
+  { value: 0, label: "Average" },
+  { value: 1, label: "More bothered by wind" },
+];
+
+const SEASON_LABELS: { key: "winter" | "summer" | "shoulder"; label: string }[] = [
+  { key: "winter", label: "Winter" },
+  { key: "summer", label: "Summer" },
+  { key: "shoulder", label: "Other" },
+];
+
 export default function SettingsScreen() {
   const [theme, setTheme] = useState<ThemePreference>("system");
   const [carryPreference, setCarryPreference] = useState<CarryPreference>("no-preference");
   const [crashReporting, setCrashReporting] = useState(false);
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [thresholds, setThresholds] = useState<AdvancedWarmthThresholds>({});
+  const [calibration, setCalibration] = useState<WarmthCalibration>({ offsetLevels: 0, sampleCount: 0 });
 
   useFocusEffect(
     useCallback(() => {
@@ -43,6 +59,7 @@ export default function SettingsScreen() {
       getCarryPreferenceDefault().then(setCarryPreference);
       getCrashReportingEnabled().then(setCrashReporting);
       getAdvancedThresholds().then(setThresholds);
+      getWarmthCalibration().then(setCalibration);
     }, [])
   );
 
@@ -72,6 +89,14 @@ export default function SettingsScreen() {
     await saveAdvancedThresholds({});
   }
 
+  async function selectWindSensitivity(value: number) {
+    setCalibration((c) => ({ ...c, windSensitivityOffset: value }));
+    await setWindSensitivityOffset(value);
+  }
+
+  const seasonalSampleCounts = calibration.seasonalSampleCounts;
+  const hasSeasonalSamples = seasonalSampleCounts && Object.values(seasonalSampleCounts).some((n) => n > 0);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.sectionTitle}>Appearance</Text>
@@ -83,6 +108,44 @@ export default function SettingsScreen() {
             style={[styles.segment, theme === option.value && styles.segmentActive]}
           >
             <Text style={[styles.segmentLabel, theme === option.value && styles.segmentLabelActive]}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={styles.sectionTitle}>Warmth</Text>
+      <Text style={styles.body}>
+        {calibration.sampleCount > 0
+          ? `Adjusted from ${calibration.sampleCount} check-ins`
+          : "No check-ins yet — rate the gear call after a trip to start calibrating"}
+      </Text>
+      {hasSeasonalSamples && seasonalSampleCounts && (
+        <>
+          <Text style={styles.hint}>We learn separately for each season, since how you dress in winter doesn&apos;t always match summer.</Text>
+          <Text style={styles.body}>
+            {SEASON_LABELS.map((s) => `${s.label}: ${seasonalSampleCounts[s.key]}`).join(" · ")}
+          </Text>
+        </>
+      )}
+
+      <Text style={[styles.label, styles.windSensitivityLabel]}>Wind sensitivity</Text>
+      <Text style={styles.hint}>
+        Only changes the extra warmth bump for windy spots you&apos;ve marked (Local knowledge) — doesn&apos;t affect your regular recommendations.
+      </Text>
+      <View style={styles.segmentRow}>
+        {WIND_SENSITIVITY_OPTIONS.map((option) => (
+          <Pressable
+            key={option.value}
+            onPress={() => selectWindSensitivity(option.value)}
+            style={[styles.segment, (calibration.windSensitivityOffset ?? 0) === option.value && styles.segmentActive]}
+          >
+            <Text
+              style={[
+                styles.segmentLabel,
+                (calibration.windSensitivityOffset ?? 0) === option.value && styles.segmentLabelActive,
+              ]}
+            >
+              {option.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -172,6 +235,7 @@ const styles = StyleSheet.create({
   advancedHeader: { marginTop: 24 },
   advancedBody: { marginTop: 12, gap: 4 },
   label: { fontSize: 13, fontWeight: "600", marginTop: 12 },
+  windSensitivityLabel: { marginTop: 16 },
   hint: { fontSize: 12, color: "#5C6478", marginBottom: 4 },
   input: { borderWidth: 1, borderColor: "#DDE1EA", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
   resetLabel: { color: "#C97F2E", marginTop: 16, fontSize: 13 },

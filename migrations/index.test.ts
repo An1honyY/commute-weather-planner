@@ -5,7 +5,7 @@
 import Database from "better-sqlite3";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { runMigrations } from "./index";
-import { version as latestVersion } from "./002_app_settings";
+import { version as latestVersion } from "./003_calibration_toasts";
 
 function makeTestDb(): { db: SQLiteDatabase; raw: Database.Database } {
   const raw = new Database(":memory:");

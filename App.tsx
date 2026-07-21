@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, AppState, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getDb } from "./src/db";
 import { isOnboardingCompleted } from "./src/db/repositories/settings";
+import { listUpcomingJourneys } from "./src/db/repositories/journeys";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { withTimeout } from "./src/lib/withTimeout";
 import { freezeJourneyByIdIfDue } from "./src/lib/leaveBy";
+import { runCalibrationDecayIfDue } from "./src/lib/calibration";
+import { checkForecastDrift } from "./src/lib/forecastDrift";
+
+// §5.2 — same-day journeys get re-checked at 3h/30min out; this foreground
+// supplement instead just covers "anything departing soon enough that a
+// stale forecast plausibly matters," independent of exact lead time.
+const FOREGROUND_DRIFT_WINDOW_HOURS = 24;
 
 const queryClient = new QueryClient();
 
@@ -49,6 +57,30 @@ export default function App() {
       // covers the freeze/recordWear path there.
       return undefined;
     }
+  }, []);
+
+  useEffect(() => {
+    // §7.5.3/§5.2 — "run the check on app foreground." Runs once on mount
+    // (covers cold start) and again on every background->active transition;
+    // never blocks rendering, and each piece independently swallows its own
+    // errors so one failing journey/check can't take down the others.
+    async function runForegroundChecks() {
+      runCalibrationDecayIfDue().catch(() => {});
+      try {
+        const upcoming = await listUpcomingJourneys(FOREGROUND_DRIFT_WINDOW_HOURS);
+        for (const journey of upcoming) {
+          await checkForecastDrift(journey).catch(() => {});
+        }
+      } catch {
+        // no DB yet, or the query failed — next foreground transition retries
+      }
+    }
+
+    runForegroundChecks();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") runForegroundChecks();
+    });
+    return () => subscription.remove();
   }, []);
 
   if (!ready) {

@@ -236,6 +236,11 @@ export interface WarmthCalibration {
 
   // Section 7.5.3 — read by the decay check
   lastFeedbackAt?: string; // ISO
+
+  // Section 7.5 — gates the one-time "we noticed" toast (Section 4.2/9.1.1)
+  // to the first ~3 occasions the offset actually changes; not shown again
+  // after that, and not itself part of the calibration math.
+  calibrationToastsShown?: number;
 }
 
 // Section 3.6 — power-user opt-in escape hatch (see DECISIONS.md 2026-07-19).

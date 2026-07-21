@@ -88,6 +88,16 @@ describe("notifications", () => {
     expect(mockSchedule).not.toHaveBeenCalled();
   });
 
+  it("scheduleLeaveByNotification uses forecast-changed copy when options.changed is set (§5.2 point 3)", async () => {
+    mockGetPermissions.mockResolvedValue({ status: "granted" });
+    const futureDepart = new Date(Date.now() + 60 * 60_000).toISOString();
+    await scheduleLeaveByNotification(journey(futureDepart), recommendation(), { changed: true });
+
+    const call = mockSchedule.mock.calls[0][0];
+    expect(call.content.title).toBe("Forecast changed");
+    expect(call.content.body).toContain("now looks like");
+  });
+
   it("cancelLeaveByNotification swallows errors (nothing scheduled, or unsupported platform)", async () => {
     mockCancel.mockRejectedValue(new Error("not scheduled"));
     await expect(cancelLeaveByNotification("journey-1")).resolves.toBeUndefined();

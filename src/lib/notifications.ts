@@ -42,8 +42,15 @@ export async function requestNotificationPermission(): Promise<boolean> {
 // is (re)computed — src/lib/planJourney.ts calls this once per plan/
 // materialization, which also covers Phase 7's live-delay updates since
 // those are applied earlier in that same call. The stable `identifier`
-// means Expo replaces rather than duplicates on a re-schedule.
-export async function scheduleLeaveByNotification(journey: Journey, recommendation: Recommendation): Promise<void> {
+// means Expo replaces rather than duplicates on a re-schedule. §5.2 point 3
+// — a forecast-drift re-check that actually changed the recommendation
+// calls this again with `changed: true`, which swaps the copy to lead with
+// what's different rather than repeating the full original message.
+export async function scheduleLeaveByNotification(
+  journey: Journey,
+  recommendation: Recommendation,
+  options?: { changed?: boolean }
+): Promise<void> {
   const departMs = new Date(journey.departTime).getTime();
   const triggerMs = departMs - LEAVE_BY_LEAD_MINUTES * 60_000;
   if (triggerMs <= Date.now()) return; // don't schedule for the past
@@ -55,11 +62,17 @@ export async function scheduleLeaveByNotification(journey: Journey, recommendati
 
   await Notifications.scheduleNotificationAsync({
     identifier: leaveByIdentifier(journey.id),
-    content: {
-      title: `Leave in ${LEAVE_BY_LEAD_MINUTES} minutes`,
-      body: `${journey.destination.label}: ${summary}`,
-      data: { journeyId: journey.id },
-    },
+    content: options?.changed
+      ? {
+          title: "Forecast changed",
+          body: `${journey.destination.label}: now looks like ${summary}`,
+          data: { journeyId: journey.id },
+        }
+      : {
+          title: `Leave in ${LEAVE_BY_LEAD_MINUTES} minutes`,
+          body: `${journey.destination.label}: ${summary}`,
+          data: { journeyId: journey.id },
+        },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(triggerMs) },
   });
 }

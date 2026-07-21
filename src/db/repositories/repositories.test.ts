@@ -26,7 +26,7 @@ import {
   setThemePreference,
 } from "./settings";
 import { getAdvancedThresholds, saveAdvancedThresholds } from "./advancedThresholds";
-import { getWarmthCalibration, seedWarmthCalibration } from "./calibration";
+import { getWarmthCalibration, saveWarmthCalibration, seedWarmthCalibration, setWindSensitivityOffset } from "./calibration";
 import { createSavedRoute, deleteSavedRoute, listSavedRoutes, touchSavedRoute } from "./savedRoutes";
 import {
   createJourney,
@@ -34,6 +34,7 @@ import {
   findRecentJourneyBetween,
   getJourney,
   listPastJourneys,
+  listUpcomingJourneys,
   updateJourney,
 } from "./journeys";
 import { newId } from "../rowMapping";
@@ -189,6 +190,17 @@ describe("repository round-trips", () => {
     expect(calibration.sampleCount).toBe(0); // a self-report seed, not a real feedback event
   });
 
+  it("calibration: round-trips calibrationToastsShown and setWindSensitivityOffset patches only that field", async () => {
+    await saveWarmthCalibration({ offsetLevels: -0.5, sampleCount: 2, calibrationToastsShown: 2 });
+    expect((await getWarmthCalibration()).calibrationToastsShown).toBe(2);
+
+    await setWindSensitivityOffset(1);
+    const calibration = await getWarmthCalibration();
+    expect(calibration.windSensitivityOffset).toBe(1);
+    expect(calibration.offsetLevels).toBe(-0.5); // untouched by the wind-sensitivity write
+    expect(calibration.calibrationToastsShown).toBe(2);
+  });
+
   it("saved routes: create, list ordered by recency, touch bumps to front, delete", async () => {
     const gym = await createSavedRoute({ label: "Fast way to the gym", originId: "home", destinationId: "gym" });
     await new Promise((r) => setTimeout(r, 5));
@@ -271,6 +283,20 @@ describe("repository round-trips", () => {
 
     const secondPage = await listPastJourneys(cutoff, 2, 2);
     expect(secondPage.map((j) => j.id)).toEqual([past1.id]);
+  });
+
+  it("journeys: listUpcomingJourneys returns only future rows within the window, earliest first", async () => {
+    const home: SavedLocation = { id: "home", label: "Home", address: "1 Home St", lat: -36.8485, lng: 174.7633 };
+    const work: SavedLocation = { id: "work", label: "Work", address: "2 Work St", lat: -36.86, lng: 174.77 };
+    const makeJourney = (departTime: string): Journey => ({ id: newId(), origin: home, destination: work, departTime, legs: [] });
+
+    await createJourney(makeJourney(new Date(Date.now() - 60_000).toISOString())); // past — excluded
+    const soon = await createJourney(makeJourney(new Date(Date.now() + 60 * 60_000).toISOString()));
+    const later = await createJourney(makeJourney(new Date(Date.now() + 5 * 60 * 60_000).toISOString()));
+    await createJourney(makeJourney(new Date(Date.now() + 48 * 60 * 60_000).toISOString())); // outside window — excluded
+
+    const upcoming = await listUpcomingJourneys(24);
+    expect(upcoming.map((j) => j.id)).toEqual([soon.id, later.id]);
   });
 
   it("§7.16 wear tracking: updateClothingWearTracking/updateShoeWearTracking patch only the three tracked fields", async () => {

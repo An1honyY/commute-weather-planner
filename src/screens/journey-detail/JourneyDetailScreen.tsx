@@ -9,6 +9,8 @@ import { applyAnnotationsToLegs } from "../../lib/annotations";
 import { useRecommendation } from "../../lib/useRecommendation";
 import { freezeIfDue } from "../../lib/leaveBy";
 import { cancelLeaveByNotification } from "../../lib/notifications";
+import { recordGearFeedback } from "../../lib/calibration";
+import { checkForecastDrift } from "../../lib/forecastDrift";
 import { dominantMode } from "../../lib/journeyMode";
 import JourneyMap, { type MapCircle } from "../../components/JourneyMap";
 import AnnotationForm, { type AnnotationFormValues } from "../local-knowledge/AnnotationForm";
@@ -52,6 +54,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // affected radius previewed live on the map underneath.
   const [annotationCoordinate, setAnnotationCoordinate] = useState<{ lat: number; lng: number } | null>(null);
   const [previewCircle, setPreviewCircle] = useState<MapCircle | null>(null);
+  const [calibrationToast, setCalibrationToast] = useState<string | null>(null);
   const recommendation = useRecommendation(journey);
 
   useFocusEffect(
@@ -69,6 +72,11 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
         }
         const frozen = await freezeIfDue(result);
         if (!cancelled) setJourney(frozen);
+        // §5.2 — a foreground re-check of a still-upcoming journey's
+        // weather; a no-op for a past journey (freezeIfDue already handled
+        // that) or one whose forecast hasn't drifted enough to matter.
+        const drift = await checkForecastDrift(frozen);
+        if (!cancelled && drift.changed) setJourney(drift.journey);
       });
       return () => {
         cancelled = true;
@@ -140,11 +148,23 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     closeAnnotationSheet();
   }
 
+  // §4.2/§7.5 — writes Journey.feedback for History's display, then feeds
+  // the calibration loop; the loop's own "we noticed" toast (§9.1.1) is
+  // shown here, non-blocking, and auto-dismisses on its own.
   async function giveFeedback(feedback: GearFeedback) {
     const updated = { ...journey!, feedback };
     await updateJourney(updated);
     setJourney(updated);
     setFeedbackGiven(true);
+    const { toast } = await recordGearFeedback(feedback, journey!.departTime);
+    if (toast) {
+      setCalibrationToast(
+        toast.direction === "warmer"
+          ? "Noticed you run warm — dialing back a layer next time"
+          : "Noticed you run cold — bringing an extra layer next time"
+      );
+      setTimeout(() => setCalibrationToast(null), 4000);
+    }
   }
 
   // §7.3 — "cancel with cancelScheduledNotificationAsync if the user
@@ -224,6 +244,12 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
           <Text style={styles.deleteButtonLabel}>Delete journey</Text>
         </Pressable>
 
+        {calibrationToast && (
+          <View style={styles.calibrationToast}>
+            <Text style={styles.calibrationToastText}>{calibrationToast}</Text>
+          </View>
+        )}
+
         {showFeedbackStrip && (
           <View style={styles.feedbackContainer}>
             <Text style={styles.feedbackPrompt}>How was the gear call for your commute today?</Text>
@@ -289,6 +315,8 @@ const styles = StyleSheet.create({
   feedbackButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: "#F6F7FA" },
   feedbackButtonPositive: { backgroundColor: "#3F9A5C" },
   feedbackLabel: { fontSize: 10, textAlign: "center" },
+  calibrationToast: { marginHorizontal: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: "#1A1E29" },
+  calibrationToastText: { color: "#FFFFFF", fontSize: 12 },
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.35)" },
   sheetDismissArea: { flex: 1 },
   sheet: {

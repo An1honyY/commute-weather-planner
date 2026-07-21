@@ -10,6 +10,7 @@ interface CalibrationRow {
   wind_sensitivity_offset: number | null;
   wind_sensitivity_sample_count: number | null;
   last_feedback_at: string | null;
+  calibration_toasts_shown: number | null;
 }
 
 const DEFAULT_CALIBRATION: WarmthCalibration = { offsetLevels: 0, sampleCount: 0 };
@@ -23,6 +24,7 @@ function fromRow(row: CalibrationRow): WarmthCalibration {
     windSensitivityOffset: row.wind_sensitivity_offset ?? undefined,
     windSensitivitySampleCount: row.wind_sensitivity_sample_count ?? undefined,
     lastFeedbackAt: row.last_feedback_at ?? undefined,
+    calibrationToastsShown: row.calibration_toasts_shown ?? undefined,
   };
 }
 
@@ -37,8 +39,8 @@ export async function saveWarmthCalibration(calibration: WarmthCalibration): Pro
   await db.runAsync(
     `INSERT INTO warmth_calibration
       (id, offset_levels, sample_count, seasonal_offsets, seasonal_sample_counts,
-       wind_sensitivity_offset, wind_sensitivity_sample_count, last_feedback_at)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+       wind_sensitivity_offset, wind_sensitivity_sample_count, last_feedback_at, calibration_toasts_shown)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        offset_levels = excluded.offset_levels,
        sample_count = excluded.sample_count,
@@ -46,15 +48,25 @@ export async function saveWarmthCalibration(calibration: WarmthCalibration): Pro
        seasonal_sample_counts = excluded.seasonal_sample_counts,
        wind_sensitivity_offset = excluded.wind_sensitivity_offset,
        wind_sensitivity_sample_count = excluded.wind_sensitivity_sample_count,
-       last_feedback_at = excluded.last_feedback_at`,
+       last_feedback_at = excluded.last_feedback_at,
+       calibration_toasts_shown = excluded.calibration_toasts_shown`,
     calibration.offsetLevels,
     calibration.sampleCount,
     toSqlJson(calibration.seasonalOffsets),
     toSqlJson(calibration.seasonalSampleCounts),
     calibration.windSensitivityOffset ?? null,
     calibration.windSensitivitySampleCount ?? null,
-    calibration.lastFeedbackAt ?? null
+    calibration.lastFeedbackAt ?? null,
+    calibration.calibrationToastsShown ?? null
   );
+}
+
+// §7.5.2 — the Settings-level wind-sensitivity control (Section 9.1.1)
+// writes directly here rather than through the feedback loop, since it has
+// no natural post-journey feedback event of its own to hang off.
+export async function setWindSensitivityOffset(value: number): Promise<void> {
+  const current = await getWarmthCalibration();
+  await saveWarmthCalibration({ ...current, windSensitivityOffset: value });
 }
 
 // Onboarding's self-report step (docs/04-screens-navigation.md §4.1, §7.5.1)
