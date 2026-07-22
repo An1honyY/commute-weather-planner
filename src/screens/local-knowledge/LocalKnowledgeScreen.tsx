@@ -111,7 +111,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 32 },
     title: { fontSize: 20, fontWeight: "600", color: theme.textPrimary },
     empty: { color: theme.textSecondary, textAlign: "center" },
-    listContent: { padding: 16 },
+    listContent: { padding: 20 },
     row: {
       flexDirection: "row",
       alignItems: "center",

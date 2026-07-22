@@ -1,20 +1,34 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { useRightNow } from "../../lib/useRightNow";
+import type { RightNowState } from "../../lib/useRightNow";
 import { classifyWeather } from "../../lib/weather";
-import useTheme from "../../theme/useTheme";
+import useWeatherTheme from "../../theme/useWeatherTheme";
+import { cardElevationStyle } from "../../theme/tokens";
+import ClothingTypeIcon, { accessoryIconKind, type ClothingIconKind } from "../../components/ClothingTypeIcon";
+import type { LayerPick } from "../../lib/recommend";
 
 // "Right now" card — docs/09-design-system.md §9.3.1, docs/04-screens-
 // navigation.md §4.2. A smaller self-contained version of the gear
 // recommendation card: current conditions + the reduced recommendation,
 // no map, no leg list, no journey label.
+//
+// §9.1 (2026-07-21) — takes RightNowState as props rather than calling
+// useRightNow() itself, so TodayScreen can fetch it once and share both the
+// data and the resulting weather-reactive theme with JourneyCard below it,
+// instead of each card re-fetching/re-resolving independently.
 function pickLabel(pick: { name: string } | { fallbackText: string }): { text: string; isFallback: boolean } {
   return "name" in pick ? { text: pick.name, isFallback: false } : { text: pick.fallbackText, isFallback: true };
 }
 
-export default function RightNowCard() {
-  const theme = useTheme();
+function layerIconKind(pick: LayerPick): ClothingIconKind {
+  const type = "layerType" in pick ? pick.layerType : pick.type;
+  if (type === "accessory") return accessoryIconKind("fallbackText" in pick ? pick.fallbackText : pick.name);
+  if (type === "jacket" || type === "midlayer" || type === "base" || type === "bottoms") return type;
+  return "accessory";
+}
+
+export default function RightNowCard({ loading, weather, recommendation, isFallbackLocation }: RightNowState) {
+  const theme = useWeatherTheme(weather);
   const styles = getStyles(theme);
-  const { loading, weather, recommendation, isFallbackLocation } = useRightNow();
 
   if (loading) {
     return (
@@ -34,9 +48,12 @@ export default function RightNowCard() {
 
   const condition = classifyWeather(weather.weatherCode, weather.precipMm, weather.windKph);
   const asOf = new Date(weather.time).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const picks: ({ name: string } | { fallbackText: string })[] = [...recommendation.layers, ...recommendation.accessories];
-  if (recommendation.shoes) picks.push(recommendation.shoes);
-  if (recommendation.umbrella) picks.push(recommendation.umbrella);
+  const picks: { pick: { name: string } | { fallbackText: string }; icon: ClothingIconKind }[] = [
+    ...recommendation.layers.map((pick) => ({ pick, icon: layerIconKind(pick) })),
+    ...recommendation.accessories.map((pick) => ({ pick, icon: layerIconKind(pick) })),
+  ];
+  if (recommendation.shoes) picks.push({ pick: recommendation.shoes, icon: "shoe" });
+  if (recommendation.umbrella) picks.push({ pick: recommendation.umbrella, icon: "umbrella" });
 
   return (
     <View style={styles.card}>
@@ -55,12 +72,13 @@ export default function RightNowCard() {
 
       {picks.length > 0 && (
         <View style={styles.picksRow}>
-          {picks.map((pick, i) => {
+          {picks.map(({ pick, icon }, i) => {
             const { text, isFallback } = pickLabel(pick);
             return (
-              <Text key={i} style={isFallback ? styles.fallback : styles.pickText}>
-                {text}
-              </Text>
+              <View key={i} style={styles.pickItem}>
+                <ClothingTypeIcon kind={icon} size={15} color={isFallback ? theme.textSecondary : theme.accentWalk} />
+                <Text style={isFallback ? styles.fallback : styles.pickText}>{text}</Text>
+              </View>
             );
           })}
         </View>
@@ -71,16 +89,15 @@ export default function RightNowCard() {
   );
 }
 
-function getStyles(theme: ReturnType<typeof useTheme>) {
+function getStyles(theme: ReturnType<typeof useWeatherTheme>) {
   return StyleSheet.create({
     card: {
       padding: 16,
       borderRadius: 12,
       backgroundColor: theme.surfaceRaised,
-      borderWidth: theme.surfaceRaisedBorder === "transparent" ? 0 : 1,
-      borderColor: theme.surfaceRaisedBorder,
       gap: 8,
       marginBottom: 16,
+      ...cardElevationStyle(theme),
     },
     title: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
     fallbackLocationLabel: { fontSize: 12, color: theme.textSecondary },
@@ -91,7 +108,8 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     uvBadge: { marginLeft: "auto", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: theme.uvBadge },
     uvBadgeText: { fontSize: 11, color: "#FFFFFF", fontWeight: "600" },
     picksRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-    pickText: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
+    pickItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+    pickText: { fontSize: 13, fontWeight: "700", color: theme.accentWalk },
     fallback: { fontSize: 13, fontStyle: "italic", color: theme.textSecondary },
     asOf: { fontSize: 11, color: theme.textSecondary },
   });

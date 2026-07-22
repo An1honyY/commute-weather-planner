@@ -15,18 +15,20 @@ behind each judgment call referenced below.
       none found; the two existing `console.warn` calls
       (`src/lib/withTimeout.ts`, `src/lib/leaveBy.ts`) log diagnostic
       messages only, no keys or payloads.
-- [ ] **Google Routes + AT keys restricted (§10.1)** — external, manual:
-      requires signing into Google Cloud Console (restrict the Android key
-      to the release SHA-1 + package name, iOS key to the bundle ID) and
-      the AT dev portal. Can't be done from this repo/session — needs a
-      real release keystore's SHA-1, which only exists once an EAS build
-      has actually been produced.
+- [ ] **Google Routes + Places + AT keys restricted (§10.1)** — external,
+      manual: requires signing into Google Cloud Console (restrict the
+      Android key to the release SHA-1 + package name, iOS key to the
+      bundle ID — this now covers both Routes API and Places API (New),
+      since `placesService.ts` reuses the same key rather than a second
+      one) and the AT dev portal. Can't be done from this repo/session —
+      needs a real release keystore's SHA-1, which only exists once an EAS
+      build has actually been produced.
 - [ ] **Google Cloud budget alert configured (§2.1)** — external, manual:
       `Billing → Budgets & alerts` in the GCP Console, $5 NZD starting
       threshold per `docs/02-external-apis.md` §2.1. Requires the GCP
       project owner's console access.
 - [x] **Location permission set to "when in use," with a real usage
-      string** — confirmed `src/screens/onboarding/steps/Step1LocationPermission.tsx`
+      string** — confirmed `src/screens/onboarding/steps/Step1Location.tsx`
       only ever calls `requestForegroundPermissionsAsync()` (never a
       background/always variant); `app.json`'s `expo-location` plugin
       config sets a real `locationWhenInUsePermission` string ("...to set
@@ -75,9 +77,13 @@ behind each judgment call referenced below.
       session can't produce. Marked done for the code; the manual pass
       itself is still owed before submission.
 - [ ] **Offline fallback (§5.1) verified for all three APIs** — pre-existing
-      from Phase 11 (see that phase's DECISIONS.md entries); not re-verified
-      this phase, no dev-menu (§12.2) exists yet to toggle each API off in
-      isolation without a real outage.
+      from Phase 11 (see that phase's DECISIONS.md entries); the §12.2
+      debug menu (`src/screens/dev/DevMenuScreen.tsx`, 2026-07-21) now
+      exists and can force each of routes/weather/transit into a chosen
+      error without a real outage, so this is mechanically testable now —
+      but the actual pass (opening the menu, forcing each error, watching
+      the fallback UI on a real device/simulator) hasn't been run from
+      this session, so still unchecked.
 - [ ] **Schema migrations (§3.1) tested against a fixture DB from the
       previous released version** — no prior *released* version exists yet
       (v1 hasn't shipped), so this specific check has nothing to run

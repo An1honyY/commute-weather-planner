@@ -1,10 +1,14 @@
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../navigation/types";
 import {
   getCarryPreferenceDefault,
   getCrashReportingEnabled,
+  getDismissedSetupTasks,
   getThemePreference,
+  resetDismissedSetupTasks,
   setCarryPreferenceDefault,
   setCrashReportingEnabled,
   setThemePreference,
@@ -52,6 +56,7 @@ const SEASON_LABELS: { key: "winter" | "summer" | "shoulder"; label: string }[] 
 export default function SettingsScreen() {
   const colors = useTheme();
   const styles = getStyles(colors);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [theme, setTheme] = useState<ThemePreference>("system");
   const [carryPreference, setCarryPreference] = useState<CarryPreference>("no-preference");
   const [crashReporting, setCrashReporting] = useState(false);
@@ -60,6 +65,7 @@ export default function SettingsScreen() {
   const [calibration, setCalibration] = useState<WarmthCalibration>({ offsetLevels: 0, sampleCount: 0 });
   const [exportBusy, setExportBusy] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
+  const [dismissedSetupTaskCount, setDismissedSetupTaskCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,8 +74,14 @@ export default function SettingsScreen() {
       getCrashReportingEnabled().then(setCrashReporting);
       getAdvancedThresholds().then(setThresholds);
       getWarmthCalibration().then(setCalibration);
+      getDismissedSetupTasks().then((ids) => setDismissedSetupTaskCount(ids.length));
     }, [])
   );
+
+  async function showSetupTipsAgain() {
+    await resetDismissedSetupTasks();
+    setDismissedSetupTaskCount(0);
+  }
 
   async function selectTheme(value: ThemePreference) {
     setTheme(value);
@@ -233,6 +245,19 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      {dismissedSetupTaskCount > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Setup tips</Text>
+          <Text style={styles.body}>
+            You&apos;ve postponed {dismissedSetupTaskCount} setup {dismissedSetupTaskCount === 1 ? "tip" : "tips"} on
+            the Today tab.
+          </Text>
+          <Pressable onPress={showSetupTipsAgain} style={styles.dataButton}>
+            <Text style={styles.dataButtonLabel}>Show setup tips again</Text>
+          </Pressable>
+        </>
+      )}
+
       <Text style={styles.sectionTitle}>About</Text>
       <Text style={styles.body}>
         Commute Weather Planner is built for one person&apos;s wardrobe and one commute at a time.
@@ -282,13 +307,26 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       )}
+
+      {/* docs/12-dev-workflow-ci.md §12.2 — `__DEV__` compiles to a literal
+          `false` in release builds, so this row (and the DevMenu route
+          itself, RootNavigator.tsx) is dead-code-eliminated, not merely
+          hidden behind a runtime check. */}
+      {__DEV__ && (
+        <>
+          <Text style={styles.sectionTitle}>Developer</Text>
+          <Pressable onPress={() => navigation.navigate("DevMenu")} style={styles.dataButton}>
+            <Text style={styles.dataButtonLabel}>Debug menu</Text>
+          </Pressable>
+        </>
+      )}
     </ScrollView>
   );
 }
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4, backgroundColor: theme.bg },
+    container: { padding: 20, gap: 4, backgroundColor: theme.bg },
     sectionTitle: { fontSize: 15, fontWeight: "600", marginTop: 24, marginBottom: 8, color: theme.textPrimary },
     body: { fontSize: 13, color: theme.textSecondary },
     segmentRow: { flexDirection: "row", gap: 8 },

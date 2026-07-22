@@ -44,6 +44,8 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 // §9.3 item 1 — one marker per outdoor leg with weather, at its polyline's
 // midpoint, colored/labeled from classifyWeather() via the active theme's
 // condition* tokens (§9.1). Legs without a polyline (or without weather —
@@ -82,6 +84,13 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   const [annotationCoordinate, setAnnotationCoordinate] = useState<{ lat: number; lng: number } | null>(null);
   const [previewCircle, setPreviewCircle] = useState<MapCircle | null>(null);
   const [calibrationToast, setCalibrationToast] = useState<string | null>(null);
+  // §7.3 — the pause/resume control (below) always operates on the
+  // *template* Journey (the one row with `recurrence` actually set), not
+  // whichever occurrence happens to be open — materializeToday.ts never
+  // copies `recurrence` onto the daily occurrences it creates, only
+  // `templateId` pointing back at the template. undefined = not checked
+  // yet, null = this journey isn't part of a recurring series at all.
+  const [recurrenceTemplate, setRecurrenceTemplate] = useState<Journey | undefined | null>(undefined);
   const recommendation = useRecommendation(journey);
 
   useFocusEffect(
@@ -103,7 +112,17 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
         // weather; a no-op for a past journey (freezeIfDue already handled
         // that) or one whose forecast hasn't drifted enough to matter.
         const drift = await checkForecastDrift(frozen);
+        const final = drift.changed ? drift.journey : frozen;
         if (!cancelled && drift.changed) setJourney(drift.journey);
+
+        if (final.recurrence) {
+          if (!cancelled) setRecurrenceTemplate(final);
+        } else if (final.templateId) {
+          const template = await getJourney(final.templateId);
+          if (!cancelled) setRecurrenceTemplate(template ?? null);
+        } else if (!cancelled) {
+          setRecurrenceTemplate(null);
+        }
       });
       return () => {
         cancelled = true;
@@ -213,6 +232,26 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     navigation.goBack();
   }
 
+  // §7.3 — "cancel [the scheduled notification] if the user... turns off a
+  // recurrence's `active` flag." No screen exposed that flag at all before
+  // this (see DECISIONS.md, Phase 8 entry: "no UI trigger to attach a
+  // cancellation call to") — a pause/resume toggle here, rather than a full
+  // recurring-journey editing screen, is the minimal fix that makes the
+  // cancellation path reachable. Pausing only cancels *this* instance's own
+  // scheduled notification; future occurrences simply never materialize
+  // (and so never get one scheduled) while paused, so there's nothing else
+  // to cancel.
+  async function toggleRecurrenceActive() {
+    if (!recurrenceTemplate?.recurrence) return;
+    const nextActive = !recurrenceTemplate.recurrence.active;
+    const updatedTemplate = { ...recurrenceTemplate, recurrence: { ...recurrenceTemplate.recurrence, active: nextActive } };
+    await updateJourney(updatedTemplate);
+    setRecurrenceTemplate(updatedTemplate);
+    if (!nextActive) {
+      await cancelLeaveByNotification(journey!.id);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -244,6 +283,23 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
         {worstConfidence !== "high" && (
           <View style={styles.confidenceBanner}>
             <Text style={styles.confidenceBannerText}>Forecast may still change — we&apos;ll update this closer to departure.</Text>
+          </View>
+        )}
+
+        {!route.params.readOnly && recurrenceTemplate?.recurrence && (
+          <View style={styles.recurrenceRow}>
+            <Text style={styles.recurrenceLabel}>
+              Repeats {recurrenceTemplate.recurrence.daysOfWeek.map((d) => DAY_LABELS[d]).join(", ")}
+              {!recurrenceTemplate.recurrence.active && " — paused"}
+            </Text>
+            <Pressable
+              onPress={toggleRecurrenceActive}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={recurrenceTemplate.recurrence.active ? "Pause this recurring journey" : "Resume this recurring journey"}
+            >
+              <Text style={styles.recurrenceToggleLabel}>{recurrenceTemplate.recurrence.active ? "Pause" : "Resume"}</Text>
+            </Pressable>
           </View>
         )}
 
@@ -346,24 +402,34 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
     empty: { color: theme.textSecondary },
     mapContainer: { height: 280, backgroundColor: theme.surface },
-    cachedBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.conditionLight },
+    cachedBanner: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: theme.conditionLight },
     cachedBannerText: { fontSize: 12, color: theme.textPrimary },
-    severeBanner: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: theme.conditionStorm },
+    severeBanner: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: theme.conditionStorm },
     severeBannerText: { fontSize: 13, color: "#FFFFFF", fontWeight: "600" },
-    confidenceBanner: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.surface },
+    confidenceBanner: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: theme.surface },
     confidenceBannerText: { fontSize: 12, color: theme.confidenceLow },
-    legList: { paddingHorizontal: 16, paddingTop: 12 },
-    returnLink: { margin: 16, alignItems: "center", paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    recurrenceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      backgroundColor: theme.surface,
+    },
+    recurrenceLabel: { fontSize: 12, color: theme.textSecondary, flex: 1 },
+    recurrenceToggleLabel: { fontSize: 13, fontWeight: "600", color: theme.accentWalk, minHeight: 30, textAlignVertical: "center" },
+    legList: { paddingHorizontal: 20, paddingTop: 12 },
+    returnLink: { margin: 20, alignItems: "center", paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     returnLinkLabel: { fontWeight: "600", color: theme.textPrimary },
-    deleteButton: { marginHorizontal: 16, marginTop: 16, alignItems: "center", paddingVertical: 12 },
+    deleteButton: { marginHorizontal: 20, marginTop: 16, alignItems: "center", paddingVertical: 12 },
     deleteButtonLabel: { color: theme.danger, fontWeight: "600", fontSize: 13 },
-    feedbackContainer: { margin: 16, gap: 8 },
+    feedbackContainer: { margin: 20, gap: 8 },
     feedbackPrompt: { fontSize: 13, color: theme.textSecondary },
     feedbackRow: { flexDirection: "row", gap: 4 },
     feedbackButton: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: theme.surface },
     feedbackButtonPositive: { backgroundColor: theme.feedbackPositive },
     feedbackLabel: { fontSize: 10, textAlign: "center", color: theme.textPrimary },
-    calibrationToast: { marginHorizontal: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: theme.surfaceRaised },
+    calibrationToast: { marginHorizontal: 20, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: theme.surfaceRaised },
     calibrationToastText: { color: theme.textPrimary, fontSize: 12 },
     sheetBackdrop: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.35)" },
     sheetDismissArea: { flex: 1 },

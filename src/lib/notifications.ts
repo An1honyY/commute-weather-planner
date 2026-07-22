@@ -25,8 +25,10 @@ export function summarizeRecommendation(recommendation: Recommendation): string 
   return parts.join(" + ");
 }
 
-// Requested from onboarding (Step6NotificationPermission) or, per §7.3,
-// the first time the user plans a journey — scheduleLeaveByNotification
+// Requested from the Today tab's postponable setup checklist
+// (src/screens/setup/NotificationsSetup.tsx, formerly a forced onboarding
+// step — 2026-07-21 minimal-onboarding rework, see DECISIONS.md) or, per
+// §7.3, the first time the user plans a journey — scheduleLeaveByNotification
 // below simply no-ops (via expo-notifications' own permission check) if
 // this was never granted, rather than every call site needing to guard it.
 export async function requestNotificationPermission(): Promise<boolean> {

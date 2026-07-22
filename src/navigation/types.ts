@@ -32,4 +32,12 @@ export type RootStackParamList = {
   History: undefined;
   LocalKnowledge: undefined;
   Settings: undefined;
+  // docs/04-screens-navigation.md §4.1 (2026-07-21 minimal-onboarding
+  // rework) — reached from the Today tab's SetupChecklist, not forced
+  // onboarding steps.
+  SetupGearBasics: undefined;
+  SetupNotifications: undefined;
+  // docs/12-dev-workflow-ci.md §12.2 — only registered on the navigator
+  // when `__DEV__` (RootNavigator.tsx), never reachable in a release build.
+  DevMenu: undefined;
 };

@@ -1,4 +1,4 @@
-import { acFeelsCold, classifyWeather, forecastConfidence, getSeason, rainIntensityBucket } from "./weather";
+import { acFeelsCold, classifyWeather, forecastConfidence, getSeason, rainIntensityBucket, resolveWeatherMood } from "./weather";
 import type { Journey, JourneyLeg } from "../types";
 
 // docs/11-testing-strategy.md §11.1 — table-driven over the full WMO code
@@ -127,5 +127,45 @@ describe("acFeelsCold", () => {
   it("no AC leg at all -> false regardless of season/warmth", () => {
     const journeyNoAc: Journey = { ...journeyWithAc, legs: [{ ...acLeg, climate: "heated" }] };
     expect(acFeelsCold(journeyNoAc, "summer", true)).toBe(false);
+  });
+});
+
+// docs/09-design-system.md §9.1 (2026-07-21) — Today tab's weather-reactive
+// tint, boundary cases at COLD_MOOD_MAX_C/WARM_MOOD_MIN_C independently from
+// the severity gates.
+describe("resolveWeatherMood", () => {
+  it("at/below the cold boundary -> cold, regardless of severity", () => {
+    expect(resolveWeatherMood(8, 0)).toBe("cold");
+    expect(resolveWeatherMood(4, 0)).toBe("cold");
+  });
+
+  it("just above the cold boundary with low severity -> mild", () => {
+    expect(resolveWeatherMood(9, 0)).toBe("mild");
+  });
+
+  it("heavy rain or storm forces cold even on a mild-temperature day", () => {
+    expect(resolveWeatherMood(15, 3)).toBe("cold");
+    expect(resolveWeatherMood(15, 4)).toBe("cold");
+  });
+
+  it("rain (severity 2) does not force cold on its own", () => {
+    expect(resolveWeatherMood(15, 2)).toBe("mild");
+  });
+
+  it("at/above the warm boundary with low severity -> warm", () => {
+    expect(resolveWeatherMood(22, 0)).toBe("warm");
+    expect(resolveWeatherMood(28, 1)).toBe("warm");
+  });
+
+  it("just below the warm boundary -> mild", () => {
+    expect(resolveWeatherMood(21, 0)).toBe("mild");
+  });
+
+  it("warm temperature but rainy (severity >= 2) stays mild, not warm", () => {
+    expect(resolveWeatherMood(25, 2)).toBe("mild");
+  });
+
+  it("a mid-range temperature with ordinary conditions -> mild", () => {
+    expect(resolveWeatherMood(15, 1)).toBe("mild");
   });
 });

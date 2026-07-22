@@ -105,7 +105,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     content: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
     title: { fontSize: 20, fontWeight: "600", color: theme.textPrimary },
     empty: { color: theme.textSecondary },
-    listContent: { padding: 16 },
+    listContent: { padding: 20 },
     sectionHeader: { fontSize: 13, fontWeight: "600", color: theme.textSecondary, marginBottom: 8, marginTop: 12 },
     loadMoreButton: { alignItems: "center", paddingVertical: 12 },
     loadMoreLabel: { fontWeight: "600", fontSize: 13, color: theme.textPrimary },

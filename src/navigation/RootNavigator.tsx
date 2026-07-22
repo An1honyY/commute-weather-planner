@@ -6,11 +6,27 @@ import JourneyDetailScreen from "../screens/journey-detail/JourneyDetailScreen";
 import HistoryScreen from "../screens/history/HistoryScreen";
 import LocalKnowledgeScreen from "../screens/local-knowledge/LocalKnowledgeScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
+import GearBasicsSetup from "../screens/setup/GearBasicsSetup";
+import NotificationsSetup from "../screens/setup/NotificationsSetup";
+import DevMenuScreen from "../screens/dev/DevMenuScreen";
 import useTheme from "../theme/useTheme";
 import { darkTheme } from "../theme/tokens";
 import type { RootStackParamList } from "./types";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Thin wrappers: GearBasicsSetup/NotificationsSetup take a plain onDone()
+// callback (shared with the pre-2026-07-21 onboarding wizard, which called
+// it to advance to the next step) — here it just means "go back to
+// wherever SetupChecklist sent us from."
+function SetupGearBasicsScreen({ navigation }: NativeStackScreenProps<RootStackParamList, "SetupGearBasics">) {
+  return <GearBasicsSetup onDone={() => navigation.goBack()} />;
+}
+
+function SetupNotificationsScreen({ navigation }: NativeStackScreenProps<RootStackParamList, "SetupNotifications">) {
+  return <NotificationsSetup onDone={() => navigation.goBack()} />;
+}
 
 interface Props {
   // True when app_settings.onboarding_completed isn't set yet —
@@ -48,6 +64,13 @@ export default function RootNavigator({ needsOnboarding = false }: Props) {
         <Stack.Screen name="History" component={HistoryScreen} />
         <Stack.Screen name="LocalKnowledge" component={LocalKnowledgeScreen} options={{ title: "Local knowledge" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="SetupGearBasics" component={SetupGearBasicsScreen} options={{ title: "Add gear basics" }} />
+        <Stack.Screen name="SetupNotifications" component={SetupNotificationsScreen} options={{ title: "Notifications" }} />
+        {/* docs/12-dev-workflow-ci.md §12.2 — only registered in dev/preview
+            builds; `__DEV__` compiles to a literal `false` in release,
+            so this branch (and DevMenuScreen's own code) is dead-code-
+            eliminated rather than merely hidden behind a runtime check. */}
+        {__DEV__ && <Stack.Screen name="DevMenu" component={DevMenuScreen} options={{ title: "Debug menu" }} />}
       </Stack.Navigator>
     </NavigationContainer>
   );

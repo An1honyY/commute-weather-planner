@@ -3,10 +3,25 @@
 | Purpose | API | Cost | Auth |
 |---|---|---|---|
 | Route / directions | Google Routes API (`routes.googleapis.com/directions/v2:computeRoutes`) | Free monthly threshold, card required | API key |
+| Address search / autocomplete | Google Places API (New) (`places.googleapis.com/v1/places:autocomplete`, `places:{id}` details) | Free monthly threshold (session-based pricing), same GCP project as Routes | same API key as Routes |
+| Reverse geocoding (lat/lng → address) | Google Geocoding API (`maps.googleapis.com/maps/api/geocode/json`) | Free monthly threshold, same GCP project as Routes | same API key as Routes |
 | Weather (hourly, per lat/lng) | Open-Meteo (`api.open-meteo.com/v1/forecast`) | Free, no key, 10k calls/day non-commercial | none |
 | Auckland public transit | Auckland Transport GTFS Realtime (`api.at.govt.nz/gtfs/v3/...`) | Free | subscription key from dev-portal.at.govt.nz |
+| Map tiles, **web only** (`LocationPickerMap.web.tsx`) | OpenStreetMap standard tile server (`tile.openstreetmap.org`) via react-leaflet | Free, no key, subject to OSM's tile usage policy (reasonable/non-bulk use) | none |
 
-Store all three as env vars: `GOOGLE_ROUTES_API_KEY`, `AT_SUBSCRIPTION_KEY`. Open-Meteo needs none.
+Store as env vars: `GOOGLE_ROUTES_API_KEY`, `AT_SUBSCRIPTION_KEY`. Open-Meteo
+needs none. Places API (New) and the Geocoding API both deliberately reuse
+`GOOGLE_ROUTES_API_KEY` rather than separate keys — Google Cloud API keys
+are project-scoped, not single-API, so the same key just needs "Places API
+(New)" and "Geocoding API" enabled alongside "Routes API" in the same GCP
+project's console. `placesService.ts` groups each autocomplete session
+(first keystroke through the one details call that resolves a selected
+suggestion) under a shared session token — Google bills that as one
+session-priced unit instead of per-request, which matters given
+autocomplete fires on every debounced keystroke. Reverse geocoding
+(`placesService.reverseGeocode()`) is a separate, unbatched call — it only
+fires once, when a `LocationPickerMap` pin is confirmed, not on every
+keystroke, so it doesn't need the same session-token treatment.
 
 **Billing safety net for Google Routes:** the free threshold plus a card on
 file means a bug (retry loop, a runaway background re-fetch in Section 5.2,

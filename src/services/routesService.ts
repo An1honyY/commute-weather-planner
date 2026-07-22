@@ -11,6 +11,7 @@
 // restricting the key by package/bundle ID (or proxying calls through a
 // backend) before wide release. That hardening is explicitly Phase 12
 // scope, not something to half-do here.
+import { getDevOverrides } from "../lib/devOverrides";
 import type { ServiceResult } from "./types";
 
 export type RouteTravelMode = "walk" | "drive" | "bus" | "train" | "cycle";
@@ -178,6 +179,12 @@ function parseTransitSteps(route: GoogleRoute, params: ComputeRouteParams): Rout
 }
 
 export async function computeRoute(params: ComputeRouteParams): Promise<ServiceResult<RouteStep[]>> {
+  // §12.2 — dev-menu "force this service to error" toggle, exercising
+  // §5.1's offline fallback UX on demand instead of needing a real outage.
+  if (__DEV__ && getDevOverrides().routesError) {
+    return { error: getDevOverrides().routesError! };
+  }
+
   const key = apiKey();
   if (!key) {
     return { error: "unreachable" };

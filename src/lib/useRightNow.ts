@@ -8,17 +8,23 @@ import { listShoes } from "../db/repositories/shoes";
 import { listUmbrellas } from "../db/repositories/umbrellas";
 import { getWarmthCalibration } from "../db/repositories/calibration";
 import { getAdvancedThresholds } from "../db/repositories/advancedThresholds";
+import { getDefaultLocation } from "../db/repositories/settings";
 import { newId } from "../db/rowMapping";
 import type { Journey, WeatherSnapshot } from "../types";
 
-// "Right now" card — docs/04-screens-navigation.md §4.2. Current location
-// (falling back to Auckland if permission is denied, same fallback the
-// onboarding demo card uses), one Open-Meteo call, and a *reduced*
-// recommendGear() pass: a single short walk leg means AC-contrast and the
-// warmup discount never fire on their own, and bottoms/severeWeatherAdvisory
-// are stripped explicitly per §4.2's "the reduced path never triggers
-// bottoms, the severe-weather advisory, or wear tracking." Refreshes on
-// tab focus, not continuously, to avoid draining battery/quota.
+// "Right now" card — docs/04-screens-navigation.md §4.2. Current device
+// location when granted; otherwise the general location captured by
+// onboarding's single location step (app_settings.default_location), if
+// any; otherwise Auckland — three-deep fallback chain rather than the
+// original two, since 2026-07-21's minimal-onboarding rework (see
+// DECISIONS.md) means onboarding often has a real, more-specific location
+// even when device permission was never granted. One Open-Meteo call, and
+// a *reduced* recommendGear() pass: a single short walk leg means
+// AC-contrast and the warmup discount never fire on their own, and
+// bottoms/severeWeatherAdvisory are stripped explicitly per §4.2's "the
+// reduced path never triggers bottoms, the severe-weather advisory, or
+// wear tracking." Refreshes on tab focus, not continuously, to avoid
+// draining battery/quota.
 const AUCKLAND = { lat: -36.8485, lng: 174.7633 };
 
 export interface RightNowState {
@@ -72,9 +78,15 @@ export function useRightNow(): RightNowState {
             const position = await Location.getCurrentPositionAsync({});
             coords = { lat: position.coords.latitude, lng: position.coords.longitude };
             isFallbackLocation = false;
+          } else {
+            const defaultLocation = await getDefaultLocation();
+            if (defaultLocation) {
+              coords = { lat: defaultLocation.lat, lng: defaultLocation.lng };
+              isFallbackLocation = false;
+            }
           }
         } catch {
-          // keep the Auckland fallback
+          // keep whichever fallback was already resolved (default location, or Auckland)
         }
 
         const now = new Date().toISOString();

@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { Recommendation } from "../../lib/recommend";
+import type { LayerPick, Recommendation } from "../../lib/recommend";
 import useTheme from "../../theme/useTheme";
+import { cardElevationStyle } from "../../theme/tokens";
+import ClothingTypeIcon, { accessoryIconKind, type ClothingIconKind } from "../../components/ClothingTypeIcon";
 import type { GearAddTarget } from "../../navigation/types";
 import type { RecommendationSnapshot } from "../../types";
 
@@ -15,6 +17,17 @@ import type { RecommendationSnapshot } from "../../types";
 // name, fallback has fallbackText" shape.
 function pickLabel(pick: { name: string } | { fallbackText: string }): { text: string; isFallback: boolean } {
   return "name" in pick ? { text: pick.name, isFallback: false } : { text: pick.fallbackText, isFallback: true };
+}
+
+// §9.3 (2026-07-21) — every layer/accessory/slot row leads with an icon,
+// not just bold text. Only meaningful against a live `recommendation`
+// (LayerPick/ShoeItem/UmbrellaItem carry type info); the frozen `snapshot`
+// path has nothing but flat name strings post-freeze, so it stays icon-less.
+function layerIconKind(pick: LayerPick): ClothingIconKind {
+  const type = "layerType" in pick ? pick.layerType : pick.type;
+  if (type === "accessory") return accessoryIconKind("fallbackText" in pick ? pick.fallbackText : pick.name);
+  if (type === "jacket" || type === "midlayer" || type === "base" || type === "bottoms") return type;
+  return "accessory";
 }
 
 interface Props {
@@ -123,21 +136,25 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
         <View style={styles.layerStack}>
           {layersTopDown.map((pick, i) => {
             const { text, isFallback } = pickLabel(pick);
+            const icon = <ClothingTypeIcon kind={layerIconKind(pick)} size={16} color={isFallback ? theme.textSecondary : theme.accentWalk} />;
             if (isFallback && "layerType" in pick) {
               return (
-                <FallbackText
-                  key={i}
-                  text={text}
-                  target={{ kind: "clothing", clothingType: pick.layerType }}
-                  style={styles.fallback}
-                  onAddGear={onAddGear}
-                />
+                <View key={i} style={styles.pickRow}>
+                  {icon}
+                  <FallbackText
+                    text={text}
+                    target={{ kind: "clothing", clothingType: pick.layerType }}
+                    style={styles.fallback}
+                    onAddGear={onAddGear}
+                  />
+                </View>
               );
             }
             return (
-              <Text key={i} style={styles.layerText}>
-                {text}
-              </Text>
+              <View key={i} style={styles.pickRow}>
+                {icon}
+                <Text style={styles.layerText}>{text}</Text>
+              </View>
             );
           })}
         </View>
@@ -147,55 +164,71 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
         <View style={styles.accessoriesRow}>
           {recommendation.accessories.map((pick, i) => {
             const { text, isFallback } = pickLabel(pick);
+            const icon = <ClothingTypeIcon kind={layerIconKind(pick)} size={15} color={isFallback ? theme.textSecondary : theme.accentWalk} />;
             if (isFallback) {
               return (
-                <FallbackText
-                  key={i}
-                  text={text}
-                  target={{ kind: "clothing", clothingType: "accessory" }}
-                  style={styles.fallback}
-                  onAddGear={onAddGear}
-                />
+                <View key={i} style={styles.pickRow}>
+                  {icon}
+                  <FallbackText
+                    text={text}
+                    target={{ kind: "clothing", clothingType: "accessory" }}
+                    style={styles.fallback}
+                    onAddGear={onAddGear}
+                  />
+                </View>
               );
             }
             return (
-              <Text key={i} style={styles.accessoryText}>
-                {text}
-              </Text>
+              <View key={i} style={styles.pickRow}>
+                {icon}
+                <Text style={styles.accessoryText}>{text}</Text>
+              </View>
             );
           })}
         </View>
       )}
 
       <View style={styles.slotsRow}>
-        {bottomsLabel &&
-          (bottomsLabel.isFallback ? (
-            <FallbackText
-              text={bottomsLabel.text}
-              target={{ kind: "clothing", clothingType: "bottoms" }}
-              style={styles.fallback}
-              onAddGear={onAddGear}
-            />
-          ) : (
-            <Text style={styles.slotText}>{bottomsLabel.text}</Text>
-          ))}
-        {shoesLabel &&
-          (shoesLabel.isFallback ? (
-            <FallbackText text={shoesLabel.text} target={{ kind: "shoe" }} style={styles.fallback} onAddGear={onAddGear} />
-          ) : (
-            <Text style={styles.slotText}>{shoesLabel.text}</Text>
-          ))}
-        {umbrellaLabel &&
-          (umbrellaLabel.isFallback ? (
-            <FallbackText
-              text={umbrellaLabel.text}
-              target={{ kind: "umbrella" }}
-              style={styles.fallback}
-              onAddGear={onAddGear}
-            />
-          ) : (
-            <Text style={styles.slotText}>{umbrellaLabel.text}</Text>
-          ))}
+        {bottomsLabel && (
+          <View style={styles.pickRow}>
+            <ClothingTypeIcon kind="bottoms" size={15} color={bottomsLabel.isFallback ? theme.textSecondary : theme.accentWalk} />
+            {bottomsLabel.isFallback ? (
+              <FallbackText
+                text={bottomsLabel.text}
+                target={{ kind: "clothing", clothingType: "bottoms" }}
+                style={styles.fallback}
+                onAddGear={onAddGear}
+              />
+            ) : (
+              <Text style={styles.slotText}>{bottomsLabel.text}</Text>
+            )}
+          </View>
+        )}
+        {shoesLabel && (
+          <View style={styles.pickRow}>
+            <ClothingTypeIcon kind="shoe" size={15} color={shoesLabel.isFallback ? theme.textSecondary : theme.accentWalk} />
+            {shoesLabel.isFallback ? (
+              <FallbackText text={shoesLabel.text} target={{ kind: "shoe" }} style={styles.fallback} onAddGear={onAddGear} />
+            ) : (
+              <Text style={styles.slotText}>{shoesLabel.text}</Text>
+            )}
+          </View>
+        )}
+        {umbrellaLabel && (
+          <View style={styles.pickRow}>
+            <ClothingTypeIcon kind="umbrella" size={15} color={umbrellaLabel.isFallback ? theme.textSecondary : theme.accentWalk} />
+            {umbrellaLabel.isFallback ? (
+              <FallbackText
+                text={umbrellaLabel.text}
+                target={{ kind: "umbrella" }}
+                style={styles.fallback}
+                onAddGear={onAddGear}
+              />
+            ) : (
+              <Text style={styles.slotText}>{umbrellaLabel.text}</Text>
+            )}
+          </View>
+        )}
       </View>
 
       {recommendation.notes.length > 0 && (
@@ -214,20 +247,20 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     card: {
-      margin: 16,
+      margin: 20,
       padding: 16,
       borderRadius: 12,
       backgroundColor: theme.surfaceRaised,
-      borderWidth: theme.surfaceRaisedBorder === "transparent" ? 0 : 1,
-      borderColor: theme.surfaceRaisedBorder,
       gap: 12,
+      ...cardElevationStyle(theme),
     },
-    layerStack: { gap: 4 },
+    layerStack: { gap: 6 },
+    pickRow: { flexDirection: "row", alignItems: "center", gap: 7 },
     layerText: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
     fallback: { fontSize: 14, fontStyle: "italic", color: theme.textSecondary },
-    accessoriesRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    accessoriesRow: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
     accessoryText: { fontSize: 13, color: theme.textPrimary },
-    slotsRow: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+    slotsRow: { flexDirection: "row", flexWrap: "wrap", gap: 18 },
     slotText: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
     notes: { gap: 4 },
     note: { fontSize: 12, color: theme.textSecondary },

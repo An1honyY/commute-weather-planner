@@ -1,14 +1,19 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { SavedLocation } from "../../types";
 import useTheme from "../../theme/useTheme";
+import AddressAutocomplete from "../../components/AddressAutocomplete";
+import LocationPickerMap from "../../components/LocationPickerMap";
+import { reverseGeocode } from "../../services/placesService";
 
 // Add/edit form for a SavedLocation — docs/04-screens-navigation.md item 3.
-// Map pin-drop / Google Places address search are deferred: react-native-
-// maps has no web target (would break the web dev-mode smoke-check this
-// project already relies on) and Google Places billing/wiring belongs with
-// the rest of Section 2's live APIs in Phase 4 — logged in DECISIONS.md.
-// This form covers the same data with plain text/number fields instead.
+// Address search uses real Google Places autocomplete (AddressAutocomplete,
+// docs/02-external-apis.md §2) and map pin-drop (LocationPickerMap) — both
+// lat/lng and address can resolve automatically now, so raw coordinates are
+// no longer a primary-UX field; a collapsed "Advanced" section still
+// exposes them as manual overrides for power users or when Places is
+// unconfigured/offline (2026-07-21 onboarding rework; map picker closes
+// the "map pin-drop deferred" half of that decision — see DECISIONS.md).
 type ClimateOverride = "yes" | "no" | "default";
 
 function toClimateOverride(value: boolean | undefined): ClimateOverride {
@@ -48,10 +53,34 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
   const [lng, setLng] = useState(initial ? String(initial.lng) : "");
   const [isFavorite, setIsFavorite] = useState(initial?.isFavorite ?? false);
   const [climate, setClimate] = useState<ClimateOverride>(toClimateOverride(initial?.hasReliableClimateControl));
+  // Collapsed by default, same pattern as Settings' "Advanced" threshold
+  // override — auto-expanded when editing an existing location, since its
+  // lat/lng are already meaningful values rather than blank fields waiting
+  // on a Places selection.
+  const [advancedExpanded, setAdvancedExpanded] = useState(!!initial);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [resolvingPin, setResolvingPin] = useState(false);
 
   const latNum = Number(lat);
   const lngNum = Number(lng);
   const canSubmit = label.trim().length > 0 && address.trim().length > 0 && !Number.isNaN(latNum) && !Number.isNaN(lngNum);
+
+  async function handleMapConfirm(coords: { lat: number; lng: number }) {
+    setMapPickerOpen(false);
+    setLat(String(coords.lat));
+    setLng(String(coords.lng));
+    // Surface the coordinates a dropped pin just set, same as the
+    // edit-an-existing-location case above — they're meaningful now, not
+    // blank fields waiting on a selection.
+    setAdvancedExpanded(true);
+    setResolvingPin(true);
+    const result = await reverseGeocode(coords.lat, coords.lng);
+    setResolvingPin(false);
+    // A failed reverse-geocode leaves the address field as-is — the pin's
+    // coordinates are still set and usable, the user just needs to type a
+    // label/address themselves rather than getting one for free.
+    if ("data" in result) setAddress(result.data.formattedAddress);
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -59,18 +88,53 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
       <TextInput style={styles.input} value={label} onChangeText={setLabel} placeholder="Home" />
 
       <Text style={styles.label}>Address</Text>
-      <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="123 Queen St, Auckland" />
+      <AddressAutocomplete
+        value={address}
+        onChangeText={setAddress}
+        onSelectPlace={(result) => {
+          setAddress(result.address);
+          setLat(String(result.lat));
+          setLng(String(result.lng));
+        }}
+        placeholder="123 Queen St, Auckland"
+      />
 
-      <View style={styles.row}>
-        <View style={styles.half}>
-          <Text style={styles.label}>Latitude</Text>
-          <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
-        </View>
-        <View style={styles.half}>
-          <Text style={styles.label}>Longitude</Text>
-          <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
-        </View>
-      </View>
+      <Pressable onPress={() => setMapPickerOpen(true)} style={styles.mapPickerRow} disabled={resolvingPin}>
+        {resolvingPin ? (
+          <ActivityIndicator size="small" color={theme.accentWalk} />
+        ) : (
+          <Text style={styles.mapPickerLabel}>📍 Pick on map</Text>
+        )}
+      </Pressable>
+
+      <LocationPickerMap
+        visible={mapPickerOpen}
+        initialCoords={!Number.isNaN(latNum) && !Number.isNaN(lngNum) ? { lat: latNum, lng: lngNum } : undefined}
+        onConfirm={handleMapConfirm}
+        onClose={() => setMapPickerOpen(false)}
+      />
+
+      <Pressable onPress={() => setAdvancedExpanded((v) => !v)} style={styles.advancedHeader}>
+        <Text style={styles.label}>{advancedExpanded ? "▾" : "▸"} Advanced — set exact coordinates</Text>
+      </Pressable>
+      {advancedExpanded && (
+        <>
+          <Text style={styles.hint}>
+            Filled in automatically when you pick an address above — only change these if the search didn&apos;t
+            find the right spot.
+          </Text>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.label}>Latitude</Text>
+              <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.label}>Longitude</Text>
+              <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
+            </View>
+          </View>
+        </>
+      )}
 
       <Pressable onPress={() => setIsFavorite((v) => !v)} style={styles.favoriteRow}>
         <Text style={styles.favoriteStar}>{isFavorite ? "★" : "☆"}</Text>
@@ -125,11 +189,15 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4 },
+    container: { padding: 20, gap: 4 },
     label: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     row: { flexDirection: "row", gap: 12 },
     half: { flex: 1 },
+    mapPickerRow: { marginTop: 10, alignSelf: "flex-start", minHeight: 30, justifyContent: "center" },
+    mapPickerLabel: { fontSize: 13, fontWeight: "600", color: theme.accentWalk },
+    advancedHeader: { marginTop: 16 },
+    hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 4 },
     favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, minHeight: 44 },
     favoriteStar: { fontSize: 22, color: theme.favoriteStar },
     segmentRow: { flexDirection: "row", gap: 8 },

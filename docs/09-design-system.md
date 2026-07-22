@@ -11,18 +11,28 @@ utility chrome nor a precious lifestyle app:
 
 - **Utilitarian side**: information density and legibility come first — this
   is a screen someone glances at for 3 seconds on their way out the door.
-  Flat fills, no gradients or drop shadows, generous hit targets, condition
-  states always carry icon + text (Section 9.6) so nothing depends on a
-  second of interpretation. Think transit-app clarity: numbers and states
-  are the content, chrome gets out of the way.
+  Flat fills (no gradients), generous hit targets, condition states always
+  carry icon + text (Section 9.6) so nothing depends on a second of
+  interpretation. Think transit-app clarity: numbers and states are the
+  content, chrome gets out of the way. Content-box components (the "Right
+  now" card, journey cards, the gear recommendation card) lift off the
+  background with a shadow (`cardElevationStyle()`, Section 9.1) rather
+  than a border — this reverses this section's original "no drop shadows"
+  line; see DECISIONS.md (2026-07-21) for why.
 - **Personal side**: this app is about *your* jacket and *your* shoes, not
-  generic advice, and the UI should feel like it knows that — warm accent
-  hues (the walk/drive/transit accents are amber/lavender/teal, not
-  primary red/green/blue), rounded corners throughout (12px cards, 999px
-  icon circles) rather than sharp edges, and copy that talks like a person
+  generic advice, and the UI should feel like it knows that — bold, varied
+  accent hues (the "Paua Pop" palette, Section 9.1: pōhutukawa pink, pāua
+  teal/violet, kōwhai gold — not a muted single-accent scheme), rounded
+  corners throughout (12px cards, 999px icon circles) rather than sharp
+  edges, every clothing/accessory recommendation paired with a small icon
+  (Section 9.3) not just bold text, and copy that talks like a person
   ("Forecast changed: pack a rain shell too," Section 5.2) rather than a
   system log. Gear items keep the user's own names ("Blue rain shell"), not
-  generic categories, wherever they're surfaced.
+  generic categories, wherever they're surfaced. The Today tab's screen
+  tint itself reacts to current conditions (Section 9.1.3) — cool when it's
+  cold and wet, warm when it's genuinely warm and sunny — so the "personal"
+  read extends to the app visibly knowing what it's like outside right now,
+  not just what's in the closet.
 - **In practice**: default to the utilitarian read for layout, density, and
   information hierarchy; default to the personal read for color, copy tone,
   and micro-interactions (the feedback taps, the favorite star). If the two
@@ -165,30 +175,34 @@ own one-line context ("Turn this on if this jacket is insulated enough on
 its own — like a rain shell with a built-in thin puffer lining"), hidden
 entirely (not shown-disabled) for every other clothing type.
 
-**Dark theme** (unchanged from the original spec):
+**Dark theme — "Paua Pop"** (2026-07-21 redesign, replacing the original
+muted amber/teal/lavender set — see DECISIONS.md for the round-by-round
+design review this came out of):
 
 | Token | Hex | Usage |
 |---|---|---|
-| `bg` | `#161B26` | Screen background |
-| `surface` | `#1F2534` | Cards, list rows |
-| `surfaceRaised` | `#2A3142` | Modals, the gear recommendation card |
-| `border` | `#323A4D` | Hairlines between legs/cards |
-| `textPrimary` | `#F2F4F8` | Headlines, leg labels |
-| `textSecondary` | `#9AA3B8` | Timestamps, durations, notes |
-| `accentTransit` | `#4FB8AE` | Bus/train legs, transit badges |
-| `accentWalk` | `#E8A860` | Walk/cycle/hike legs (Section 13.8) |
-| `accentDrive` | `#7C8CE8` | Drive legs |
-| `conditionDry` | `#6E7890` | severity 0 (`Dry`, `Overcast`) |
-| `conditionLight` | `#F2C94C` | severity 1 (`Light rain`, `Windy`, `Foggy`) |
-| `conditionRain` | `#4FA3E3` | severity 2 (`Rain`) |
+| `bg` | `#171B36` | Screen background |
+| `surface` | `#1F2447` | Cards, list rows |
+| `surfaceRaised` | `#262B52` | Modals, the gear recommendation card |
+| `border` | `#383D6E` | Hairlines between legs/cards |
+| `textPrimary` | `#F5F3FF` | Headlines, leg labels |
+| `textSecondary` | `#A8A4CC` | Timestamps, durations, notes |
+| `accentTransit` | `#1FE0C4` | Bus/train legs, transit badges (pāua teal) |
+| `accentWalk` | `#FF4D8D` | Walk/cycle/hike legs (Section 13.8); also the single "highlight" accent for a picked recommendation's item name and a journey card's leave-by time (pōhutukawa pink) |
+| `accentDrive` | `#8A5CFF` | Drive legs (pāua violet) |
+| `conditionDry` | `#6B7094` | severity 0 (`Dry`, `Overcast`) |
+| `conditionLight` | `#FFD23F` | severity 1 (`Light rain`, `Windy`, `Foggy`) — kōwhai gold |
+| `conditionRain` | `#4FA7E0` | severity 2 (`Rain`) |
 | `conditionHeavy` | `#3B6FD6` | severity 3 (`Heavy rain`) |
-| `conditionStorm` | `#B24FE3` | severity 4 (`Stormy`) |
-| `acBadge` | `#5CC8E8` | Indoor AC badge fill |
-| `uvBadge` | `#F2994A` | Sun/UV accessory badge fill |
-| `feedbackPositive` | `#5FBF7F` | "Just right" feedback tap target |
-| `confidenceLow` | `#9AA3B8` | Low-confidence forecast note (reuses `textSecondary` tone, kept as its own token so it can diverge later) |
-| `favoriteStar` | `#F2C94C` | Favorited location star fill (Section 4.3) — deliberately reuses `conditionLight`'s hex since both read as "highlighted/attention," but kept as a separate named token since they're conceptually unrelated and may want to diverge |
-| `annotationPin` | `#C77DFF` | `EnvironmentAnnotation` map pins (Section 4.5) — one consistent color for all six effect types (Section 3), distinguished from each other by icon glyph (wind/umbrella/sun/leaf/wave) rather than by hue, so this token doesn't multiply into six near-identical purples |
+| `conditionStorm` | `#B45CFF` | severity 4 (`Stormy`) |
+| `acBadge` | `#4FC8E8` | Indoor AC badge fill |
+| `uvBadge` | `#FFD23F` | Sun/UV accessory badge fill |
+| `feedbackPositive` | `#4FBF7F` | "Just right" feedback tap target |
+| `confidenceLow` | `#A8A4CC` | Low-confidence forecast note (reuses `textSecondary` tone, kept as its own token so it can diverge later) |
+| `favoriteStar` | `#FFD23F` | Favorited location star fill (Section 4.3) — deliberately reuses `conditionLight`'s hex since both read as "highlighted/attention," but kept as a separate named token since they're conceptually unrelated and may want to diverge |
+| `annotationPin` | `#C86BFF` | `EnvironmentAnnotation` map pins (Section 4.5) — one consistent color for all six effect types (Section 3), distinguished from each other by icon glyph (wind/umbrella/sun/leaf/wave) rather than by hue, so this token doesn't multiply into six near-identical purples |
+| `shadowColor` | `#000000` | The color `cardElevationStyle()` (below) renders its shadow in |
+| `isLight` | `false` | Not a color — lets `cardElevationStyle()` pick the right shadow opacity even for a mood-merged token object (Section 9.1.3) where `theme === lightTheme` identity checks no longer hold |
 
 **Light theme** — same token names, same relative contrast/role, hues kept
 close to the dark set so switching themes doesn't change what an accent
@@ -196,29 +210,31 @@ close to the dark set so switching themes doesn't change what an accent
 
 | Token | Hex | Usage |
 |---|---|---|
-| `bg` | `#F6F7FA` | Screen background |
+| `bg` | `#FAF7FC` | Screen background |
 | `surface` | `#FFFFFF` | Cards, list rows |
-| `surfaceRaised` | `#FFFFFF` (with `border`-colored 1px outline, since white-on-off-white needs a seam without shadows — see 9.0) | Modals, the gear recommendation card |
-| `border` | `#DDE1EA` | Hairlines between legs/cards |
-| `textPrimary` | `#1A1E29` | Headlines, leg labels |
-| `textSecondary` | `#5C6478` | Timestamps, durations, notes |
-| `accentTransit` | `#2C8F86` | Bus/train legs, transit badges |
-| `accentWalk` | `#C97F2E` | Walk/cycle/hike legs (Section 13.8) |
-| `accentDrive` | `#5B63C9` | Drive legs |
-| `conditionDry` | `#7B8499` | severity 0 (`Dry`, `Overcast`) |
-| `conditionLight` | `#B8860B` | severity 1 (`Light rain`, `Windy`, `Foggy`) |
+| `surfaceRaised` | `#FFFFFF` (with `border`-colored 1px outline, since white-on-off-white needs a seam even with the shadow — see 9.0) | Modals, the gear recommendation card |
+| `border` | `#E4DFF0` | Hairlines between legs/cards |
+| `textPrimary` | `#1C1930` | Headlines, leg labels |
+| `textSecondary` | `#6B6584` | Timestamps, durations, notes |
+| `accentTransit` | `#0E9A87` | Bus/train legs, transit badges |
+| `accentWalk` | `#D6266E` | Walk/cycle/hike legs (Section 13.8); highlight accent, same role as dark theme's |
+| `accentDrive` | `#6636E0` | Drive legs |
+| `conditionDry` | `#6B6584` | severity 0 (`Dry`, `Overcast`) |
+| `conditionLight` | `#C99515` | severity 1 (`Light rain`, `Windy`, `Foggy`) |
 | `conditionRain` | `#2E7CC4` | severity 2 (`Rain`) |
 | `conditionHeavy` | `#2953A8` | severity 3 (`Heavy rain`) |
-| `conditionStorm` | `#8C3AB0` | severity 4 (`Stormy`) |
-| `acBadge` | `#2F9FBE` | Indoor AC badge fill |
-| `uvBadge` | `#C97327` | Sun/UV accessory badge fill |
+| `conditionStorm` | `#9438DB` | severity 4 (`Stormy`) |
+| `acBadge` | `#1583A3` | Indoor AC badge fill |
+| `uvBadge` | `#C99515` | Sun/UV accessory badge fill |
 | `feedbackPositive` | `#3F9A5C` | "Just right" feedback tap target |
-| `confidenceLow` | `#5C6478` | Low-confidence forecast note (mirrors dark theme's reuse of `textSecondary`) |
-| `favoriteStar` | `#B8860B` | Favorited location star fill (mirrors dark theme's reuse of `conditionLight`) |
-| `annotationPin` | `#8A3FFC` | `EnvironmentAnnotation` map pins (Section 4.5) — same single-hue-plus-icon approach as dark theme, across all six effect types |
+| `confidenceLow` | `#6B6584` | Low-confidence forecast note (mirrors dark theme's reuse of `textSecondary`) |
+| `favoriteStar` | `#C99515` | Favorited location star fill (mirrors dark theme's reuse of `conditionLight`) |
+| `annotationPin` | `#7A2FC4` | `EnvironmentAnnotation` map pins (Section 4.5) — same single-hue-plus-icon approach as dark theme, across all six effect types |
+| `shadowColor` | `#28204A` | Deliberately not pure black — a light-mode shadow needs far less contrast to read as "lifted" rather than "smudged" (`cardElevationStyle()` also uses a much lower `shadowOpacity` for this theme, not just this hex) |
+| `isLight` | `true` | See dark theme's row above |
 
 All light-theme accent/condition hues were checked to keep at least 4.5:1
-contrast against `#F6F7FA`/`#FFFFFF` for text use and remain distinguishable
+contrast against `#FAF7FC`/`#FFFFFF` for text use and remain distinguishable
 from each other for someone with color vision deficiency, consistent with
 the "never convey severity by color alone" rule in Section 9.6 — that rule
 applies identically in both themes, since icon + label always ships
@@ -230,6 +246,53 @@ and don't branch on theme there either; the lookup array itself is
 theme-agnostic since it indexes into whichever token object `useTheme()`
 currently returns.
 
+**Card elevation** (`cardElevationStyle(theme)`, `src/theme/tokens.ts`) —
+the shared shadow every content-box component (Section 9.3's gear card,
+Section 9.4's journey card, the "Right now" card) uses instead of a border,
+per 9.0's reversed "no drop shadows" rule: `shadowColor` from the active
+theme, a `{width: 0, height: 6}` offset, `shadowRadius: 14`, and
+`shadowOpacity` of `0.35` (dark) or `0.1` (light) — `elevation: 6` covers
+Android, since RN's `shadow*` props are iOS-only. One shared helper so
+every card gets identical elevation rather than each screen inventing its
+own shadow values.
+
+#### 9.1.3 Weather-reactive tint (Today tab only)
+
+The Today tab's "Right now" card and journey cards react to the *current*
+conditions rather than sitting on one fixed palette year-round — cool when
+it's cold and wet, the default Paua Pop mid palette otherwise, warm when
+it's genuinely warm and sunny. Scoped to the Today tab specifically
+(`useWeatherTheme()`, `src/theme/useWeatherTheme.ts`) — every other screen
+(Settings, Gear, Locations, Journey Detail, History, ...) stays on the
+fixed `useTheme()` palette; TodayScreen fetches the current-conditions
+`WeatherSnapshot` once (the same read the "Right now" card already needed)
+and shares both the data and the resolved mood with `JourneyCard` below it,
+so the whole screen carries one mood rather than each card resolving its
+own independently.
+
+- **`resolveWeatherMood(apparentTempC, severity)`** (`src/lib/weather.ts`)
+  returns `"cold" | "mild" | "warm"`: `apparentTempC <= 8` or
+  `severity >= 3` (Heavy rain/Stormy) forces `"cold"` regardless of the
+  other input; `apparentTempC >= 22` and `severity <= 1` gives `"warm"`;
+  everything else is `"mild"`. A warm-but-rainy reading deliberately stays
+  `"mild"`, not `"warm"` — the gold/warm tint should mean "warm *and*
+  sunny," not just "warm."
+- **`moodOverrides`** (`src/theme/tokens.ts`) — `"mild"` has no entry (it
+  *is* `darkTheme`/`lightTheme` unchanged); `"cold"` and `"warm"` each
+  override `bg`/`surface`/`surfaceRaised`/`border`/`textPrimary`/
+  `textSecondary`/`accentWalk` only. Everything else — `condition*` tokens,
+  `accentTransit`/`accentDrive`, badges — stays fixed, so the per-leg
+  chips below (still their own icon + condition + temperature, not mood)
+  keep their existing, unrelated meaning regardless of the screen's overall
+  mood:
+  - Cold (dark): `bg #10192E` / `accentWalk #2FB8E8` (a cooler pāua blue-teal)
+  - Warm (dark): `bg #241A12` / `accentWalk #FFD23F` (kōwhai gold)
+  - Cold (light): `bg #EFF6FB` / `accentWalk #0E86B0`
+  - Warm (light): `bg #FBF3EA` / `accentWalk #B8790E`
+- Journey Detail does not (yet) use this — a past/future journey's own
+  leg weather could drive the same mood system there, but that's out of
+  this pass's scope; see DECISIONS.md.
+
 ### 9.2 Typography & spacing
 
 - Font: system default (`San Francisco` / `Roboto`) via RN's default — no
@@ -237,9 +300,43 @@ currently returns.
 - Scale: `title` 22/bold, `subtitle` 17/semibold, `body` 15/regular, `caption`
   13/regular, `micro` 11/medium (used on badges).
 - Spacing unit = 4px. Card padding = 16px (`4 * 4`). Gap between leg rows =
-  12px. Screen horizontal margin = 16px.
+  12px. Screen horizontal margin = 20px (`4 * 5`; bumped from the original
+  16px on 2026-07-22 — buttons/cards/borders were sitting too close to
+  screen edges, see DECISIONS.md). Card padding stays 16px — this is
+  specifically the margin between a card/form/list and the screen edge, not
+  a card's own internal padding.
 - Corner radius: 12px for cards, 8px for badges/pills, 999px (full) for the
   weather condition icon circle.
+
+### 9.2.1 Navigation iconography (2026-07-22)
+
+The 4 bottom tabs and the Today/Locations header buttons use a small
+dedicated line-icon set (`NavIcon.tsx`, same stroke-only/24×24-viewBox/
+`strokeWidth` ~1.8 convention `ClothingTypeIcon.tsx` established for gear
+glyphs, kept in its own file since the two sets are unrelated) — closing a
+gap `MainTabs.tsx` had flagged in its own comment since Phase 1 ("small
+text-button header icons stand in... until that pass lands," see
+DECISIONS.md):
+
+- **Today** — sun (weather focus). **Plan** — compass. **Locations** — a
+  map pin (same silhouette `LocationPickerMap`'s dropped-pin marker uses,
+  for visual continuity between picking a location and the tab that lists
+  them). **Gear** — a coat hanger.
+- **Settings** (Today tab header) — a sliders/equalizer glyph, not a
+  literal gear-cog — deliberately, since this app has a tab literally
+  named "Gear" (clothing inventory) and a cog icon risks reading as a
+  second, confusing reference to it. **History** (Today tab header) — a
+  clock. **Local knowledge** (Locations tab header) — the same map-pin
+  shape as the Locations tab icon, plus a small sparkle badge, so it reads
+  as "a place, plus an insight about it" rather than a duplicate pin.
+- Tab bar tint: `tabBarActiveTintColor: accentWalk`, `tabBarInactiveTintColor:
+  textSecondary`, `tabBarStyle` background/border from `surface`/`border` —
+  set once in `MainTabs.tsx`'s `screenOptions` and read back via each tab's
+  `{color}` render-prop argument, rather than each icon re-deriving
+  focused/unfocused state itself. Header-button icons use `textPrimary`
+  (matching the header title's color) rather than the accent, since accent
+  stays reserved for the active tab / primary interactive emphasis
+  elsewhere in the app, not general-purpose header chrome.
 
 ### 9.3 Journey Detail screen layout (top to bottom)
 
@@ -268,9 +365,13 @@ currently returns.
    map/banner(s), not scrollable away):
    - `layers[]` (Section 7) renders as a small **vertical stack**, base at
      the bottom visually working up to jacket on top — 1 to 3 rows depending
-     on warmth level, each an icon + item name, or `fallbackText` in
-     `textSecondary` italic. On a mild day this stack may be empty; hide the
-     whole row rather than showing a blank placeholder.
+     on warmth level, each a `ClothingTypeIcon` (`src/components/
+     ClothingTypeIcon.tsx` — one fixed glyph per `ClothingType`/accessory
+     kind, `accentWalk`-tinted for a real pick, `textSecondary`-tinted for a
+     fallback; not per-item art, gear photos stay exactly as they are
+     elsewhere) + item name, or `fallbackText` in `textSecondary` italic. On
+     a mild day this stack may be empty; hide the whole row rather than
+     showing a blank placeholder.
    - `accessories[]` renders as a single compact row **below** the layer
      stack, only when non-empty (Section 7's `layerPlanForWarmthLevel` plus
      the sun/darkness logic in 7.6 already keep this empty on a normal mild
@@ -327,14 +428,32 @@ snapshot, not a forecast.
 ### 9.4 Today-tab journey card (compact variant)
 
 Same visual language as the leg list rows, condensed: route summary
-("Home → Work"), a horizontal strip of small condition-color dots (one per
-outdoor leg, in journey order), and a single-line top recommendation pulled
-from `Recommendation.layers` — the outermost/warmest layer's name if
-matched (e.g. the jacket, not the base layer, since that's what's visible
-on the way out the door), or its fallback text. A small recurrence icon
-(↻) appears on the route summary if `journey.recurrence` is set, and a
-return-trip icon (⇄) if `linkedReturnJourneyId` is set. Tapping navigates to
-the full Journey Detail screen from 9.3.
+("Home → Work"), a horizontal row of small **per-leg stage chips** (2026-07-21
+redesign, replacing the original color-only dot strip — see DECISIONS.md),
+and a single-line top recommendation pulled from `Recommendation.layers` —
+the outermost/warmest layer's name if matched (e.g. the jacket, not the
+base layer, since that's what's visible on the way out the door), or its
+fallback text. A small recurrence icon (↻) appears on the route summary if
+`journey.recurrence` is set, and a return-trip icon (⇄) if
+`linkedReturnJourneyId` is set. Tapping navigates to the full Journey Detail
+screen from 9.3.
+
+**Stage chips**: one per leg with weather or an indoor `climate`, in leg
+order (so the row reads as a small timeline of the trip, not just an
+unordered summary), separated by a small "→" glyph:
+
+- Outdoor leg: `classifyWeather()`'s emoji `icon` + `apparentTempC` rounded
+  to the nearest degree (e.g. "🌦 13°") — the same condition icon
+  `RightNowCard` already shows, just condensed, not a new icon set.
+- Indoor leg (`climate` set — this includes bus/train legs, matching the
+  leg list's own AC/heated treatment in 9.3 point 5): a plain "AC" pill,
+  no temperature (indoor legs don't carry outdoor `weather`).
+
+Each chip is still icon + number, not color alone (Section 9.6) — the row
+is compact but not a return to the old dots' color-only signal. For a
+screen-reader user, the same "what changes leg to leg" summary is also
+folded into the card's `accessibilityLabel` in words, so nothing here is
+sighted-only.
 
 ### 9.4.1 Saved route chips, favorite star, and trip-context controls (Plan / Locations)
 

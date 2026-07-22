@@ -272,7 +272,7 @@ export default function PlanScreen() {
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4, backgroundColor: theme.bg },
+    container: { padding: 20, gap: 4, backgroundColor: theme.bg },
     chipRow: { marginBottom: 8 },
     routeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.surface, marginRight: 8 },
     routeChipLabel: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },

@@ -2,15 +2,34 @@ import { useCallback, useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { listLocations } from "../db/repositories/locations";
+import { newId } from "../db/rowMapping";
+import AddressAutocomplete from "./AddressAutocomplete";
 import useTheme from "../theme/useTheme";
 import type { SavedLocation } from "../types";
 
 // Origin/destination/waypoint picker for the Plan screen —
 // docs/04-screens-navigation.md §4.3/§4.3.1: "autocomplete against saved
-// locations first — favorites surfaced above the rest." Free-text/Google
-// Places search is Phase 4 (needs billing wiring not yet in place); this
-// phase only offers the saved-location list, which `listLocations()`
-// already returns favorites-first.
+// locations first — favorites surfaced above the rest — then free text via
+// Google Places." The query box filters the saved-location list client-side
+// (favorites-first ordering preserved from listLocations()) and doubles as
+// a real Google Places search (AddressAutocomplete) for anywhere not
+// already saved — closes the gap logged in DECISIONS.md's 2026-07-21
+// onboarding-rework entry ("Left open: Plan screen's pickers still only
+// search saved locations"). A selected Places result becomes an ephemeral,
+// non-persisted SavedLocation-shaped object (id: newId()) rather than a
+// real saved-location row — same pattern useRightNow.ts's synthetic
+// "Current location" journey already uses — so planJourney's existing
+// SavedLocation-typed pipeline needs no changes to accept it. One real
+// consequence worth knowing: §5.1's offline cached-structure fallback keys
+// off origin.id/destination.id, so a never-saved place never benefits from
+// that 30-day route-reuse cache (a fresh id every time can't match a prior
+// plan) — an honest limitation of not having a stable saved identity, not
+// a bug.
+function shortLabel(address: string): string {
+  const first = address.split(",")[0]?.trim();
+  return first && first.length > 0 ? first : address;
+}
+
 interface Props {
   label: string;
   value: SavedLocation | undefined;
@@ -23,12 +42,33 @@ export default function SavedLocationPicker({ label, value, onChange, placeholde
   const styles = getStyles(theme);
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState<SavedLocation[]>([]);
+  const [query, setQuery] = useState("");
 
   useFocusEffect(
     useCallback(() => {
       listLocations().then(setLocations);
     }, [])
   );
+
+  function closeAndReset() {
+    setOpen(false);
+    setQuery("");
+  }
+
+  function selectSaved(location: SavedLocation) {
+    onChange(location);
+    closeAndReset();
+  }
+
+  function selectPlace(result: { address: string; lat: number; lng: number }) {
+    onChange({ id: newId(), label: shortLabel(result.address), address: result.address, lat: result.lat, lng: result.lng });
+    closeAndReset();
+  }
+
+  const trimmedQuery = query.trim().toLowerCase();
+  const filteredLocations = trimmedQuery
+    ? locations.filter((l) => l.label.toLowerCase().includes(trimmedQuery) || l.address.toLowerCase().includes(trimmedQuery))
+    : locations;
 
   return (
     <View>
@@ -37,24 +77,29 @@ export default function SavedLocationPicker({ label, value, onChange, placeholde
         <Text style={value ? styles.valueText : styles.placeholderText}>{value?.label ?? placeholder}</Text>
       </Pressable>
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <View style={styles.sheet}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={closeAndReset}>
+        <Pressable style={styles.backdrop} onPress={closeAndReset}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sheetTitle}>{label}</Text>
-            {locations.length === 0 ? (
-              <Text style={styles.empty}>No locations yet — add some in the Locations tab</Text>
+            <AddressAutocomplete
+              value={query}
+              onChangeText={setQuery}
+              onSelectPlace={selectPlace}
+              placeholder="Search saved places or type an address"
+            />
+            {filteredLocations.length === 0 ? (
+              <Text style={styles.empty}>
+                {locations.length === 0
+                  ? "No saved places yet — search for an address above, or add some in the Locations tab"
+                  : "No saved places match — search for an address above"}
+              </Text>
             ) : (
               <FlatList
-                data={locations}
+                data={filteredLocations}
                 keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => {
-                      onChange(item);
-                      setOpen(false);
-                    }}
-                    style={styles.option}
-                  >
+                  <Pressable onPress={() => selectSaved(item)} style={styles.option}>
                     {item.isFavorite && <Text style={styles.star}>★</Text>}
                     <Text style={styles.optionLabel}>{item.label}</Text>
                     <Text style={styles.optionAddress}>{item.address}</Text>
@@ -62,7 +107,7 @@ export default function SavedLocationPicker({ label, value, onChange, placeholde
                 )}
               />
             )}
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
