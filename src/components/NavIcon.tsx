@@ -85,15 +85,16 @@ export default function NavIcon({ kind, size = 22, color }: Props) {
       )}
       {kind === "settings" && (
         <>
-          <Line x1={4} y1={21} x2={4} y2={14} {...stroke} {...cap} />
-          <Line x1={4} y1={10} x2={4} y2={3} {...stroke} {...cap} />
-          <Line x1={12} y1={21} x2={12} y2={12} {...stroke} {...cap} />
-          <Line x1={12} y1={8} x2={12} y2={3} {...stroke} {...cap} />
-          <Line x1={20} y1={21} x2={20} y2={16} {...stroke} {...cap} />
-          <Line x1={20} y1={12} x2={20} y2={3} {...stroke} {...cap} />
-          <Line x1={1} y1={14} x2={7} y2={14} {...stroke} {...cap} />
-          <Line x1={9} y1={8} x2={15} y2={8} {...stroke} {...cap} />
-          <Line x1={17} y1={16} x2={23} y2={16} {...stroke} {...cap} />
+          <Circle cx={12} cy={12} r={3.2} {...stroke} />
+          <Circle cx={12} cy={12} r={6.3} {...stroke} />
+          <Line x1={12} y1={2.3} x2={12} y2={4.6} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={12} y1={19.4} x2={12} y2={21.7} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={2.3} y1={12} x2={4.6} y2={12} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={19.4} y1={12} x2={21.7} y2={12} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={5.66} y1={5.66} x2={7.29} y2={7.29} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={16.71} y1={16.71} x2={18.34} y2={18.34} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={5.66} y1={18.34} x2={7.29} y2={16.71} stroke={color} strokeWidth={2.2} {...cap} />
+          <Line x1={16.71} y1={7.29} x2={18.34} y2={5.66} stroke={color} strokeWidth={2.2} {...cap} />
         </>
       )}
       {kind === "history" && (

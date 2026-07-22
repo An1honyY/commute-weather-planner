@@ -555,3 +555,13 @@ a substitute for the real fix.
 **Why this needed a decision**: (1) and (3) are direct corrections, not judgment calls. (2) is logged because it's a genuine platform bug independent of anything in scope for a "polish" pass, worth a permanent fix and record so a future pass doesn't reintroduce it by going back to `options.title`/`tabBarLabelStyle`.
 
 **Resolution**: `addButton` in `LocationsScreen.tsx`, `ClothingList.tsx`, `ShoeList.tsx`, `UmbrellaList.tsx`, and `VehicleList.tsx` all gained `paddingHorizontal: 20`, matching the screen-edge unit. Verified all three fixes with the same headless-browser screenshot method used throughout this session — the tab bar labels render fully now (confirmed via `getComputedStyle` before/after, not just a visual glance, given how easy this specific bug was to miss by eye at a quick screenshot size), header buttons show real words, and the Gear tab's "+ Add clothing" button now has visible padding on all sides.
+
+---
+
+## 2026-07-22 — Header buttons back to icons, and Settings gets an actual cog
+
+**What**: one more reversal in the same header-button thread — the text-label correction above got overridden again: icons for the header buttons after all, and specifically a real cog/gear-wheel glyph for Settings instead of the sliders icon this session chose earlier (see the nav-iconography entry above, "Settings uses a sliders/equalizer glyph rather than a literal gear-cog specifically to avoid reading as a second reference to the 'Gear' tab"). `TodayHeaderButtons`/`LocalKnowledgeButton` render `NavIcon` again; `NavIcon.tsx`'s `"settings"` case is now two concentric circles + 8 short radial ticks (a standard cog silhouette — center hole, ring, teeth), previewed in isolation against three candidate tooth styles/counts before wiring in, same as every other hand-drawn icon this session.
+
+**Why this needed a decision**: this directly overrides the "avoid the Gear-tab collision" reasoning from the nav-iconography entry — worth flagging explicitly since a future pass might otherwise "fix" it back to sliders on the same reasoning that motivated it the first time. That reasoning wasn't wrong on its own terms, it was just not what was wanted here: an explicit ask for a cog beats an inferred-but-unstated risk of icon confusion.
+
+**Resolution**: cog icon shipped as specified; icon-only header buttons restored. If the Settings/Gear visual-collision concern ever actually causes real user confusion, that's a reason to revisit the *Gear tab's* icon or label, not to quietly walk Settings back to sliders again.

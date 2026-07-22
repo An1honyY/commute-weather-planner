@@ -13,20 +13,20 @@ import type { MainTabParamList, RootStackParamList } from "./types";
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // docs/09-design-system.md §9.1 (2026-07-22) — real iconography for the
-// bottom tab bar, closing the gap this file's own comment used to flag
-// ("small text-button header icons stand in... until that pass lands,"
-// see DECISIONS.md). Header buttons (Settings/History/Local knowledge)
-// went icon-only in that same pass and were corrected back to text labels
-// the same day — icons alone read as less clear here, and the header has
-// room for real words. Tab bar tint colors are set once in screenOptions
-// below and read back via the {color} render prop rather than each icon
-// re-deriving focused/unfocused itself.
-const headerButtonStyle = { minHeight: 44, paddingHorizontal: 10, alignItems: "center" as const, justifyContent: "center" as const };
-const headerButtonRowStyle = { flexDirection: "row" as const, gap: 4, marginRight: 4 };
+// bottom tab bar and header buttons, closing the gap this file's own
+// comment used to flag ("small text-button header icons stand in... until
+// that pass lands," see DECISIONS.md). Header buttons went icon-only, were
+// corrected to text-only the same day, then back to icon-only again once
+// the "settings" glyph itself was fixed (sliders → an actual cog, per
+// explicit request) — see DECISIONS.md for the full back-and-forth. Header
+// buttons use theme.textPrimary (matching the header title's color, not
+// the accent — accent stays reserved for the active tab / primary
+// interactive emphasis elsewhere in the app).
+const headerButtonStyle = { minHeight: 44, minWidth: 44, alignItems: "center" as const, justifyContent: "center" as const };
+const headerButtonRowStyle = { flexDirection: "row" as const, gap: 8, marginRight: 4 };
 
 function TodayHeaderButtons() {
   const theme = useTheme();
-  const styles = { label: { color: theme.textPrimary, fontWeight: "600" as const, fontSize: 13 } };
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <View style={headerButtonRowStyle}>
@@ -36,7 +36,7 @@ function TodayHeaderButtons() {
         accessibilityRole="button"
         accessibilityLabel="Settings"
       >
-        <Text style={styles.label}>Settings</Text>
+        <NavIcon kind="settings" size={22} color={theme.textPrimary} />
       </Pressable>
       <Pressable
         onPress={() => navigation.navigate("History")}
@@ -44,7 +44,7 @@ function TodayHeaderButtons() {
         accessibilityRole="button"
         accessibilityLabel="History"
       >
-        <Text style={styles.label}>History</Text>
+        <NavIcon kind="history" size={22} color={theme.textPrimary} />
       </Pressable>
     </View>
   );
@@ -61,7 +61,7 @@ function LocalKnowledgeButton() {
         accessibilityRole="button"
         accessibilityLabel="Local knowledge"
       >
-        <Text style={{ color: theme.textPrimary, fontWeight: "600" as const, fontSize: 13 }}>Local knowledge</Text>
+        <NavIcon kind="localKnowledge" size={22} color={theme.textPrimary} />
       </Pressable>
     </View>
   );
