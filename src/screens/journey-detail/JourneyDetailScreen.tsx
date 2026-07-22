@@ -14,13 +14,14 @@ import { recordGearFeedback } from "../../lib/calibration";
 import { checkForecastDrift } from "../../lib/forecastDrift";
 import { dominantMode } from "../../lib/journeyMode";
 import { classifyWeather } from "../../lib/weather";
-import JourneyMap, { type ConditionMarker, type MapCircle } from "../../components/JourneyMap";
+import JourneyMap, { type ConditionMarker, type MapAnnotation, type MapCircle } from "../../components/JourneyMap";
 import AnnotationForm, { type AnnotationFormValues } from "../local-knowledge/AnnotationForm";
+import { EFFECT_META } from "../local-knowledge/effectMeta";
 import GearRecommendationCard from "./GearRecommendationCard";
 import LegRow from "./LegRow";
 import useTheme from "../../theme/useTheme";
 import { conditionColorForSeverity } from "../../theme/tokens";
-import type { GearFeedback, Journey, JourneyLeg } from "../../types";
+import type { EnvironmentAnnotation, GearFeedback, Journey, JourneyLeg } from "../../types";
 
 // Core screen — docs/09-design-system.md §9.3, reading a real persisted
 // Journey (docs/08-build-phases.md Phase 4, src/db/repositories/journeys.ts)
@@ -84,6 +85,9 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // affected radius previewed live on the map underneath.
   const [annotationCoordinate, setAnnotationCoordinate] = useState<{ lat: number; lng: number } | null>(null);
   const [previewCircle, setPreviewCircle] = useState<MapCircle | null>(null);
+  // §4.5 — all saved local-knowledge spots, shown on the map as badges so
+  // the user can see them alongside the route (not only the one being added).
+  const [annotations, setAnnotations] = useState<EnvironmentAnnotation[]>([]);
   const [calibrationToast, setCalibrationToast] = useState<string | null>(null);
   // §7.3 — the pause/resume control (below) always operates on the
   // *template* Journey (the one row with `recurrence` actually set), not
@@ -93,6 +97,20 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // yet, null = this journey isn't part of a recurring series at all.
   const [recurrenceTemplate, setRecurrenceTemplate] = useState<Journey | undefined | null>(undefined);
   const recommendation = useRecommendation(journey);
+
+  // Load saved local-knowledge spots for the map; refreshes when the screen
+  // regains focus so a spot added elsewhere shows up here too.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      listAnnotations().then((rows) => {
+        if (!cancelled) setAnnotations(rows);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -164,6 +182,14 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   const routePath = journey.legs.flatMap((leg) => (leg.polyline ? decodePolyline(leg.polyline) : []));
   const accentColor = modeAccent(dominantMode(journey.legs), theme);
   const conditionMarkers = conditionMarkersFor(journey.legs, theme);
+  const annotationMarkers: MapAnnotation[] = annotations.map((a) => ({
+    lat: a.lat,
+    lng: a.lng,
+    radiusM: a.radiusM,
+    icon: EFFECT_META[a.effect].icon,
+    label: `${a.label} — ${EFFECT_META[a.effect].label}`,
+    color: theme.annotationPin,
+  }));
 
   const totalDurationMin = journey.legs.reduce((sum, leg) => sum + leg.durationMin, 0);
   const journeyEndMs = new Date(journey.departTime).getTime() + totalDurationMin * 60_000;
@@ -195,8 +221,9 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // journey's legs so the effect is visible here without navigating away.
   async function saveAnnotation(values: AnnotationFormValues) {
     await createAnnotation(values);
-    const annotations = await listAnnotations();
-    const updated = { ...journey!, legs: applyAnnotationsToLegs(journey!.legs, annotations) };
+    const rows = await listAnnotations();
+    setAnnotations(rows);
+    const updated = { ...journey!, legs: applyAnnotationsToLegs(journey!.legs, rows) };
     await updateJourney(updated);
     setJourney(updated);
     closeAnnotationSheet();
@@ -270,6 +297,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
             onLongPress={openAnnotationSheet}
             previewCircle={previewCircle}
             conditionMarkers={conditionMarkers}
+            annotations={annotationMarkers}
             previewColor={theme.annotationPin}
           />
         </View>

@@ -32,6 +32,20 @@ export interface ConditionMarker {
   label: string; // accessibilityLabel, §9.6 — never color alone
 }
 
+// §4.5 — a saved EnvironmentAnnotation shown on the map so the user can see
+// their marked local-knowledge spots (windy corners, covered walkways, …)
+// alongside the route, not only when actively adding one. Built by the
+// caller from EFFECT_META + the annotationPin token, same dumb-renderer
+// split as ConditionMarker.
+export interface MapAnnotation {
+  lat: number;
+  lng: number;
+  radiusM: number;
+  icon: string;
+  label: string;
+  color: string;
+}
+
 interface Props {
   stops: MapStop[];
   // Decoded, concatenated polyline geometry from the real routed journey
@@ -45,6 +59,9 @@ interface Props {
   onLongPress?: (coordinate: { lat: number; lng: number }) => void;
   previewCircle?: MapCircle | null;
   conditionMarkers?: ConditionMarker[];
+  // Saved EnvironmentAnnotations to display (§4.5) — distinct from the
+  // single transient `previewCircle` shown while adding a new one.
+  annotations?: MapAnnotation[];
   // §9.1 annotationPin token — the radius preview shown while adding an
   // EnvironmentAnnotation (§4.5) is themed distinctly from the route/mode
   // accent, since it isn't a mode color. Falls back to accentColor so
@@ -62,7 +79,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-export default function JourneyMap({ stops, routePath, accentColor, onLongPress, previewCircle, conditionMarkers, previewColor }: Props) {
+export default function JourneyMap({ stops, routePath, accentColor, onLongPress, previewCircle, conditionMarkers, annotations, previewColor }: Props) {
   if (stops.length === 0) return <View style={styles.container} />;
 
   const coordinates = stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
@@ -98,6 +115,24 @@ export default function JourneyMap({ stops, routePath, accentColor, onLongPress,
           </View>
         </Marker>
       ))}
+      {(annotations ?? []).map((annotation, i) => (
+        <View key={`annotation-${i}`}>
+          <Circle
+            center={{ latitude: annotation.lat, longitude: annotation.lng }}
+            radius={annotation.radiusM}
+            strokeColor={annotation.color}
+            fillColor={hexToRgba(annotation.color, 0.12)}
+          />
+          <Marker
+            coordinate={{ latitude: annotation.lat, longitude: annotation.lng }}
+            accessibilityLabel={annotation.label}
+          >
+            <View style={[styles.annotationMarker, { backgroundColor: annotation.color }]}>
+              <Text style={styles.annotationMarkerIcon}>{annotation.icon}</Text>
+            </View>
+          </Marker>
+        </View>
+      ))}
       {previewCircle && (
         <Circle
           center={{ latitude: previewCircle.lat, longitude: previewCircle.lng }}
@@ -122,4 +157,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   conditionMarkerEmoji: { fontSize: 12 },
+  annotationMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  annotationMarkerIcon: { fontSize: 13 },
 });

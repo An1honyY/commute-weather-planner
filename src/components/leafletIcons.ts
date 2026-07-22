@@ -23,3 +23,15 @@ export function conditionDivIcon(color: string, emoji: string): L.DivIcon {
     iconAnchor: [12, 12],
   });
 }
+
+// A saved EnvironmentAnnotation badge (§4.5) — mirrors JourneyMap.tsx's
+// native annotationMarker: a 26px circular white-bordered badge in the
+// annotationPin color holding the effect's emoji glyph.
+export function annotationDivIcon(color: string, icon: string): L.DivIcon {
+  return L.divIcon({
+    className: "cwp-annotation-marker",
+    html: `<div style="width:26px;height:26px;border-radius:13px;background:${color};border:2px solid #FFFFFF;display:flex;align-items:center;justify-content:center;font-size:13px;box-sizing:border-box;">${icon}</div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}

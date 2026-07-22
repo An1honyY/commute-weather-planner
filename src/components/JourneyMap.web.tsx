@@ -3,9 +3,9 @@ import { StyleSheet, View } from "react-native";
 import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, useMapEvents } from "react-leaflet";
 import type { LeafletMouseEvent } from "leaflet";
 import { LEAFLET_CSS } from "./leafletCss";
-import { pinDivIcon, conditionDivIcon } from "./leafletIcons";
+import { pinDivIcon, conditionDivIcon, annotationDivIcon } from "./leafletIcons";
 import { basemapFor } from "./leafletBasemap";
-import type { ConditionMarker, MapCircle, MapStop } from "./JourneyMap";
+import type { ConditionMarker, MapAnnotation, MapCircle, MapStop } from "./JourneyMap";
 import useTheme from "../theme/useTheme";
 import { darkTheme } from "../theme/tokens";
 
@@ -31,6 +31,7 @@ interface Props {
   onLongPress?: (coordinate: { lat: number; lng: number }) => void;
   previewCircle?: MapCircle | null;
   conditionMarkers?: ConditionMarker[];
+  annotations?: MapAnnotation[];
   previewColor?: string;
 }
 
@@ -60,7 +61,7 @@ function FitBounds({ positions }: { positions: [number, number][] }) {
   return null;
 }
 
-export default function JourneyMap({ stops, routePath, accentColor, onLongPress, previewCircle, conditionMarkers, previewColor }: Props) {
+export default function JourneyMap({ stops, routePath, accentColor, onLongPress, previewCircle, conditionMarkers, annotations, previewColor }: Props) {
   // The native JourneyMap stays a pure prop-driven renderer (see its own
   // header comment) — this one reads theme directly only for basemap
   // tile choice, a web-only concept (CARTO's light/dark tile sets) with
@@ -102,6 +103,22 @@ export default function JourneyMap({ stops, routePath, accentColor, onLongPress,
             position={[marker.lat, marker.lng]}
             icon={conditionDivIcon(marker.color, marker.emoji)}
             alt={marker.label}
+          />
+        ))}
+        {(annotations ?? []).map((annotation, i) => (
+          <Circle
+            key={`annotation-circle-${i}`}
+            center={[annotation.lat, annotation.lng]}
+            radius={annotation.radiusM}
+            pathOptions={{ color: annotation.color, fillColor: annotation.color, fillOpacity: 0.12 }}
+          />
+        ))}
+        {(annotations ?? []).map((annotation, i) => (
+          <Marker
+            key={`annotation-${i}`}
+            position={[annotation.lat, annotation.lng]}
+            icon={annotationDivIcon(annotation.color, annotation.icon)}
+            alt={annotation.label}
           />
         ))}
         {previewCircle && (

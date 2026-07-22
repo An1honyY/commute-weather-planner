@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { EnvironmentAnnotation, EnvironmentEffectType } from "../../types";
 import { EFFECT_META, EFFECT_OPTIONS } from "./effectMeta";
+import RadiusSlider from "../../components/RadiusSlider";
 import useTheme from "../../theme/useTheme";
 
 // Shared add/edit form for an EnvironmentAnnotation — docs/04-screens-
@@ -9,10 +10,13 @@ import useTheme from "../../theme/useTheme";
 // (coordinates pre-filled from the tap, coordinate fields hidden) and the
 // Local knowledge list's edit view (coordinates shown as editable lat/lng
 // number fields — the same no-map-dependency precedent as Locations CRUD,
-// see DECISIONS.md). Radius is a stepped 50–300m chip row (default 100m)
-// rather than a drag slider, matching WarmthSlider's no-new-dependency
-// stepped-control precedent.
-const RADIUS_OPTIONS = [50, 100, 150, 200, 250, 300];
+// see DECISIONS.md). Radius is a continuous 10–300m drag slider (default
+// 60m) — real spots (a doorway awning, a bus shelter, a windy corner) are
+// often far smaller than the old stepped row's 50m floor allowed.
+const RADIUS_MIN = 10;
+const RADIUS_MAX = 300;
+const RADIUS_STEP = 5;
+const RADIUS_DEFAULT = 60;
 
 export interface AnnotationFormValues {
   label: string;
@@ -49,7 +53,7 @@ export default function AnnotationForm({
   const styles = getStyles(theme);
   const [effect, setEffect] = useState<EnvironmentEffectType>(initial?.effect ?? "wind-tunnel");
   const [label, setLabel] = useState(initial?.label ?? "");
-  const [radiusM, setRadiusM] = useState(initial?.radiusM ?? 100);
+  const [radiusM, setRadiusM] = useState(initial?.radiusM ?? RADIUS_DEFAULT);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [lat, setLat] = useState(String(initial?.lat ?? initialCoordinate?.lat ?? ""));
   const [lng, setLng] = useState(String(initial?.lng ?? initialCoordinate?.lng ?? ""));
@@ -95,18 +99,10 @@ export default function AnnotationForm({
       />
 
       <Text style={styles.fieldLabel}>Applies within {radiusM}m</Text>
-      <View style={styles.radiusRow}>
-        {RADIUS_OPTIONS.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => pickRadius(option)}
-            style={[styles.radiusChip, option === radiusM && styles.radiusChipActive]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: option === radiusM }}
-          >
-            <Text style={[styles.radiusLabel, option === radiusM && styles.radiusLabelActive]}>{option}m</Text>
-          </Pressable>
-        ))}
+      <RadiusSlider value={radiusM} onChange={pickRadius} min={RADIUS_MIN} max={RADIUS_MAX} step={RADIUS_STEP} />
+      <View style={styles.radiusScale}>
+        <Text style={styles.radiusScaleLabel}>{RADIUS_MIN}m</Text>
+        <Text style={styles.radiusScaleLabel}>{RADIUS_MAX}m</Text>
       </View>
 
       {showCoordinateFields && (
@@ -194,18 +190,8 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     effectLabelActive: { color: theme.bg, fontWeight: "600" },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     notesInput: { minHeight: 64, textAlignVertical: "top" },
-    radiusRow: { flexDirection: "row", gap: 8 },
-    radiusChip: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.border,
-      alignItems: "center",
-    },
-    radiusChipActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
-    radiusLabel: { fontSize: 12, color: theme.textPrimary },
-    radiusLabelActive: { color: theme.bg, fontWeight: "600" },
+    radiusScale: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+    radiusScaleLabel: { fontSize: 11, color: theme.textSecondary },
     row: { flexDirection: "row", gap: 12 },
     half: { flex: 1 },
     actions: { flexDirection: "row", gap: 12, marginTop: 24 },
