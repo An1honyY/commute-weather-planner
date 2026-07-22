@@ -7,7 +7,10 @@ import Svg, { Circle, Line, Path } from "react-native-svg";
 // strokeWidth ~1.8, round caps/joins, no fill — one glyph per nav
 // destination rather than per-item art, kept in its own file since this
 // set is unrelated to clothing (no shared PATHS lookup with
-// ClothingTypeIcon makes sense here).
+// ClothingTypeIcon makes sense here). "gear" is the one exception (see
+// below) — a filled glyph traced from a user-supplied reference SVG rather
+// than a hand-drawn stroke icon, after two freehand attempts at a
+// hook-and-triangle hanger were both rejected as unrecognizable.
 export type NavIconKind = "today" | "plan" | "locations" | "gear" | "settings" | "history" | "localKnowledge";
 
 interface Props {
@@ -16,9 +19,39 @@ interface Props {
   color: string;
 }
 
+// Traced verbatim from the user-supplied reference SVG (a coat-hanger icon
+// from svgrepo.com — hook + a fully closed/hollow triangle body), only the
+// fill color changed from the reference's hardcoded black. Own viewBox
+// (matching the reference's native 56.751x56.75 coordinate space) rather
+// than force-fitting it into the other icons' 24x24 stroke convention —
+// this is a filled silhouette, not a stroke path, so rescaling the raw
+// numbers into 24x24 would risk exactly the kind of hand-transcription
+// error that made the previous two attempts unrecognizable. The two
+// "M...Z" subpaths in one `d` combine under the default nonzero fill-rule
+// to render the triangle as hollow (a hanger drawn as a wire outline), not
+// solid — confirmed by rendering the reference standalone before wiring
+// this in.
+const GEAR_PATH_D =
+  "M56.072,43.004l-27.25-18.5c-0.032-0.021-0.074-0.04-0.124-0.058c-0.07-0.025-0.13-0.44-0.13-0.934" +
+  "s0.42-1.056,0.884-1.356c1.551-1.002,2.591-2.767,2.591-4.685c0-3.873-2.628-6.476-6.54-6.476c-3.01,0-5.525,1.992-6.262,4.956" +
+  "c-0.199,0.804,0.291,1.617,1.095,1.817c0.806,0.202,1.617-0.291,1.817-1.095c0.398-1.603,1.743-2.679,3.35-2.679" +
+  "c2.25,0,3.54,1.267,3.54,3.476c0,1.211-0.995,2.366-2.173,2.524c-0.745,0.099-1.302,0.734-1.302,1.486v1.908" +
+  "c0,0.553-0.105,1.021-0.232,1.059c-0.092,0.028-0.167,0.06-0.217,0.096l-24.5,18.5c-0.526,0.381-0.746,1.059-0.546,1.676" +
+  "c0.2,0.619,0.776,1.037,1.427,1.037h53.751c0.663,0,1.248-0.436,1.438-1.07S56.628,43.367,56.072,43.004z M49.224,42.758H7.123" +
+  "c-0.553,0-0.619-0.234-0.149-0.524l17.642-10.892c1.342-0.974,3.553-1.026,4.938-0.119L49.35,42.272" +
+  "C49.832,42.542,49.775,42.758,49.224,42.758z";
+
 export default function NavIcon({ kind, size = 22, color }: Props) {
   const stroke = { stroke: color, strokeWidth: 1.8, fill: "none" as const };
   const cap = { strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+  if (kind === "gear") {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 56.751 56.75" fill="none">
+        <Path d={GEAR_PATH_D} fill={color} />
+      </Svg>
+    );
+  }
 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -48,17 +81,6 @@ export default function NavIcon({ kind, size = 22, color }: Props) {
             {...stroke}
           />
           <Circle cx={12} cy={10} r={2.3} {...stroke} />
-        </>
-      )}
-      {kind === "gear" && (
-        <>
-          <Circle cx={12} cy={4.8} r={1.3} stroke={color} strokeWidth={1.6} fill="none" />
-          <Line x1={12} y1={6.1} x2={12} y2={8.2} {...stroke} {...cap} />
-          <Path
-            d="M4,17 Q2.7,15.6 4.2,14.4 L11.2,8.6 Q12,8 12.8,8.6 L19.8,14.4 Q21.3,15.6 20,17"
-            {...stroke}
-            {...cap}
-          />
         </>
       )}
       {kind === "settings" && (
