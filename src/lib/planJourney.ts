@@ -22,6 +22,14 @@ const OFFLINE_FALLBACK_WINDOW_DAYS = 30;
 // build a wait leg from either; "no delay data" isn't the same claim as
 // "no wait."
 const FLAT_WAIT_FALLBACK_MIN = 5;
+// Google Routes rejects a non-future departureTime outright ("Timestamp
+// must be set to a future time.") — both a "leave by" time that slips into
+// the past while the form is still being filled out, and an "arrive by"
+// solve that comes out non-future (not enough time to get there), fall back
+// to this same "leave now" lead time rather than surfacing an error for
+// something the user didn't really get wrong. Exported — PlanScreen's
+// client-side "leave by" check uses the identical value.
+export const DEPART_TIME_LEAD_MS = 2 * 60_000;
 
 function toRoutePoint(location: SavedLocation): RoutePoint {
   return { lat: location.lat, lng: location.lng, label: location.label };
@@ -64,7 +72,10 @@ export interface PlanJourneyInput {
   origin: SavedLocation;
   destination: SavedLocation;
   waypoints: SavedLocation[];
-  departTime: string; // ISO
+  departTime: string; // ISO — ignored when arriveByTime is set (still required as a type-level placeholder; PlanScreen never sets both)
+  // Plan screen's "Arrive by" mode — when set, the real departTime is
+  // solved for instead of used directly (see resolveArrivalPlan below).
+  arriveByTime?: string; // ISO
   mode: TravelMode;
   formal: boolean;
   carryPreference: CarryPreference;
@@ -76,8 +87,8 @@ export interface PlanJourneyInput {
 }
 
 export type PlanJourneyResult =
-  | { kind: "success"; journey: Journey }
-  | { kind: "success-cached"; journey: Journey; cachedFromDate: string }
+  | { kind: "success"; journey: Journey; timeAdjusted?: boolean }
+  | { kind: "success-cached"; journey: Journey; cachedFromDate: string; timeAdjusted?: boolean }
   | { kind: "failed" };
 
 interface AssembledLeg {
@@ -335,20 +346,74 @@ async function buildFromCachedStructure(cached: Journey, input: PlanJourneyInput
   return assembleJourney(assembled, input, stops);
 }
 
-export async function planJourney(input: PlanJourneyInput): Promise<PlanJourneyResult> {
-  const routeResult = await computeRoute({
+// Plan screen's "Arrive by" mode — Google's Routes API only accepts a
+// native `arrivalTime` for TRANSIT (bus/train), where the returned steps
+// already carry real scheduled clock times, so departTime is derived from
+// those directly. Walk/Drive/Cycle have no such API support, so this makes
+// a single estimate call anchored at the desired arrival instant and
+// subtracts its duration — a one-pass approximation, not iterative
+// refinement (Drive's traffic-at-actual-departure-time accuracy is a known,
+// accepted trade-off). Either branch reuses the same route `steps` it
+// estimated with rather than re-fetching, since re-solving wouldn't change
+// a walk/cycle duration and would just double the API calls for drive.
+async function resolveArrivalPlan(
+  input: PlanJourneyInput
+): Promise<{ steps: RouteStep[]; departTime: string; timeAdjusted: boolean } | undefined> {
+  const isTransit = input.mode === "bus" || input.mode === "train";
+  const routeParams = {
     origin: toRoutePoint(input.origin),
     destination: toRoutePoint(input.destination),
     waypoints: input.waypoints.map(toRoutePoint),
-    mode: input.mode as RouteStep["mode"], // "hike" never reaches here — the Plan screen doesn't offer it yet
-    departTime: input.departTime,
-  });
+    mode: input.mode as RouteStep["mode"],
+  };
+  const routeResult = isTransit
+    ? await computeRoute({ ...routeParams, arriveTime: input.arriveByTime })
+    : await computeRoute({ ...routeParams, departTime: input.arriveByTime });
+  if (!("data" in routeResult)) return undefined;
+
+  const totalDurationMin = routeResult.data.reduce((sum, s) => sum + s.durationMin, 0);
+  let departTime = new Date(new Date(input.arriveByTime!).getTime() - totalDurationMin * 60_000).toISOString();
+  let timeAdjusted = false;
+  if (new Date(departTime).getTime() <= Date.now() + DEPART_TIME_LEAD_MS) {
+    // Not enough time left to arrive by the requested time (or it already
+    // passed while this was being solved) — same "leave now, and say so"
+    // treatment as a stale "leave by" pick gets on the client.
+    departTime = new Date(Date.now() + DEPART_TIME_LEAD_MS).toISOString();
+    timeAdjusted = true;
+  }
+  return { steps: routeResult.data, departTime, timeAdjusted };
+}
+
+export async function planJourney(input: PlanJourneyInput): Promise<PlanJourneyResult> {
+  let steps: RouteStep[] | undefined;
+  let departTime = input.departTime;
+  let timeAdjusted = false;
+
+  if (input.arriveByTime) {
+    const resolved = await resolveArrivalPlan(input);
+    if (resolved) {
+      steps = resolved.steps;
+      departTime = resolved.departTime;
+      timeAdjusted = resolved.timeAdjusted;
+    }
+  } else {
+    const routeResult = await computeRoute({
+      origin: toRoutePoint(input.origin),
+      destination: toRoutePoint(input.destination),
+      waypoints: input.waypoints.map(toRoutePoint),
+      mode: input.mode as RouteStep["mode"], // "hike" never reaches here — the Plan screen doesn't offer it yet
+      departTime: input.departTime,
+    });
+    if ("data" in routeResult) steps = routeResult.data;
+  }
+
+  const resolvedInput: PlanJourneyInput = { ...input, departTime, arriveByTime: undefined };
 
   let journey: Journey | undefined;
   let cachedFromDate: string | undefined;
 
-  if ("data" in routeResult) {
-    journey = await buildFromLiveRoute(routeResult.data, input);
+  if (steps) {
+    journey = await buildFromLiveRoute(steps, resolvedInput);
   } else {
     // §5.1 — on failure, look for a previously-planned Journey between the
     // same origin/destination pair within the last 30 days and reuse its
@@ -356,7 +421,7 @@ export async function planJourney(input: PlanJourneyInput): Promise<PlanJourneyR
     const since = new Date(Date.now() - OFFLINE_FALLBACK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const cached = await findRecentJourneyBetween(input.origin.id, input.destination.id, since);
     if (cached) {
-      journey = await buildFromCachedStructure(cached, input);
+      journey = await buildFromCachedStructure(cached, resolvedInput);
       cachedFromDate = cached.departTime;
     }
   }
@@ -369,5 +434,7 @@ export async function planJourney(input: PlanJourneyInput): Promise<PlanJourneyR
   // are final for this plan/materialization pass. Fire-and-forget from the
   // caller's perspective: scheduleForJourney() never throws.
   void scheduleForJourney(journey);
-  return cachedFromDate ? { kind: "success-cached", journey, cachedFromDate } : { kind: "success", journey };
+  return cachedFromDate
+    ? { kind: "success-cached", journey, cachedFromDate, timeAdjusted: timeAdjusted || undefined }
+    : { kind: "success", journey, timeAdjusted: timeAdjusted || undefined };
 }

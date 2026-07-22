@@ -577,3 +577,195 @@ Second: "what happened to my bucket hat icon? it should be always shown in the l
 **Why this needed a decision**: (1) is the same class of correction as the hanger/first-cog rounds — logged for the pattern, not because it's a new judgment call. (2) is worth recording because the root cause (a real asset that was built but never actually surfaced in-app) is an easy mistake to repeat: "the icon exists in `assets/`" and "the icon is visible somewhere a user will see it" are different claims, and this session conflated them for nearly a full day of work before it was caught.
 
 **Resolution**: both shipped as described; no native-only limitation here (unlike `LocationPickerMap`'s map, `<Image>` with a bundled asset works identically on web and native, verified via the same headless-browser screenshot method used throughout this session).
+
+---
+
+## 2026-07-22 — "Repeats" scoped to Leave-by mode only, not Leave-now/Arrive-by
+
+**What**: the Plan screen's "When" section became a three-way Leave now /
+Leave by / Arrive by selector (replacing a single date/time pair that was
+always implicitly "leave at"). The existing "Repeats" toggle, which
+materializes a recurring `RecurrenceRule.departTimeOfDay` daily, is now
+only shown when "Leave by" is selected.
+
+**Why this needed a decision**: "Leave now" has no fixed daily clock time
+to repeat — "leave right away, every weekday" isn't a coherent recurrence.
+"Arrive by" does have a plausible recurring interpretation ("get to work by
+9am every weekday"), but materializing it correctly would mean re-solving
+the arrival→departure estimate fresh each morning (duration/traffic vary
+day to day), which the recurrence-materialization pipeline (Today tab)
+doesn't do today — it just reads `departTimeOfDay` as a fixed string. That's
+a separate, larger feature, not a natural extension of this change.
+
+**Resolution**: Repeats is gated to `timeMode === "leave-by"` in
+`PlanScreen.tsx`. Recurring "arrive by" journeys are out of scope until the
+materialization pipeline can re-solve per-occurrence.
+
+---
+
+## 2026-07-22 — No drive-mode "short dash to the car" umbrella workaround (yet)
+
+**What**: while making umbrella-fallback copy context-aware (rain-shell
+substitute, covered-route note), a "you're driving, so you'll only be
+exposed for a quick dash to the car" workaround was considered and
+rejected for now.
+
+**Why this needed a decision**: it's not buildable with what the pipeline
+currently tracks. `planJourney.ts`'s `outdoor` flag is only ever true for
+walk/cycle/stationary-wait legs — a `"drive"` leg is never `outdoor`, so no
+weather is ever fetched for a pure-drive journey and `recommendGear()`'s
+umbrella section (gated on `worstOutdoor`) never even evaluates for one.
+Reacting to "you're driving" would need a synthetic walk-to-car leg
+modeled into the route, which is a separate, larger routing change, not a
+copy tweak.
+
+**Resolution**: left out. If drive-mode weather/gear awareness is ever
+built, this is the natural place to add the workaround.
+
+---
+
+## 2026-07-22 — Bottoms recommendation expanded from cold/wet-only to always-on
+
+**What**: `recommendGear()`'s bottoms pick (`§7.13` in the docs) previously
+only fired when conditions were wet+windy enough for rain trousers, or cold
+enough for thermal ones — otherwise `Recommendation.bottoms` stayed
+`undefined` and the card showed nothing. It's now unconditional, matching
+how `shoes` already behaves: warm weather prefers a `"shorts"`/`"skirt"`
+tagged item, cold prefers `"trousers"`, mild has no strong preference.
+
+**Why this needed a decision**: the docs (`§7.13`) only ever described the
+cold/wet trigger — always showing a bottoms row is a real behavior change,
+not a bug fix, and worth a record so a future pass doesn't "restore" the
+narrower gating thinking it regressed. The cold/wet-specific *notes* (rain
+trousers warning, thermal fallback wording) still only fire under their
+original conditions — only the unconditional *pick* is new.
+
+**Resolution**: `TagChips.tsx` gained a `BOTTOMS_TAG_OPTIONS` set
+(`shorts`/`skirt`/`trousers`/`cycling`/`formal`), wired into
+`ClothingForm.tsx` for `type === "bottoms"` items. `pickCandidate()` in
+`recommend.ts` is now called unconditionally for bottoms, with
+`preferTags` chosen from `warmthLevel`.
+
+---
+
+## 2026-07-22 — Web `JourneyMap` closes the last native-only-map gap
+
+**What**: `JourneyMap.web.tsx` was a placeholder (`"Map preview (native
+only)"`) ever since Phase 3, because `react-native-maps` (the native
+file's dependency) has no web target at all. It's now a real,
+independently-implemented map — `react-leaflet` + OpenStreetMap tiles,
+route polyline, per-stop pins, per-leg condition badges, and the
+annotation-radius preview circle — mirroring `LocationPickerMap.web.tsx`'s
+identical solution to the identical gap on a different screen.
+
+**Why this needed a decision**: this was flagged as a hard technical wall
+in earlier entries ("`react-native-maps` has no web target," repeated
+across the Locations-CRUD, annotation-UI, and map-picker entries above) —
+worth recording explicitly that it never actually was one; the wall is
+`react-native-maps` specifically, not "maps on web" in general, and this
+session closes the one remaining case nobody had gotten around to yet.
+
+**Resolution**: `pinDivIcon`/`conditionDivIcon` factored out of
+`LocationPickerMap.web.tsx`'s local `markerIcon()` into a new shared
+`leafletIcons.ts` (both web maps now import from there, avoiding a second
+copy of the same inline-SVG pin). Long-press annotation capture (no mouse
+equivalent) maps onto a plain click, same substitution
+`LocationPickerMap.web.tsx` already established for drag-vs-click. Framing
+uses `map.fitBounds()` across all stops rather than a fixed zoom, since a
+route can span much further than a single picked pin.
+
+---
+
+## 2026-07-22 — Location-picker pin seeded from the user's real location, not always Auckland
+
+**What**: `LocationPickerMap` (native + web) previously opened on a
+hardcoded Auckland-CBD fallback (`{ lat: -36.8485, lng: 174.7633 }`)
+whenever the caller didn't already know real coordinates — i.e. every "add
+a new location" and onboarding's map-pick path — regardless of whether the
+user's actual location was knowable. `useRightNow.ts` (the Today weather
+card) already had a GPS → saved-default-location → Auckland fallback
+chain solving the identical problem; the picker just never reused it.
+
+IP-based geolocation was raised as a possible extra fallback ahead of
+Auckland, specifically avoiding a third-party API if possible. No such
+option exists: resolving an IP to a location fundamentally requires either
+an external lookup service or a bundled geo-IP database, both outside
+"no third party" scope, and GPS (already covered) is strictly more
+accurate than either would be. The chain stays GPS → saved default →
+Auckland.
+
+**Why this needed a decision**: reusing `useRightNow.ts`'s chain required
+extracting it into a shared, callable function first (previously inlined
+in that hook) — a small refactor, not just a picker-side fix. The
+IP-geolocation question also needed an explicit answer rather than silent
+omission, since it was asked about directly.
+
+**Resolution**: new `src/lib/approximateLocation.ts` exports
+`resolveApproximateLocation()`; `useRightNow.ts` now calls it instead of
+its own inline copy. Both `LocationPickerMap.tsx`/`.web.tsx` call it
+whenever `initialCoords` isn't supplied, showing a brief loading spinner
+in place of the map until it resolves (simpler than re-centering an
+already-mounted map, and typically near-instant — an SQLite read or an
+already-granted GPS fix). A resolved real location also opens a bit more
+zoomed out than the Auckland fallback (native `latitudeDelta`/
+`longitudeDelta` `0.08` vs `0.05`; web `zoom={12}` vs `13`) — room to drag
+to a nearby spot without immediately panning, which the generic Auckland
+starting point doesn't need.
+
+---
+
+## 2026-07-22 — Live place-name label while dragging the pin, debounced against Geocoding cost
+
+**What**: the location picker never told the user what place they were
+pointing at until after confirming — no feedback while dragging/clicking,
+and onboarding's "Use my current location" GPS button labeled its result
+the bare string `"Current location"` since it never reverse-geocoded at
+all. Both now resolve and show a real place name: the picker live-updates
+a label as the pin settles, and the GPS button reverse-geocodes before
+calling `onDone`, falling back to the old generic string only if that
+lookup fails.
+
+**Why this needed a decision**: `reverseGeocode()` is a billable Google
+Geocoding API call — firing it on every intermediate drag/click position
+(rather than once the pin has actually settled) would multiply cost for
+no benefit, so this needed a deliberate debounce, not just a naive
+"call it on every marker move."
+
+**Resolution**: both `LocationPickerMap.tsx`/`.web.tsx` wait 700ms after
+the marker stops changing before calling `reverseGeocode`, with a
+request-id guard (same pattern `AddressAutocomplete.tsx` already uses) so
+a slow, stale response can't overwrite a faster, more recent one's label.
+`onConfirm` now optionally passes the already-resolved label through to
+its caller (`LocationForm.tsx`, `Step1Location.tsx`), which reuse it
+instead of calling `reverseGeocode` a second time on confirm — only
+falling back to a fresh call if the live resolution never completed (e.g.
+a very fast confirm tap).
+
+---
+
+## 2026-07-22 — Journey Detail's map draws the real route, not a straight line
+
+**What**: both `JourneyMap.tsx` (native) and the new `JourneyMap.web.tsx`
+only ever drew a straight `Polyline` through `stops` (origin/waypoints/
+destination) — never the actual road/track-following geometry, even
+though Google Routes already returns real per-leg polylines and this app
+already decodes them elsewhere (`conditionMarkersFor()` calls
+`decodePolyline()` just to find each leg's midpoint). This wasn't a
+Leaflet/web limitation — the native map had the identical gap, since
+neither version was ever given the real geometry to draw.
+
+**Why this needed a decision**: fixing this meant deciding how to handle
+legs with no polyline of their own (indoor waypoint dwells, synthesized
+stationary waits) when concatenating per-leg geometry into one path,
+rather than a single code change.
+
+**Resolution**: `JourneyDetailScreen.tsx` now builds
+`journey.legs.flatMap((leg) => leg.polyline ? decodePolyline(leg.polyline) : [])`
+and passes it to both `JourneyMap` implementations as a new `routePath`
+prop, which they draw instead of the straight `stops` line (falling back
+to the old straight-line behavior only if `routePath` is empty — e.g. no
+live route data). Legs without their own polyline simply contribute
+nothing to the path rather than a straight-line bridge — the points
+immediately before/after them are already at essentially the same
+location (the stop/wait point), so the combined line still reads as
+continuous.

@@ -44,7 +44,11 @@ interface GtfsStopTimeUpdate {
 }
 interface GtfsTripUpdate {
   trip?: { route_id?: string };
-  stop_time_update?: GtfsStopTimeUpdate[];
+  // AT's live feed returns a single object here, not an array, despite the
+  // GTFS-realtime spec defining stop_time_update as repeated — confirmed
+  // against a real response. Normalized to an array right after parsing
+  // (below) so the rest of this function can treat it uniformly.
+  stop_time_update?: GtfsStopTimeUpdate | GtfsStopTimeUpdate[];
 }
 interface GtfsEntity {
   trip_update?: GtfsTripUpdate;
@@ -94,7 +98,9 @@ export async function getRealtimeDelay(
 
   const entities = payload.response?.entity ?? [];
   for (const entity of entities) {
-    const stopTimeUpdate = entity.trip_update?.stop_time_update?.find((u) => u.stop_id === params.stopId);
+    const rawUpdate = entity.trip_update?.stop_time_update;
+    const updates = Array.isArray(rawUpdate) ? rawUpdate : rawUpdate ? [rawUpdate] : [];
+    const stopTimeUpdate = updates.find((u) => u.stop_id === params.stopId);
     if (stopTimeUpdate) {
       const delaySeconds = stopTimeUpdate.arrival?.delay ?? stopTimeUpdate.departure?.delay ?? 0;
       return {

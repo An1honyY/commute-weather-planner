@@ -46,7 +46,13 @@ export interface ComputeRouteParams {
   destination: RoutePoint;
   waypoints?: RoutePoint[]; // passed as `intermediates` on the same call, §5.5
   mode: RouteTravelMode;
-  departTime: string; // ISO
+  // Exactly one of these is set by callers. `arriveTime` only takes effect
+  // for TRANSIT (bus/train) — Google's Routes API doesn't support
+  // arrival-time routing for any other travel mode; planJourney.ts's
+  // arrive-by estimate for walk/drive/cycle instead passes the desired
+  // arrival instant as `departTime` itself (see resolveArrivalPlan there).
+  departTime?: string; // ISO
+  arriveTime?: string; // ISO — TRANSIT only
 }
 
 const COMPUTE_ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
@@ -124,20 +130,46 @@ function parseSimpleLegs(route: GoogleRoute, params: ComputeRouteParams): RouteS
 function parseTransitSteps(route: GoogleRoute, params: ComputeRouteParams): RouteStep[] {
   const steps = route.legs?.[0]?.steps ?? [];
   const result: RouteStep[] = [];
-  let cursorMs = new Date(params.departTime).getTime();
 
-  for (const step of steps) {
+  let cursorMs: number;
+  if (params.departTime) {
+    cursorMs = new Date(params.departTime).getTime();
+  } else {
+    // Arrive-by call (arriveTime set, no departTime) — no anchor clock time
+    // was given, so seed the cursor from the first transit step's own real
+    // scheduled departure, walked back by any leading walk step's duration,
+    // rather than assuming an (unknown) absolute start time.
+    const firstTransitIndex = steps.findIndex(
+      (s) => s.travelMode === "TRANSIT" && s.transitDetails?.stopDetails?.departureTime
+    );
+    const firstTransitDepartMs =
+      firstTransitIndex >= 0
+        ? new Date(steps[firstTransitIndex].transitDetails!.stopDetails!.departureTime!).getTime()
+        : Date.now();
+    const leadingWalkSeconds = steps
+      .slice(0, firstTransitIndex >= 0 ? firstTransitIndex : 0)
+      .reduce((sum, s) => sum + parseDurationSeconds(s.staticDuration), 0);
+    cursorMs = firstTransitDepartMs - leadingWalkSeconds * 1000;
+  }
+
+  steps.forEach((step, i) => {
     const durationSeconds = parseDurationSeconds(step.staticDuration);
 
     if (step.travelMode === "WALK") {
+      // Name the stop when the very next step is the transit leg it leads
+      // into — reads far better than a bare "Walk to stop" when we already
+      // know exactly which stop that is.
+      const nextTransit = steps[i + 1];
+      const walkTargetName =
+        nextTransit?.travelMode === "TRANSIT" ? nextTransit.transitDetails?.stopDetails?.departureStop?.name : undefined;
       result.push({
         mode: "walk",
-        label: "Walk to stop",
+        label: walkTargetName ? `Walk to ${walkTargetName}` : "Walk to stop",
         durationMin: toMinutes(durationSeconds),
         polyline: step.polyline?.encodedPolyline ?? "",
       });
       cursorMs += durationSeconds * 1000;
-      continue;
+      return;
     }
 
     if (step.travelMode === "TRANSIT" && step.transitDetails) {
@@ -145,6 +177,7 @@ function parseTransitSteps(route: GoogleRoute, params: ComputeRouteParams): Rout
       const mode: RouteTravelMode = vehicleType === "BUS" ? "bus" : "train";
       const departureIso = step.transitDetails.stopDetails?.departureTime;
       const arrivalStopName = step.transitDetails.stopDetails?.arrivalStop?.name ?? params.destination.label;
+      const routeName = step.transitDetails.transitLine?.nameShort ?? step.transitDetails.transitLine?.name;
 
       if (departureIso) {
         const departureMs = new Date(departureIso).getTime();
@@ -152,7 +185,7 @@ function parseTransitSteps(route: GoogleRoute, params: ComputeRouteParams): Rout
         if (waitMin > 0) {
           result.push({
             mode,
-            label: "Waiting for transit",
+            label: routeName ? `Waiting for the ${routeName}` : "Waiting for transit",
             durationMin: waitMin,
             polyline: "",
             isStationary: true,
@@ -167,13 +200,13 @@ function parseTransitSteps(route: GoogleRoute, params: ComputeRouteParams): Rout
         label: `${mode === "bus" ? "Bus" : "Train"} to ${arrivalStopName}`,
         durationMin: toMinutes(durationSeconds),
         polyline: step.polyline?.encodedPolyline ?? "",
-        routeId: step.transitDetails.transitLine?.nameShort ?? step.transitDetails.transitLine?.name,
+        routeId: routeName,
         stopId: step.transitDetails.stopDetails?.departureStop?.name,
         scheduledDepartTime: departureIso,
       });
       cursorMs += durationSeconds * 1000;
     }
-  }
+  });
 
   return result;
 }
@@ -196,10 +229,14 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ServiceR
     destination: toWaypoint(params.destination),
     intermediates: (params.waypoints ?? []).map(toWaypoint),
     travelMode: isTransit ? "TRANSIT" : params.mode === "cycle" ? "BICYCLE" : params.mode === "drive" ? "DRIVE" : "WALK",
-    departureTime: params.departTime,
     languageCode: "en-US",
     units: "METRIC",
   };
+  if (isTransit && params.arriveTime) {
+    body.arrivalTime = params.arriveTime;
+  } else {
+    body.departureTime = params.departTime;
+  }
   if (isTransit) {
     body.transitPreferences = {
       allowedTravelModes: params.mode === "bus" ? ["BUS"] : ["RAIL", "SUBWAY", "LIGHT_RAIL", "TRAIN"],

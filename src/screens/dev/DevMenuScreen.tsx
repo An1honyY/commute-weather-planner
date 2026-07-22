@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { getDevOverrides, resetDevOverrides, setDevOverride, type DevOverrides } from "../../lib/devOverrides";
 import { resetOnboardingAndPreferences } from "../../db/repositories/settings";
 import { listUpcomingJourneys } from "../../db/repositories/journeys";
 import { checkForecastDrift } from "../../lib/forecastDrift";
+import { showAlert } from "../../lib/crossPlatformAlert";
 import useTheme from "../../theme/useTheme";
 import type { RootStackParamList } from "../../navigation/types";
 import type { Journey } from "../../types";
@@ -114,7 +115,7 @@ export default function DevMenuScreen() {
     setCheckingDrift(journey.id);
     try {
       const result = await checkForecastDrift(journey);
-      Alert.alert(
+      showAlert(
         result.changed ? "Forecast drifted" : "No meaningful drift",
         result.changed
           ? "Weather was re-fetched and the recommendation changed — the leave-by notification was re-scheduled."
@@ -126,7 +127,7 @@ export default function DevMenuScreen() {
   }
 
   function confirmResetOnboarding() {
-    Alert.alert(
+    showAlert(
       "Reset onboarding + preferences?",
       "Clears the onboarding-completed flag, default location, dismissed setup tips, theme preference, and crash-reporting opt-in. Doesn't touch locations/gear/journeys.",
       [

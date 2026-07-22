@@ -34,6 +34,13 @@ export interface ConditionMarker {
 
 interface Props {
   stops: MapStop[];
+  // Decoded, concatenated polyline geometry from the real routed journey
+  // (Google Routes' per-leg encoded polyline, already decoded by the
+  // caller via annotations.ts's decodePolyline — JourneyMap stays a dumb
+  // renderer, same reasoning as conditionMarkers below). Falls back to a
+  // straight line through `stops` when absent/empty (e.g. no live route
+  // data), which is a real degradation, not the normal case.
+  routePath?: MapStop[];
   accentColor: string;
   onLongPress?: (coordinate: { lat: number; lng: number }) => void;
   previewCircle?: MapCircle | null;
@@ -55,10 +62,12 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-export default function JourneyMap({ stops, accentColor, onLongPress, previewCircle, conditionMarkers, previewColor }: Props) {
+export default function JourneyMap({ stops, routePath, accentColor, onLongPress, previewCircle, conditionMarkers, previewColor }: Props) {
   if (stops.length === 0) return <View style={styles.container} />;
 
   const coordinates = stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+  const lineCoordinates =
+    routePath && routePath.length > 0 ? routePath.map((p) => ({ latitude: p.lat, longitude: p.lng })) : coordinates;
 
   return (
     <MapView
@@ -74,7 +83,7 @@ export default function JourneyMap({ stops, accentColor, onLongPress, previewCir
         onLongPress?.({ lat: latitude, lng: longitude });
       }}
     >
-      <Polyline coordinates={coordinates} strokeColor={accentColor} strokeWidth={4} />
+      <Polyline coordinates={lineCoordinates} strokeColor={accentColor} strokeWidth={4} />
       {coordinates.map((coordinate, i) => (
         <Marker key={`stop-${i}`} coordinate={coordinate} pinColor={accentColor} />
       ))}

@@ -18,14 +18,21 @@ import type {
   WeatherSnapshot,
 } from "../types";
 
-export type LayerPick = ClothingItem | { fallbackText: string; layerType: ClothingType };
+// `isGenericAssumption` marks a fallback that assumed a reasonable item
+// because the user has never added anything to this gear category at all —
+// as opposed to a fallback that names a genuine gap for someone who has set
+// gear up but owns nothing that currently fits. Internal bookkeeping only:
+// it decides whether recommendGear() adds the one "these are generic
+// picks" note at the end (§ below); GearRecommendationCard renders
+// `fallbackText` the same way regardless.
+export type LayerPick = ClothingItem | { fallbackText: string; layerType: ClothingType; isGenericAssumption?: boolean };
 
 export interface Recommendation {
   layers: LayerPick[];
   bottoms?: LayerPick;
   accessories: LayerPick[];
-  shoes?: ShoeItem | { fallbackText: string };
-  umbrella?: UmbrellaItem | { fallbackText: string };
+  shoes?: ShoeItem | { fallbackText: string; isGenericAssumption?: boolean };
+  umbrella?: UmbrellaItem | { fallbackText: string; isGenericAssumption?: boolean };
   severeWeatherAdvisory?: string;
   notes: string[];
 }
@@ -112,7 +119,9 @@ function totalOutdoorStationaryMinutes(journey: Journey): number {
   return journey.legs.filter((l) => l.outdoor && l.isStationary).reduce((sum, l) => sum + l.durationMin, 0);
 }
 
-function layerPlanForWarmthLevel(level: 0 | 1 | 2 | 3 | 4, requirePackable: boolean): ClothingType[] {
+type LayerType = "jacket" | "midlayer" | "base";
+
+function layerPlanForWarmthLevel(level: 0 | 1 | 2 | 3 | 4, requirePackable: boolean): LayerType[] {
   if (level === 4) return ["base", "midlayer", "jacket"];
   if (level === 3) return ["midlayer", "jacket"];
   if (level === 2) return requirePackable ? ["midlayer"] : ["jacket"];
@@ -120,7 +129,11 @@ function layerPlanForWarmthLevel(level: 0 | 1 | 2 | 3 | 4, requirePackable: bool
   return [];
 }
 
-function pickLayer(
+// Shared filter/sort mechanics for any clothing-type candidate pick —
+// callers build their own fallback text/copy around this, since the right
+// wording differs by category and by *why* nothing was found (never set
+// up vs. genuinely unavailable today).
+function pickCandidate(
   inventory: Inventory,
   type: ClothingType,
   targetWarmth: number,
@@ -128,11 +141,11 @@ function pickLayer(
   requirePackable: boolean,
   departTime: string,
   preferTags: string[] = []
-): LayerPick {
+): ClothingItem | undefined {
   const candidates = inventory.clothing.filter(
     (c) => c.type === type && (!requirePackable || c.packable) && isAvailable(c, departTime)
   );
-  const picked = candidates.sort(
+  return candidates.sort(
     (a, b) =>
       (preferTags.length
         ? Number(preferTags.some((t) => b.tags?.includes(t))) - Number(preferTags.some((t) => a.tags?.includes(t)))
@@ -140,7 +153,43 @@ function pickLayer(
       (needsWaterproof ? Number(b.waterproof) - Number(a.waterproof) : 0) ||
       Math.abs(a.warmth - targetWarmth) - Math.abs(b.warmth - targetWarmth)
   )[0];
-  return picked ?? { fallbackText: `No available ${type} for these conditions`, layerType: type };
+}
+
+// Never-added-any-gear case: assume a reasonable item and just say to wear
+// one, rather than telling someone who's never touched the Gear tab that
+// they own "no available X" — that reads as a complaint about ownership
+// they never claimed.
+const GENERIC_LAYER_TEXT: Record<LayerType, string> = {
+  jacket: "A jacket will do the trick",
+  midlayer: "Wear a midlayer",
+  base: "A base layer works",
+};
+// Gear is set up, but nothing in this category currently fits (none owned,
+// or what's owned is unavailable/doesn't match) — name the gap and suggest
+// a practical workaround, same pattern the umbrella fallback already used.
+const WORKAROUND_LAYER_TEXT: Record<LayerType, string> = {
+  jacket: "No available jacket for these conditions — layer up or pick up the pace to stay warm",
+  midlayer: "No available midlayer for these conditions — an extra top layer or a brisker pace will help",
+  base: "No available base layer for these conditions — a regular top is fine, just add another layer over it",
+};
+
+function pickLayer(
+  inventory: Inventory,
+  type: LayerType,
+  targetWarmth: number,
+  needsWaterproof: boolean,
+  requirePackable: boolean,
+  departTime: string,
+  hasNoGearSetup: boolean,
+  preferTags: string[] = []
+): LayerPick {
+  const picked = pickCandidate(inventory, type, targetWarmth, needsWaterproof, requirePackable, departTime, preferTags);
+  if (picked) return picked;
+  return {
+    fallbackText: hasNoGearSetup ? GENERIC_LAYER_TEXT[type] : WORKAROUND_LAYER_TEXT[type],
+    layerType: type,
+    isGenericAssumption: hasNoGearSetup || undefined,
+  };
 }
 
 // §7.6 — sun and low-light gear. Reads highReflection/sunEffect fields
@@ -211,6 +260,12 @@ export function recommendGear(
     (l) => l.puddleRisk || (l.weather!.recentPrecipMm6h ?? 0) >= PUDDLE_RISK_PRECIP_MM_6H
   );
   const anyRainCovered = outdoorLegs.some((l) => l.rainCovered);
+  // Never-added-any-gear-in-this-category, distinct from "set up but
+  // nothing currently fits" — see GENERIC_LAYER_TEXT/WORKAROUND_LAYER_TEXT
+  // above and the umbrella/shoes fallback logic below.
+  const hasNoClothingSetup = inventory.clothing.length === 0;
+  const hasNoShoesSetup = inventory.shoes.length === 0;
+  const hasNoUmbrellaSetup = inventory.umbrellas.length === 0;
 
   const notes: string[] = [];
 
@@ -229,9 +284,34 @@ export function recommendGear(
     const owned = inventory.umbrellas.find(
       (u) => isAvailable(u, journey.departTime) && (maxGust > HIGH_WIND_KPH ? u.windRating !== "low" : true)
     );
-    umbrella = owned ?? { fallbackText: "No suitable umbrella owned or available — consider a wind-rated one" };
+    if (owned) {
+      umbrella = owned;
+    } else if (hasNoUmbrellaSetup) {
+      umbrella = { fallbackText: "Bring an umbrella", isGenericAssumption: true };
+    } else {
+      // Set up, but nothing suitable available — suggest the best
+      // workaround the rest of their gear/route actually supports, in
+      // priority order: a rain-shell substitute (only claims what's
+      // actually owned), then the route's own cover, then a static
+      // fallback.
+      const rainJacket = inventory.clothing.find((c) => c.type === "jacket" && c.waterproof && isAvailable(c, journey.departTime));
+      const rainBottoms = inventory.clothing.find((c) => c.type === "bottoms" && c.waterproof && isAvailable(c, journey.departTime));
+      const rainShoes = inventory.shoes.find((s) => s.waterproof && isAvailable(s, journey.departTime));
+      if (rainJacket) {
+        const shellItems = [rainJacket.name, rainBottoms?.name, rainShoes?.name].filter((n): n is string => !!n);
+        const shellList =
+          shellItems.length > 1
+            ? `${shellItems.slice(0, -1).join(", ")} and ${shellItems[shellItems.length - 1]}`
+            : shellItems[0];
+        umbrella = { fallbackText: `No suitable umbrella — your ${shellList} should keep you mostly dry` };
+      } else if (anyRainCovered) {
+        umbrella = { fallbackText: "No suitable umbrella — much of this route is covered, so stick close to shelter where you can" };
+      } else {
+        umbrella = { fallbackText: "No suitable umbrella owned or available — a hood or a covered doorway will have to do" };
+      }
+    }
     notes.push(`${worstOutdoor.label}: ${condition(worstOutdoor.weather!).label.toLowerCase()} expected`);
-    if (anyRainCovered) {
+    if (owned && anyRainCovered) {
       notes.push("Part of this route is covered — you may not need it out the whole way");
     }
   }
@@ -252,9 +332,16 @@ export function recommendGear(
     }
   }
   if (!shoes) {
-    shoes = shoeCandidates.sort((a, b) => (b.grip === "high" ? 1 : 0) - (a.grip === "high" ? 1 : 0))[0] ?? {
-      fallbackText: shoesNeedWaterproof ? "No waterproof shoes owned or available" : "Any regular shoes fine",
-    };
+    const pickedShoe = shoeCandidates.sort((a, b) => (b.grip === "high" ? 1 : 0) - (a.grip === "high" ? 1 : 0))[0];
+    if (pickedShoe) {
+      shoes = pickedShoe;
+    } else if (!shoesNeedWaterproof) {
+      shoes = { fallbackText: "Any regular shoes fine" };
+    } else if (hasNoShoesSetup) {
+      shoes = { fallbackText: "Waterproof shoes recommended", isGenericAssumption: true };
+    } else {
+      shoes = { fallbackText: "No waterproof shoes owned or available — mind the puddles" };
+    }
   }
   if (puddleRisk && !needsWaterproof) {
     notes.push("Rain earlier today — puddles likely, going with waterproof/grippy shoes even though it's dry now");
@@ -363,7 +450,16 @@ export function recommendGear(
   const layerTypes = layerPlanForWarmthLevel(warmthLevel, requirePackable);
   const preferTags = [...(cyclingMinutes > 0 ? ["cycling"] : []), ...(isFormal ? ["formal"] : [])];
   let layers = layerTypes.map((type) =>
-    pickLayer(inventory, type, warmthLevel * WARMTH_LEVEL_TO_ITEM_SCALE, needsWaterproof, requirePackable, journey.departTime, preferTags)
+    pickLayer(
+      inventory,
+      type,
+      warmthLevel * WARMTH_LEVEL_TO_ITEM_SCALE,
+      needsWaterproof,
+      requirePackable,
+      journey.departTime,
+      hasNoClothingSetup,
+      preferTags
+    )
   );
   // §7.12 — dual-purpose jacket
   const pickedJacket = layers.find((l, i) => layerTypes[i] === "jacket");
@@ -379,15 +475,49 @@ export function recommendGear(
     notes.push(`Your ${pickedJacket.name} is warm enough on its own — no separate midlayer needed underneath`);
   }
 
-  // 4.5. Legwear (§7.13)
+  // 4.5. Legwear (§7.13) — always attempts a pick now, matching shoes'
+  // unconditional treatment (previously gated to cold/wet-only, see
+  // DECISIONS.md); only the cold/wet-specific *note* below stays gated on
+  // its own condition. Warm weather prefers shorts/skirt over trousers,
+  // cold prefers trousers — mild weather has no strong preference either
+  // way and just goes with whatever's available.
   const needsWaterproofBottoms = needsWaterproof && maxGust >= HIGH_WIND_KPH;
   const needsThermalBottoms = warmthLevel >= BOTTOMS_COLD_WARMTH_LEVEL;
+  const bottomsPreferTags = [...preferTags, ...(warmthLevel === 0 ? ["shorts", "skirt"] : needsThermalBottoms ? ["trousers"] : [])];
+  const pickedBottoms = pickCandidate(
+    inventory,
+    "bottoms",
+    warmthLevel * WARMTH_LEVEL_TO_ITEM_SCALE,
+    needsWaterproofBottoms,
+    false,
+    journey.departTime,
+    bottomsPreferTags
+  );
   let bottoms: Recommendation["bottoms"];
-  if (needsWaterproofBottoms || needsThermalBottoms) {
-    bottoms = pickLayer(inventory, "bottoms", warmthLevel * WARMTH_LEVEL_TO_ITEM_SCALE, needsWaterproofBottoms, false, journey.departTime, preferTags);
-    if (needsWaterproofBottoms) {
-      notes.push("Wet and windy enough to warrant rain trousers, not just a jacket");
-    }
+  if (pickedBottoms) {
+    bottoms = pickedBottoms;
+  } else if (hasNoClothingSetup) {
+    bottoms = {
+      fallbackText: needsThermalBottoms
+        ? "Thicker trousers or leggings help"
+        : needsWaterproofBottoms
+          ? "Waterproof or thicker trousers if you've got them"
+          : "Trousers or shorts, whatever suits the day",
+      layerType: "bottoms",
+      isGenericAssumption: true,
+    };
+  } else {
+    bottoms = {
+      fallbackText: needsThermalBottoms
+        ? "No available bottoms for these conditions — thicker trousers or leggings if you have them"
+        : needsWaterproofBottoms
+          ? "No available bottoms for these conditions — expect damp cuffs, or tuck them into boots"
+          : "No available bottoms for these conditions — whatever you'd normally wear works fine",
+      layerType: "bottoms",
+    };
+  }
+  if (needsWaterproofBottoms) {
+    notes.push("Wet and windy enough to warrant rain trousers, not just a jacket");
   }
 
   // --- Accessories (§7.6) ---
@@ -419,6 +549,18 @@ export function recommendGear(
   const severeWeatherAdvisory = severeLeg
     ? `${severeLeg.label}: conditions look severe enough that you might want to reconsider ${severeModeLabel} today, if you have another option.`
     : undefined;
+
+  // If any pick above assumed a reasonable item because nothing's been
+  // added to that gear category yet, say so once rather than repeating an
+  // "add your gear" nudge on every single fallback line.
+  const anyGenericAssumption =
+    layers.some((l) => "isGenericAssumption" in l && l.isGenericAssumption) ||
+    (bottoms && "isGenericAssumption" in bottoms && bottoms.isGenericAssumption) ||
+    (shoes && "isGenericAssumption" in shoes && shoes.isGenericAssumption) ||
+    (umbrella && "isGenericAssumption" in umbrella && umbrella.isGenericAssumption);
+  if (anyGenericAssumption) {
+    notes.push("These are generic picks — add your gear in the Gear tab for suggestions tailored to what you own.");
+  }
 
   return { layers, bottoms, accessories, shoes, umbrella, severeWeatherAdvisory, notes };
 }

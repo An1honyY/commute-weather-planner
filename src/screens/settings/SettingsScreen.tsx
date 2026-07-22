@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
@@ -17,6 +17,7 @@ import {
 import { getAdvancedThresholds, saveAdvancedThresholds } from "../../db/repositories/advancedThresholds";
 import { getWarmthCalibration, setWindSensitivityOffset } from "../../db/repositories/calibration";
 import { exportData, importData } from "../../lib/dataExport";
+import { showAlert } from "../../lib/crossPlatformAlert";
 import { initCrashReportingIfEnabled } from "../../lib/crashReporting";
 import { useThemeStore } from "../../theme/useThemeStore";
 import useTheme from "../../theme/useTheme";
@@ -107,8 +108,8 @@ export default function SettingsScreen() {
     setExportBusy(true);
     try {
       await exportData();
-    } catch (error) {
-      Alert.alert("Export failed", error instanceof Error ? error.message : "Something went wrong.");
+    } catch {
+      showAlert("Couldn't export your data", "Check your device has space and permission, then try again.");
     } finally {
       setExportBusy(false);
     }
@@ -119,12 +120,12 @@ export default function SettingsScreen() {
     try {
       const result = await importData();
       if (result.error) {
-        Alert.alert("Import failed", result.error);
+        showAlert("Couldn't import that file", "Make sure it's a backup exported from this app, then try again.");
       } else if (result.imported) {
-        Alert.alert("Import complete", "Your data has been restored.");
+        showAlert("Import complete", "Your data has been restored.");
       }
-    } catch (error) {
-      Alert.alert("Import failed", error instanceof Error ? error.message : "Something went wrong.");
+    } catch {
+      showAlert("Couldn't import that file", "Make sure it's a backup exported from this app, then try again.");
     } finally {
       setImportBusy(false);
     }

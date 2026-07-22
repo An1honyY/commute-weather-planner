@@ -113,8 +113,8 @@ describe("routesService.computeRoute", () => {
     expect("data" in result).toBe(true);
     if (!("data" in result)) return;
     expect(result.data.map((s) => ({ mode: s.mode, label: s.label, durationMin: s.durationMin, isStationary: s.isStationary }))).toEqual([
-      { mode: "walk", label: "Walk to stop", durationMin: 5, isStationary: undefined },
-      { mode: "bus", label: "Waiting for transit", durationMin: 5, isStationary: true },
+      { mode: "walk", label: "Walk to Queen St", durationMin: 5, isStationary: undefined },
+      { mode: "bus", label: "Waiting for the 70", durationMin: 5, isStationary: true },
       { mode: "bus", label: "Bus to Britomart", durationMin: 10, isStationary: undefined },
     ]);
 

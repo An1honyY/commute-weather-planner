@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { showAlert } from "../lib/crossPlatformAlert";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 // expo-file-system's SDK 54+ default export replaced documentDirectory/
@@ -56,7 +57,10 @@ export default function PhotoPicker({ itemId, photoUri, onChange }: Props) {
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Allow access to add a photo.");
+      showAlert(
+        source === "camera" ? "Camera access needed" : "Photo library access needed",
+        "Allow access so you can attach a photo to this item."
+      );
       return;
     }
     const result =
@@ -83,6 +87,16 @@ export default function PhotoPicker({ itemId, photoUri, onChange }: Props) {
           if (index === 2) pickFrom("library");
         }
       );
+    } else if (Platform.OS === "web") {
+      // A real 3-way choice (Take Photo / Choose from Library / Cancel) —
+      // showAlert's web fallback only maps onto a binary window.confirm, so
+      // a single call here would silently drop one option. Two sequential
+      // confirms instead of Alert.alert's silent web no-op.
+      if (window.confirm("Add a photo\n\nTake a photo now?")) {
+        pickFrom("camera");
+      } else if (window.confirm("Add a photo\n\nChoose from your photo library instead?")) {
+        pickFrom("library");
+      }
     } else {
       Alert.alert("Add a photo", undefined, [
         { text: "Take Photo", onPress: () => pickFrom("camera") },

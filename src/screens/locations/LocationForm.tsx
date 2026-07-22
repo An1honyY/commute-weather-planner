@@ -65,7 +65,7 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
   const lngNum = Number(lng);
   const canSubmit = label.trim().length > 0 && address.trim().length > 0 && !Number.isNaN(latNum) && !Number.isNaN(lngNum);
 
-  async function handleMapConfirm(coords: { lat: number; lng: number }) {
+  async function handleMapConfirm(coords: { lat: number; lng: number }, resolvedLabel?: string) {
     setMapPickerOpen(false);
     setLat(String(coords.lat));
     setLng(String(coords.lng));
@@ -73,6 +73,14 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
     // edit-an-existing-location case above — they're meaningful now, not
     // blank fields waiting on a selection.
     setAdvancedExpanded(true);
+    // The picker already reverse-geocoded this pin live while it was being
+    // dragged — reuse that instead of paying for the same Google Geocoding
+    // call twice. Only falls back to a fresh call if the live resolution
+    // never completed (e.g. a very fast confirm tap).
+    if (resolvedLabel) {
+      setAddress(resolvedLabel);
+      return;
+    }
     setResolvingPin(true);
     const result = await reverseGeocode(coords.lat, coords.lng);
     setResolvingPin(false);
