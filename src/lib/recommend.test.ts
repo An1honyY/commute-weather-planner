@@ -471,6 +471,24 @@ describe("recommendGear — hot-weather note (§7.15)", () => {
     const result = recommendGear(journey, inventory(), NO_CALIBRATION, "no-preference");
     expect(result.notes.some((n) => n.includes("breathable"))).toBe(true);
   });
+
+  it("resolves an owned breathable top and names it in hot weather (§7.15)", () => {
+    const linenTee = clothingItem({ type: "base", warmth: 1, tags: ["breathable"], name: "Linen Tee" });
+    const inv = inventory({ clothing: [linenTee, clothingItem({ type: "base", warmth: 3, name: "Heavy Top" })] });
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 26 }) })]);
+    const result = recommendGear(journey, inv, NO_CALIBRATION, "no-preference");
+    // The breathable-tagged top is picked as a real item, not just a note.
+    expect(result.layers.some((l) => "id" in l && l.name === "Linen Tee")).toBe(true);
+    expect(result.notes.some((n) => n.includes("Linen Tee"))).toBe(true);
+  });
+
+  it("falls back to the guidance note when no breathable top is owned", () => {
+    const inv = inventory({ clothing: [clothingItem({ type: "base", warmth: 3, name: "Heavy Top" })] });
+    const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 26 }) })]);
+    const result = recommendGear(journey, inv, NO_CALIBRATION, "no-preference");
+    expect(result.layers.some((l) => "id" in l)).toBe(false);
+    expect(result.notes.some((n) => n.includes("breathable"))).toBe(true);
+  });
 });
 
 describe("recommendGear — sun and darkness accessories (§7.6)", () => {

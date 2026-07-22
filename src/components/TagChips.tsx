@@ -7,6 +7,9 @@ import useTheme from "../theme/useTheme";
 // rather than free-form tagging.
 export const ACCESSORY_TAG_OPTIONS = ["sunglasses", "reflective", "gloves", "hat", "scarf", "socks"] as const;
 export const LAYER_TAG_OPTIONS = ["cycling", "formal"] as const; // jackets/midlayers, §7.9/§7.10
+// Base layers (tops) get a "breathable" tag so the engine can resolve a
+// real light/airy top in hot weather (§7.15) instead of only a note.
+export const BASE_TAG_OPTIONS = ["breathable", "cycling", "formal"] as const;
 // Bottoms get their own set — warm-weather preference (shorts/skirt) vs.
 // trousers, on top of the same cycling/formal tags jackets/midlayers use.
 export const BOTTOMS_TAG_OPTIONS = ["shorts", "skirt", "trousers", "cycling", "formal"] as const;

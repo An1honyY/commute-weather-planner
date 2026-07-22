@@ -917,3 +917,32 @@ native `expo-dev-client` build, a real Sentry account, or GCP-console
 access. Separately flagged to the user (a GCP-console task, not code): the
 Google key is currently unrestricted and has no budget alert — docs/02 §2
 calls for a $5 NZD budget alert and bundle-ID restriction before wide use.
+
+---
+
+## 2026-07-23 — Hot-weather gear now resolves a real owned item (closes the 2026-07-20 deferral)
+
+**What**: `recommendGear()` now resolves the user's own breathable/light top
+in hot conditions (`apparentTempC >= HOT_C`) instead of only emitting a text
+note — closing the gap logged in the 2026-07-20 "Hot-weather guidance kept
+as a note" entry, which flagged it as a real inconsistency with the app's
+"recommends your real wardrobe" promise and a natural next step.
+
+**Why this needed a decision**: at the lowest warmth level the layer plan is
+empty (`layerPlanForWarmthLevel(0) === []`), so there was no slot to attach a
+pick to — the original reason it stayed a note. The fix adds a `breathable`
+tag to base-layer (top) items (`BASE_TAG_OPTIONS`, wired into `ClothingForm`)
+and, when it's hot, resolves a base top with `preferTags: ["breathable"]`.
+
+**Resolution**: deliberately conservative to avoid over-recommending — a pick
+is only surfaced when the user *owns a breathable-tagged top*; otherwise it
+falls back to the same guidance note as before rather than inventing a base
+layer for someone who only ever tags jackets. When a breathable top is owned
+it's named in both the layer list and a note ("your Linen Tee will breathe
+better than a heavier top"). Scoped to the lowest warmth level
+(`layerTypes.length === 0`), so an AC-contrast summer journey (which forces a
+packable mid-layer) is unaffected. Only cold-direction warmth item-matching
+existed before; this is the first warm-direction pick. No new `ClothingType`
+or engine restructure — reuses the existing `pickCandidate`/`preferTags`
+machinery. Unit-tested both paths (owned breathable top named; note fallback
+when none owned).

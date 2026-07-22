@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import WarmthSlider from "../../components/WarmthSlider";
-import TagChips, { ACCESSORY_TAG_OPTIONS, BOTTOMS_TAG_OPTIONS, LAYER_TAG_OPTIONS } from "../../components/TagChips";
+import TagChips, { ACCESSORY_TAG_OPTIONS, BASE_TAG_OPTIONS, BOTTOMS_TAG_OPTIONS, LAYER_TAG_OPTIONS } from "../../components/TagChips";
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
 import { newId } from "../../db/rowMapping";
@@ -13,6 +13,7 @@ const TYPE_OPTIONS: ClothingType[] = ["jacket", "midlayer", "base", "bottoms", "
 function tagOptionsFor(type: ClothingType): readonly string[] {
   if (type === "accessory") return ACCESSORY_TAG_OPTIONS;
   if (type === "bottoms") return BOTTOMS_TAG_OPTIONS;
+  if (type === "base") return BASE_TAG_OPTIONS;
   if (type === "jacket" || type === "midlayer") return LAYER_TAG_OPTIONS;
   return [];
 }

@@ -411,10 +411,9 @@ export function recommendGear(
     }
   }
 
-  // 1.7. Hot-weather note (§7.15)
-  if (outdoorLegs.some((l) => l.weather!.apparentTempC >= HOT_C)) {
-    notes.push("Warm enough today that something breathable and light-colored will feel better than your usual pick");
-  }
+  // 1.7. Hot-weather handling (§7.15) resolves an actual owned item below
+  // (step 4.6), not just a note — see there.
+  const isHot = outdoorLegs.some((l) => l.weather!.apparentTempC >= HOT_C);
 
   // 2. Warmup discount (§7.9)
   const eligibleForWarmupDiscount =
@@ -473,6 +472,22 @@ export function recommendGear(
   ) {
     layers = layers.filter((_, i) => i !== midlayerIndex);
     notes.push(`Your ${pickedJacket.name} is warm enough on its own — no separate midlayer needed underneath`);
+  }
+
+  // 4.6. Hot-weather top (§7.15) — at the lowest warmth level the layer plan
+  // is empty, but hot weather is exactly when *which* top matters. Resolve
+  // the user's own breathable/light top so the card names a real item, per
+  // the app's "your wardrobe, not generic advice" promise. Only surfaces a
+  // pick when a breathable-tagged top is actually owned; otherwise falls
+  // back to the same guidance note as before rather than inventing a pick.
+  if (isHot && layerTypes.length === 0) {
+    const breathableTop = pickCandidate(inventory, "base", 0, false, requirePackable, journey.departTime, ["breathable"]);
+    if (breathableTop && breathableTop.tags?.includes("breathable")) {
+      layers = [breathableTop, ...layers];
+      notes.push(`Warm one today — your ${breathableTop.name} will breathe better than a heavier top`);
+    } else {
+      notes.push("Warm enough today that something breathable and light-coloured will feel better than your usual pick");
+    }
   }
 
   // 4.5. Legwear (§7.13) — always attempts a pick now, matching shoes'
