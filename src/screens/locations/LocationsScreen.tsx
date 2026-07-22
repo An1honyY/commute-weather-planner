@@ -123,7 +123,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
     title: { fontSize: 20, fontWeight: "600", color: theme.textPrimary },
     empty: { color: theme.textSecondary },
-    listContent: { padding: 16, gap: 8 },
+    listContent: { padding: 20, gap: 8 },
     addButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border, marginBottom: 8 },
     addButtonLabel: { fontWeight: "600", color: theme.textPrimary },
     divider: { height: 1, backgroundColor: theme.border, marginVertical: 8 },

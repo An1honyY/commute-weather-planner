@@ -20,13 +20,18 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // interactive emphasis elsewhere in the app); tab bar tint colors are set
 // once in screenOptions below and read back here via the {color} render
 // prop rather than each icon re-deriving focused/unfocused itself.
+// 2026-07-22 polish pass — buttons/borders were sitting too close to screen
+// edges throughout the app; this header row and the tab bar below both
+// needed their own explicit breathing room, not just the screen-edge
+// padding bump every screen's container got (see DECISIONS.md).
 const headerButtonStyle = { minHeight: 44, minWidth: 44, alignItems: "center" as const, justifyContent: "center" as const };
+const headerButtonRowStyle = { flexDirection: "row" as const, gap: 8, marginRight: 4 };
 
 function TodayHeaderButtons() {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <View style={{ flexDirection: "row", gap: 4 }}>
+    <View style={headerButtonRowStyle}>
       <Pressable
         onPress={() => navigation.navigate("Settings")}
         style={headerButtonStyle}
@@ -51,14 +56,16 @@ function LocalKnowledgeButton() {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Pressable
-      onPress={() => navigation.navigate("LocalKnowledge")}
-      style={headerButtonStyle}
-      accessibilityRole="button"
-      accessibilityLabel="Local knowledge"
-    >
-      <NavIcon kind="localKnowledge" size={22} color={theme.textPrimary} />
-    </Pressable>
+    <View style={headerButtonRowStyle}>
+      <Pressable
+        onPress={() => navigation.navigate("LocalKnowledge")}
+        style={headerButtonStyle}
+        accessibilityRole="button"
+        accessibilityLabel="Local knowledge"
+      >
+        <NavIcon kind="localKnowledge" size={22} color={theme.textPrimary} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -73,8 +80,13 @@ export default function MainTabs() {
       screenOptions={{
         tabBarActiveTintColor: theme.accentWalk,
         tabBarInactiveTintColor: theme.textSecondary,
-        tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
+          paddingTop: 8,
+          paddingBottom: 8,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginTop: 2 },
       }}
     >
       <Tab.Screen

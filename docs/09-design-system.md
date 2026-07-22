@@ -300,7 +300,11 @@ own independently.
 - Scale: `title` 22/bold, `subtitle` 17/semibold, `body` 15/regular, `caption`
   13/regular, `micro` 11/medium (used on badges).
 - Spacing unit = 4px. Card padding = 16px (`4 * 4`). Gap between leg rows =
-  12px. Screen horizontal margin = 16px.
+  12px. Screen horizontal margin = 20px (`4 * 5`; bumped from the original
+  16px on 2026-07-22 — buttons/cards/borders were sitting too close to
+  screen edges, see DECISIONS.md). Card padding stays 16px — this is
+  specifically the margin between a card/form/list and the screen edge, not
+  a card's own internal padding.
 - Corner radius: 12px for cards, 8px for badges/pills, 999px (full) for the
   weather condition icon circle.
 

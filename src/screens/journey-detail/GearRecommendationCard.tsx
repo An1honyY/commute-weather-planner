@@ -247,7 +247,7 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     card: {
-      margin: 16,
+      margin: 20,
       padding: 16,
       borderRadius: 12,
       backgroundColor: theme.surfaceRaised,

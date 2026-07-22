@@ -80,7 +80,7 @@ export default function TodayScreen() {
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
-    content: { padding: 16 },
+    content: { padding: 20 },
     emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 48 },
     empty: { color: theme.textSecondary },
   });

@@ -326,7 +326,7 @@ export default function SettingsScreen() {
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4, backgroundColor: theme.bg },
+    container: { padding: 20, gap: 4, backgroundColor: theme.bg },
     sectionTitle: { fontSize: 15, fontWeight: "600", marginTop: 24, marginBottom: 8, color: theme.textPrimary },
     body: { fontSize: 13, color: theme.textSecondary },
     segmentRow: { flexDirection: "row", gap: 8 },

@@ -209,7 +209,7 @@ export default function DevMenuScreen() {
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4, backgroundColor: theme.bg },
+    container: { padding: 20, gap: 4, backgroundColor: theme.bg },
     heading: { fontSize: 15, fontWeight: "600", marginTop: 24, marginBottom: 4, color: theme.textPrimary },
     hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 8 },
     section: { marginTop: 12 },

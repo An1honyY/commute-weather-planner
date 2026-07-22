@@ -113,7 +113,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 16,
+      paddingHorizontal: 20,
       paddingTop: 16,
       paddingBottom: 8,
     },

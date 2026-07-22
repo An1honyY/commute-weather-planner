@@ -125,7 +125,7 @@ export default function ClothingForm({ initial, initialType, onSubmit, onCancel,
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4, alignItems: "stretch" },
+    container: { padding: 20, gap: 4, alignItems: "stretch" },
     label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, minHeight: 44 },

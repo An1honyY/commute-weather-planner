@@ -189,7 +189,7 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4 },
+    container: { padding: 20, gap: 4 },
     label: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     row: { flexDirection: "row", gap: 12 },
