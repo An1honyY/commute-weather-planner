@@ -227,7 +227,13 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ServiceR
   const body: Record<string, unknown> = {
     origin: toWaypoint(params.origin),
     destination: toWaypoint(params.destination),
-    intermediates: (params.waypoints ?? []).map(toWaypoint),
+    // Google's Routes API rejects intermediates for TRANSIT outright ("Intermediate
+    // waypoints are not supported for TRANSIT travel mode", HTTP 400 — verified against
+    // the live API). Sending them would fail the whole plan, so transit journeys omit
+    // waypoints entirely and route origin→destination directly; the waypoints are not
+    // honoured for transit (a known limitation — see DECISIONS.md). walk/cycle/drive
+    // still route through them as one leg per hop.
+    intermediates: isTransit ? [] : (params.waypoints ?? []).map(toWaypoint),
     travelMode: isTransit ? "TRANSIT" : params.mode === "cycle" ? "BICYCLE" : params.mode === "drive" ? "DRIVE" : "WALK",
     languageCode: "en-US",
     units: "METRIC",

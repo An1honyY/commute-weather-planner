@@ -181,13 +181,13 @@ async function applyRealtimeDelays(steps: AssembledLeg[]): Promise<AssembledLeg[
 // docs/05-data-wiring.md §5.5 (waypoint routing) — walk/cycle/drive get one
 // Google leg per hop (routesService.parseSimpleLegs), so waypoint indoor
 // dwell legs interleave cleanly at each hop boundary and each leg knows
-// its exact hop for precise weather-sample midpoints. TRANSIT's flat step
-// list has no such boundary once waypoints are involved, so a transit
-// journey with waypoints skips generating indoor dwell legs for them
-// (Google still routes through the waypoints via `intermediates` — this
-// only affects whether our own leg list shows a separate indoor stop) and
-// falls back to the coarser whole-journey interpolation for its outdoor
-// legs. Logged in DECISIONS.md.
+// its exact hop for precise weather-sample midpoints. TRANSIT is different:
+// Google rejects intermediates for transit outright (HTTP 400 — verified
+// against the live API, see DECISIONS.md), so routesService omits waypoints
+// for transit and the route is planned origin→destination directly. A
+// transit journey with waypoints therefore has no hop boundaries, generates
+// no indoor dwell legs for them, and falls back to the coarser whole-journey
+// interpolation for its outdoor legs. Logged in DECISIONS.md.
 function stepsToAssembledLegs(steps: RouteStep[], input: PlanJourneyInput): AssembledLeg[] {
   const isTransit = input.mode === "bus" || input.mode === "train";
   const hopCount = 1 + input.waypoints.length;

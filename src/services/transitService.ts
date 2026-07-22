@@ -1,5 +1,7 @@
-// Auckland Transport GTFS Realtime (api.at.govt.nz/gtfs/v3/...) —
-// docs/02-external-apis.md §2. Real Phase 7 wiring — see routesService.ts
+// Auckland Transport GTFS Realtime trip-updates feed
+// (api.at.govt.nz/realtime/legacy/tripupdates — verified live; the newer
+// gtfs/v3 path 404s for this subscription) — docs/02-external-apis.md §2.
+// Real Phase 7 wiring — see routesService.ts
 // for the pattern this follows (env-var key, ServiceResult shape). Reads
 // the trip-updates feed (AT's APIM-fronted `Ocp-Apim-Subscription-Key`
 // auth) and returns the scheduled-vs-actual delay for one stop_time_update

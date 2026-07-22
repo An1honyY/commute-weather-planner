@@ -848,3 +848,72 @@ change that wasn't in scope. Same free/keyless posture as the OSM tiles
 this replaces — no new billing/API-key surface, same "reasonable use"
 expectation already relied on. Verified visually in both themes on both
 map screens.
+
+---
+
+## 2026-07-23 — Verified against live API keys: transit rejects waypoints (was a latent 400 bug), AT endpoint confirmed
+
+**What**: with real `EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY` and
+`EXPO_PUBLIC_AT_SUBSCRIPTION_KEY` now available, exercised the two
+integrations that prior sessions never could without keys — Google Routes
+TRANSIT-with-waypoints and the AT GTFS Realtime feed — and closed both
+"unverified, no live key" caveats with observed behavior.
+
+**Google Routes transit + waypoints (supersedes the 2026-07-20 entry).** The
+earlier entry deferred this on the stated assumption that "Google still
+routes through the waypoints via `intermediates`" for transit, and only our
+own leg-list presentation skipped the indoor dwell legs. **That assumption
+was wrong.** A live `computeRoutes` with `travelMode: TRANSIT` and a
+non-empty `intermediates` returns HTTP 400 *"Intermediate waypoints are not
+supported for TRANSIT travel mode."* Since `routesService.computeRoute`
+previously sent `intermediates: (params.waypoints ?? []).map(...)` for *all*
+modes, a transit journey with a waypoint would 400 and fail the whole plan
+(degrading to the offline fallback) — a latent bug, not just a
+presentation gap. **Fix**: `computeRoute` now sends `intermediates: []` for
+transit, so a transit journey with waypoints succeeds and is routed
+origin→destination directly, with the waypoints simply not honoured. This is
+a known limitation (multi-stop transit errands aren't a v1 target — same
+narrow-combination reasoning the original entry gave); properly honouring
+transit waypoints would need splitting into per-hop `computeRoutes` calls, a
+separate larger feature left for later. The `parseTransitSteps` single-leg
+assumption (`route.legs?.[0]`) was confirmed correct: transit always returns
+exactly one leg with a flat `steps[]` mixing WALK/TRANSIT, and since
+intermediates are impossible there is never a multi-leg transit response.
+Verified the real `transitDetails` shape matches the existing parser
+(`stopDetails.departureStop.name`, `arrivalStop.name`, `departureTime`,
+`transitLine.name` — note AT trains carry `name`, e.g. "Sth", but no
+`nameShort`, which the `nameShort ?? name` fallback already handles —
+and `vehicle.type: "HEAVY_RAIL"`, which maps to `train` via the existing
+`=== "BUS" ? "bus" : "train"` rule).
+
+**AT GTFS Realtime endpoint + shape (supersedes the 2026-07-21 entry's
+"unverified — no live key" caveat, keeps its best-effort-matching design).**
+The endpoint discrepancy is resolved: `api.at.govt.nz/realtime/legacy/tripupdates`
+(the constant the code already used) returns HTTP 200 with live data; the
+`gtfs/v3/...` path named in the old header comment and docs/02 404s for this
+subscription. Corrected the comment and docs/02 §2 to the verified endpoint;
+auth is the `Ocp-Apim-Subscription-Key` header. The real feed shape matches
+the existing parser exactly: `response.entity[].trip_update`, with
+`stop_time_update` returned as a **single object** (not the GTFS-spec array),
+carrying a coded `stop_id` (e.g. `"9703-949ea191"`) and `arrival`/`departure`
+`delay` in seconds — the object-or-array normalization and `arrival.delay ??
+departure.delay` read are both correct. Added a unit test using the exact
+live single-object shape. **Per the user's explicit scope choice, kept the
+best-effort name-based matching + 5-minute fallback; did NOT build a static
+GTFS id-resolution pipeline.** The live data confirms *why* that fallback is
+the honest default: AT's real ids (`route_id` like `"PINE-210"`, `stop_id`
+like `"9703-949ea191"`) bear no relation to the Google display strings
+threaded in (route name `"Sth"`, stop name `"Waitematā Train Station"`), so
+matches essentially never land and delays degrade cleanly to the flat
+5-minute wait — exactly as designed. (Also observed: the `?route_id=` query
+param doesn't actually filter AT's legacy feed — it returns the whole feed
+regardless — but the code scans all entities anyway, so this is harmless and
+left as-is.)
+
+**Still open, unchanged (not unlocked by keys):** honouring transit
+waypoints via per-hop calls; the static-GTFS id pipeline for real AT delay
+matching; and everything the earlier entries already list as needing a
+native `expo-dev-client` build, a real Sentry account, or GCP-console
+access. Separately flagged to the user (a GCP-console task, not code): the
+Google key is currently unrestricted and has no budget alert — docs/02 §2
+calls for a $5 NZD budget alert and bundle-ID restriction before wide use.

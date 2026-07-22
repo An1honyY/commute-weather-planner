@@ -52,6 +52,40 @@ describe("transitService.getRealtimeDelay", () => {
     expect(result).toEqual({ data: { delayMinutes: 12, stopType: "street-stop" } });
   });
 
+  it("normalizes AT's real single-object stop_time_update (not an array) and reads departure.delay", async () => {
+    // Verified against the live feed: AT returns stop_time_update as one
+    // object, not the GTFS-spec array, with coded stop_ids and a
+    // departure.delay when there's no arrival.delay.
+    process.env.EXPO_PUBLIC_AT_SUBSCRIPTION_KEY = "test-key";
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: {
+          header: { timestamp: 1784719105 },
+          entity: [
+            {
+              id: "512-92012-20700-2-dc2f381b",
+              trip_update: {
+                trip: { trip_id: "512-92012-20700-2-dc2f381b", route_id: "DEV-209" },
+                stop_time_update: {
+                  stop_sequence: 1,
+                  stop_id: "9703-949ea191",
+                  departure: { delay: 180, time: 1784742300 },
+                },
+                delay: 0,
+              },
+              is_deleted: false,
+            },
+          ],
+        },
+      }),
+    }) as unknown as typeof fetch;
+
+    const result = await getRealtimeDelay({ ...PARAMS, stopId: "9703-949ea191", routeId: "DEV-209" });
+
+    expect(result).toEqual({ data: { delayMinutes: 3, stopType: "street-stop" } });
+  });
+
   it("infers a train's stop as a platform, a bus's as a street-stop", async () => {
     process.env.EXPO_PUBLIC_AT_SUBSCRIPTION_KEY = "test-key";
     global.fetch = jest.fn().mockResolvedValue({

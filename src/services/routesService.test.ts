@@ -127,6 +127,25 @@ describe("routesService.computeRoute", () => {
     expect(result.data[0].routeId).toBeUndefined();
   });
 
+  it("omits intermediates for transit (Google 400s on transit waypoints), but sends them for other modes", async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY = "test-key";
+    const CAFE = { lat: -36.855, lng: 174.765, label: "Cafe" };
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ routes: [{ legs: [{ steps: [] }] }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await computeRoute({ origin: HOME, destination: WORK, waypoints: [CAFE], mode: "bus", departTime: "2026-07-20T08:00:00.000Z" });
+    const transitBody = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(transitBody.travelMode).toBe("TRANSIT");
+    expect(transitBody.intermediates).toEqual([]);
+
+    await computeRoute({ origin: HOME, destination: WORK, waypoints: [CAFE], mode: "cycle", departTime: "2026-07-20T08:00:00.000Z" });
+    const cycleBody = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
+    expect(cycleBody.intermediates).toHaveLength(1);
+  });
+
   it("maps a network error and non-2xx responses to the shared ServiceError shape", async () => {
     process.env.EXPO_PUBLIC_GOOGLE_ROUTES_API_KEY = "test-key";
 
