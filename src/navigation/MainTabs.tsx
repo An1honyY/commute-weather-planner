@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import TodayScreen from "../screens/today/TodayScreen";
 import PlanScreen from "../screens/plan/PlanScreen";
 import LocationsScreen from "../screens/locations/LocationsScreen";
@@ -67,6 +67,22 @@ function LocalKnowledgeButton() {
   );
 }
 
+// The app's bucket-hat mark (docs/09-design-system.md, 2026-07-21 redesign)
+// only ever shipped as OS-level icon assets (app.json's icon/adaptive-icon/
+// favicon) — never actually placed in the app's own UI. Cropped tight to
+// the artwork's real bounding box within android-icon-foreground.png's
+// transparent-background layer (that source has generous padding baked in
+// for Android's adaptive-icon masking, which would otherwise render as a
+// tiny hat lost in a mostly-empty box at header size) and saved as
+// assets/header-logo.png — same source art, no re-drawing. Always shown at
+// the left of the header, across all 4 main tabs, via screenOptions below
+// rather than passed per-Tab.Screen.
+const headerLogoSource = require("../../assets/header-logo.png");
+
+function HeaderLogo() {
+  return <Image source={headerLogoSource} style={{ width: 34, height: 24, marginLeft: 12 }} resizeMode="contain" />;
+}
+
 // React Navigation's own default tab-bar label wrapper collapses to a
 // fixed ~7px height with overflow:hidden on web (verified via computed
 // styles — not something tabBarLabelStyle's fontSize/lineHeight actually
@@ -87,6 +103,7 @@ export default function MainTabs() {
     <Tab.Navigator
       initialRouteName="Today"
       screenOptions={{
+        headerLeft: HeaderLogo,
         tabBarActiveTintColor: theme.accentWalk,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
