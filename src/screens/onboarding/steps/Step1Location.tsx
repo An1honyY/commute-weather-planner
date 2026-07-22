@@ -117,7 +117,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     container: { flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: theme.bg },
     title: { fontSize: 22, fontWeight: "700", color: theme.textPrimary },
     body: { fontSize: 15, color: theme.textSecondary, lineHeight: 22 },
-    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },
     primaryLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
     secondaryButton: { marginTop: 12, alignItems: "center", paddingVertical: 10 },
     secondaryLabel: { color: theme.accentWalk, fontSize: 14, fontWeight: "600" },

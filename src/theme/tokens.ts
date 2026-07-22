@@ -35,6 +35,12 @@ export type ThemeTokens = {
   // render in; distinct per theme since a light-mode shadow needs far less
   // opacity than a dark-mode one to read as "lifted" rather than "smudged."
   shadowColor: string;
+  // §9.1 (2026-07-23) — a softly branded header/chrome wash + the tint used
+  // by the subtle screen background pattern, so light mode reads as coloured
+  // rather than plain black-on-white. In dark mode both sit close to the
+  // existing surface tokens (the navy already provides depth).
+  headerBg: string;
+  patternTint: string;
   // Set once per base theme (dark/light) and left untouched by weather-mood
   // overrides (useWeatherTheme.ts) — cardElevationStyle() needs a stable
   // way to pick shadow opacity that survives a mood-merged token object,
@@ -66,6 +72,8 @@ export const darkTheme: ThemeTokens = {
   danger: "#E0685A",
   surfaceRaisedBorder: "transparent",
   shadowColor: "#000000",
+  headerBg: "#1D2242",
+  patternTint: "#8A5CFF",
   isLight: false,
 };
 
@@ -93,6 +101,8 @@ export const lightTheme: ThemeTokens = {
   danger: "#C0392B",
   surfaceRaisedBorder: "#E4DFF0",
   shadowColor: "#28204A",
+  headerBg: "#FBEAF2",
+  patternTint: "#D6266E",
   isLight: true,
 };
 

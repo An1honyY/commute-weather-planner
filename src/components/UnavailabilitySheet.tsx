@@ -134,7 +134,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     turnaround: { fontSize: 14, color: theme.textSecondary, textAlign: "center" },
     actions: { flexDirection: "row", gap: 12, justifyContent: "flex-end" },
     cancelButton: { paddingHorizontal: 16, paddingVertical: 10 },
-    confirmButton: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: theme.textPrimary, borderRadius: 8 },
+    confirmButton: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: theme.accentWalk, borderRadius: 8 },
     confirmLabel: { color: theme.bg, fontWeight: "600" },
   });
 }

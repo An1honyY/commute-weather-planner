@@ -261,15 +261,15 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     entrySkipped: { fontSize: 15, color: theme.textSecondary },
     entryButtons: { flexDirection: "row", alignItems: "center", gap: 16 },
     entrySkipLabel: { color: theme.textSecondary },
-    entryAddButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.textPrimary },
+    entryAddButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.accentWalk },
     entryAddLabel: { color: theme.bg, fontWeight: "600" },
     expandedEntry: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.border, gap: 12 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
-    entrySaveButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    entrySaveButton: { paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },
     entrySaveButtonDisabled: { opacity: 0.4 },
     entrySaveLabel: { color: theme.bg, fontWeight: "600" },
     optionalLabel: { fontSize: 12, color: theme.textSecondary, marginTop: 16, marginBottom: 4, textTransform: "uppercase" },
-    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    primaryButton: { marginTop: 24, paddingVertical: 14, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },
     primaryLabel: { color: theme.bg, fontWeight: "600", fontSize: 15 },
   });
 }

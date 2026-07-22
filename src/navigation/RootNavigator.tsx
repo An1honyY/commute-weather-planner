@@ -9,6 +9,7 @@ import SettingsScreen from "../screens/settings/SettingsScreen";
 import GearBasicsSetup from "../screens/setup/GearBasicsSetup";
 import NotificationsSetup from "../screens/setup/NotificationsSetup";
 import DevMenuScreen from "../screens/dev/DevMenuScreen";
+import HeaderBackButton from "./HeaderBackButton";
 import useTheme from "../theme/useTheme";
 import { darkTheme } from "../theme/tokens";
 import type { RootStackParamList } from "./types";
@@ -57,7 +58,22 @@ export default function RootNavigator({ needsOnboarding = false }: Props) {
   };
   return (
     <NavigationContainer theme={navigationTheme}>
-      <Stack.Navigator initialRouteName={needsOnboarding ? "Onboarding" : "Main"}>
+      <Stack.Navigator
+        initialRouteName={needsOnboarding ? "Onboarding" : "Main"}
+        screenOptions={({ navigation }) => ({
+          // §9.1 — themed header chrome + a custom accent back control
+          // (HeaderBackButton) in place of the bare OS-native arrow, giving
+          // the pushed screens a consistent, colourful header rather than
+          // the plain black-on-white default (especially in light mode).
+          headerStyle: { backgroundColor: theme.headerBg },
+          headerTitleStyle: { color: theme.textPrimary },
+          headerTintColor: theme.accentWalk,
+          headerShadowVisible: false,
+          headerBackButtonDisplayMode: "minimal" as const,
+          headerLeft: () =>
+            navigation.canGoBack() ? <HeaderBackButton onPress={() => navigation.goBack()} /> : null,
+        })}
+      >
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="JourneyDetail" component={JourneyDetailScreen} options={{ title: "Journey" }} />

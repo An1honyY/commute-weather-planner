@@ -46,8 +46,8 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
       minHeight: 36,
       justifyContent: "center",
     },
-    chipActive: { backgroundColor: theme.textPrimary, borderColor: theme.textPrimary },
+    chipActive: { backgroundColor: theme.accentWalk, borderColor: theme.accentWalk },
     chipLabel: { fontSize: 13, color: theme.textPrimary },
-    chipLabelActive: { color: theme.bg, fontWeight: "600" },
+    chipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
   });
 }

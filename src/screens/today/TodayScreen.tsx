@@ -9,6 +9,7 @@ import type { Journey } from "../../types";
 import RightNowCard from "./RightNowCard";
 import JourneyCard from "./JourneyCard";
 import SetupChecklist from "./SetupChecklist";
+import ScreenPattern from "../../components/ScreenPattern";
 import useTheme from "../../theme/useTheme";
 import useWeatherTheme from "../../theme/useWeatherTheme";
 
@@ -48,6 +49,7 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenPattern tint={weatherTheme.patternTint} />
       <ScrollView contentContainerStyle={styles.content}>
         <RightNowCard {...rightNow} />
 

@@ -75,7 +75,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     container: { padding: 20, gap: 4, alignItems: "stretch" },
     label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
-    saveButton: { marginTop: 24, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.textPrimary },
+    saveButton: { marginTop: 24, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },
     saveButtonDisabled: { opacity: 0.4 },
     saveLabel: { color: theme.bg, fontWeight: "600" },
     cancelButton: { marginTop: 12, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },

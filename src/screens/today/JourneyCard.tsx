@@ -123,7 +123,7 @@ function getStyles(theme: ThemeTokens) {
     stageIcon: { fontSize: 11 },
     stageText: { fontSize: 11, fontWeight: "700", color: theme.textSecondary },
     topRecommendation: { fontSize: 13, color: theme.textPrimary },
-    leavingNowButton: { marginTop: 4, alignSelf: "flex-start", minHeight: 44, justifyContent: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.textPrimary },
+    leavingNowButton: { marginTop: 4, alignSelf: "flex-start", minHeight: 44, justifyContent: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.accentWalk },
     leavingNowLabel: { color: theme.bg, fontWeight: "600", fontSize: 12 },
   });
 }

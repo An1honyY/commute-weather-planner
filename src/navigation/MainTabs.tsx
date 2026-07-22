@@ -104,6 +104,9 @@ export default function MainTabs() {
       initialRouteName="Today"
       screenOptions={{
         headerLeft: HeaderLogo,
+        headerStyle: { backgroundColor: theme.headerBg },
+        headerShadowVisible: false,
+        headerTitleStyle: { color: theme.textPrimary },
         tabBarActiveTintColor: theme.accentWalk,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
