@@ -19,15 +19,33 @@ export interface ApproximateLocation {
   isFallback: boolean;
 }
 
+// (0, 0) — "Null Island," a point in the Gulf of Guinea — is never a
+// legitimate real-world commute location. Some browsers/WebViews resolve
+// geolocation with exactly this instead of rejecting when the underlying
+// location provider fails silently (observed in practice: permission
+// reported "granted" with a stubbed (0,0) fix), and a value like that can
+// end up persisted as `default_location` from an earlier such resolution.
+// Treated as "no location," not a real fix, at every step of the chain.
+export function isNullIsland(lat: number, lng: number): boolean {
+  return lat === 0 && lng === 0;
+}
+
 export async function resolveApproximateLocation(): Promise<ApproximateLocation> {
   try {
     const permission = await Location.getForegroundPermissionsAsync();
     if (permission.granted) {
       const position = await Location.getCurrentPositionAsync({});
-      return { lat: position.coords.latitude, lng: position.coords.longitude, isFallback: false };
+      const { latitude: lat, longitude: lng } = position.coords;
+      if (!isNullIsland(lat, lng)) {
+        return { lat, lng, isFallback: false };
+      }
     }
+  } catch {
+    // GPS unavailable/denied mid-flow — fall through to the saved default
+  }
+  try {
     const defaultLocation = await getDefaultLocation();
-    if (defaultLocation) {
+    if (defaultLocation && !isNullIsland(defaultLocation.lat, defaultLocation.lng)) {
       return { lat: defaultLocation.lat, lng: defaultLocation.lng, isFallback: false };
     }
   } catch {

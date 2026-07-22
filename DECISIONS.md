@@ -769,3 +769,42 @@ nothing to the path rather than a straight-line bridge — the points
 immediately before/after them are already at essentially the same
 location (the stop/wait point), so the combined line still reads as
 continuous.
+
+---
+
+## 2026-07-22 — Fixed: new-location map picker opened on "Null Island," not Auckland
+
+**What**: `LocationForm.tsx`'s "Add a location" flow opened the pin-drop
+map centered at `(0, 0)` — a point in the Gulf of Guinea — instead of
+seeding from the user's approximate location (or the Auckland fallback)
+like every other picker entry point already did.
+
+**Why this needed a decision**: worth recording because the actual root
+cause was two bugs stacked on top of each other, and the more interesting
+one wasn't in the map code at all. `LocationForm.tsx` computes
+`initialCoords` for the picker from its `lat`/`lng` text fields via
+`Number(lat)`/`Number(lng)` — but `Number("")` evaluates to `0`, not
+`NaN`. For a brand-new location, those fields start empty, so the
+existing `!Number.isNaN(latNum)` check passed and `initialCoords` was
+explicitly `{ lat: 0, lng: 0 }` — which `LocationPickerMap` correctly (by
+its own logic) treated as "the caller already knows real coordinates,"
+skipping `resolveApproximateLocation()` entirely rather than falling back
+to it. Diagnosed by temporarily logging `resolveApproximateLocation()`'s
+internal branches — the giveaway was that opening the picker produced no
+log output at all, meaning the resolution chain was never even called for
+this entry point, only for onboarding's map-pick path (which never passes
+`initialCoords`). The same `Number("")` bug also affected `canSubmit`,
+meaning a location could theoretically be saved with `(0, 0)` coordinates
+if a user filled in label/address but never set real coordinates.
+
+**Resolution**: added a `hasValidCoords` check in `LocationForm.tsx` that
+requires the `lat`/`lng` fields to be non-empty strings (`.trim() !== ""`)
+in addition to the existing NaN check, used for both `initialCoords` and
+`canSubmit`. Separately, `approximateLocation.ts`'s
+`resolveApproximateLocation()` and the GPS-only `useCurrentLocation()` in
+`Step1Location.tsx` both now treat an exact `(0, 0)` result from GPS or
+the saved `default_location` setting as invalid and fall through to the
+next source in the chain — a genuine defense-in-depth measure independent
+of the `LocationForm.tsx` bug, since some browsers/WebViews are known to
+resolve geolocation with `(0, 0)` instead of rejecting when the underlying
+location provider fails silently.
