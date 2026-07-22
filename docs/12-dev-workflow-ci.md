@@ -54,5 +54,18 @@ boundary that regressed, a typo that TypeScript would have caught. Cheap
 enough to set up in Phase 1 (Section 8) and leave running for the rest of
 the build rather than bolting on later.
 
+### 12.4 Dockerfile maintenance
+
+A `Dockerfile` at the repo root mirrors the CI environment (`node:20`,
+`npm ci`) so cloud/agent sessions can start from a prebuilt image instead
+of reinstalling dependencies from scratch. It is not currently wired into
+CI or any cloud-session tooling automatically — see `DECISIONS.md` if that
+changes.
+
+**Whenever `package.json` dependencies change (added, removed, or the Node
+version bumps), update the `Dockerfile` to match** — otherwise the image
+silently drifts from what `npm ci` actually needs and stops being useful
+as a fast-start baseline.
+
 ---
 

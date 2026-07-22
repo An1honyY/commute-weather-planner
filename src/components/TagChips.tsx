@@ -6,7 +6,10 @@ import useTheme from "../theme/useTheme";
 // can rely on matching against them." Two fixed option sets, reused as-is
 // rather than free-form tagging.
 export const ACCESSORY_TAG_OPTIONS = ["sunglasses", "reflective", "gloves", "hat", "scarf", "socks"] as const;
-export const LAYER_TAG_OPTIONS = ["cycling", "formal"] as const; // jackets/midlayers/bottoms, §7.9/§7.10/§7.13
+export const LAYER_TAG_OPTIONS = ["cycling", "formal"] as const; // jackets/midlayers, §7.9/§7.10
+// Bottoms get their own set — warm-weather preference (shorts/skirt) vs.
+// trousers, on top of the same cycling/formal tags jackets/midlayers use.
+export const BOTTOMS_TAG_OPTIONS = ["shorts", "skirt", "trousers", "cycling", "formal"] as const;
 
 interface Props {
   options: readonly string[];

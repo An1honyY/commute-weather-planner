@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
@@ -9,6 +9,7 @@ import { applyAnnotationsToLegs, decodePolyline } from "../../lib/annotations";
 import { useRecommendation } from "../../lib/useRecommendation";
 import { freezeIfDue } from "../../lib/leaveBy";
 import { cancelLeaveByNotification } from "../../lib/notifications";
+import { showAlert } from "../../lib/crossPlatformAlert";
 import { recordGearFeedback } from "../../lib/calibration";
 import { checkForecastDrift } from "../../lib/forecastDrift";
 import { dominantMode } from "../../lib/journeyMode";
@@ -144,7 +145,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.empty}>This journey is no longer available.</Text>
+          <Text style={styles.empty}>This journey was deleted.</Text>
         </View>
       </SafeAreaView>
     );
@@ -155,6 +156,12 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     ...(journey.waypoints?.map((w) => ({ lat: w.lat, lng: w.lng })) ?? []),
     { lat: journey.destination.lat, lng: journey.destination.lng },
   ];
+  // Real road/track-following geometry — legs without their own polyline
+  // (indoor waypoint dwells, synthesized stationary waits) simply
+  // contribute nothing; the points immediately before/after them are
+  // already at essentially the same spot (the stop/wait location), so the
+  // combined line still reads as continuous rather than broken.
+  const routePath = journey.legs.flatMap((leg) => (leg.polyline ? decodePolyline(leg.polyline) : []));
   const accentColor = modeAccent(dominantMode(journey.legs), theme);
   const conditionMarkers = conditionMarkersFor(journey.legs, theme);
 
@@ -220,7 +227,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
   // action here is the minimal affordance that makes the cancellation path
   // reachable, not a full journey-management screen.
   function confirmDelete() {
-    Alert.alert("Delete this journey?", "This can't be undone.", [
+    showAlert("Delete this journey?", "This can't be undone — its gear recommendation and history entry go with it.", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: doDelete },
     ]);
@@ -258,6 +265,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
         <View style={styles.mapContainer}>
           <JourneyMap
             stops={stops}
+            routePath={routePath}
             accentColor={accentColor}
             onLongPress={openAnnotationSheet}
             previewCircle={previewCircle}

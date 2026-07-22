@@ -394,16 +394,20 @@ describe("recommendGear — dual-purpose jacket (§7.12)", () => {
 describe("recommendGear — bottoms (§7.13)", () => {
   const bottomsItem = clothingItem({ type: "bottoms", warmth: 5, waterproof: true });
 
-  it("waterproof trigger: needs both wet AND high gust — high gust alone is not enough", () => {
+  it("waterproof trigger: needs both wet AND high gust — high gust alone doesn't add the rain-trousers note", () => {
     const journey = journeyWithLegs([walkLeg({ weather: weather({ windGustKph: 40, weatherCode: 1, precipMm: 0 }) })]); // dry
     const result = recommendGear(journey, inventory({ clothing: [bottomsItem] }), NO_CALIBRATION, "no-preference");
-    expect(result.bottoms).toBeUndefined();
+    // Bottoms is always attempted now (§7.13 expansion, see DECISIONS.md) —
+    // the item is still picked, it's the wet+windy-specific note that's gated.
+    expect(result.bottoms).toMatchObject({ id: bottomsItem.id });
+    expect(result.notes).not.toContain("Wet and windy enough to warrant rain trousers, not just a jacket");
   });
 
-  it("waterproof trigger: wet alone (low gust) is not enough", () => {
+  it("waterproof trigger: wet alone (low gust) doesn't add the rain-trousers note", () => {
     const journey = journeyWithLegs([walkLeg({ weather: weather({ windGustKph: 10, weatherCode: 61, precipMm: 2 }) })]);
     const result = recommendGear(journey, inventory({ clothing: [bottomsItem] }), NO_CALIBRATION, "no-preference");
-    expect(result.bottoms).toBeUndefined();
+    expect(result.bottoms).toMatchObject({ id: bottomsItem.id });
+    expect(result.notes).not.toContain("Wet and windy enough to warrant rain trousers, not just a jacket");
   });
 
   it("waterproof trigger: wet AND high gust together fire it", () => {
@@ -418,10 +422,10 @@ describe("recommendGear — bottoms (§7.13)", () => {
     expect(result.bottoms).toMatchObject({ id: bottomsItem.id });
   });
 
-  it("a mild dry journey leaves bottoms undefined, not a fallback object", () => {
+  it("a mild dry journey still picks bottoms (§7.13 expansion — always attempted, not just cold/wet)", () => {
     const journey = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 15 }) })]);
     const result = recommendGear(journey, inventory({ clothing: [bottomsItem] }), NO_CALIBRATION, "no-preference");
-    expect(result.bottoms).toBeUndefined();
+    expect(result.bottoms).toMatchObject({ id: bottomsItem.id });
   });
 });
 
@@ -676,7 +680,7 @@ describe("recommendGear — puddle risk & rain cover (§7.8, Phase 6)", () => {
   it("a stamped leg.puddleRisk flag triggers the same path without the snapshot field", () => {
     const journey = journeyWithLegs([walkLeg({ puddleRisk: true })]);
     const result = recommendGear(journey, inventory(), NO_CALIBRATION, "no-preference");
-    expect(result.shoes).toMatchObject({ fallbackText: "No waterproof shoes owned or available" });
+    expect(result.shoes).toMatchObject({ fallbackText: "No waterproof shoes owned or available — mind the puddles" });
   });
 
   it("below the 6h threshold nothing changes", () => {
@@ -691,5 +695,47 @@ describe("recommendGear — puddle risk & rain cover (§7.8, Phase 6)", () => {
     const result = recommendGear(journey, inventory(), NO_CALIBRATION, "no-preference");
     expect(result.umbrella).toMatchObject({ id: "umbrella-1" });
     expect(result.notes.some((n) => n.startsWith("Part of this route is covered"))).toBe(true);
+  });
+});
+
+describe("recommendGear — never-set-up vs. genuinely-unavailable gear copy", () => {
+  it("an empty inventory assumes a reasonable midlayer rather than reporting none owned", () => {
+    const cold = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 6 }) })]); // level 3: midlayer + jacket
+    const result = recommendGear(cold, inventory({ clothing: [], shoes: [], umbrellas: [] }), NO_CALIBRATION, "no-preference");
+    const midlayerPick = result.layers.find((l) => "layerType" in l && l.layerType === "midlayer");
+    expect(midlayerPick).toMatchObject({ fallbackText: "Wear a midlayer", isGenericAssumption: true });
+    expect(result.notes).toContain("These are generic picks — add your gear in the Gear tab for suggestions tailored to what you own.");
+  });
+
+  it("gear set up but this category empty gives a workaround, not a generic assumption", () => {
+    const cold = journeyWithLegs([walkLeg({ weather: weather({ apparentTempC: 6 }) })]);
+    // Only a jacket is set up — midlayer category is genuinely empty.
+    const result = recommendGear(cold, inventory({ clothing: [clothingItem({ type: "jacket", warmth: 8 })] }), NO_CALIBRATION, "no-preference");
+    const midlayerPick = result.layers.find((l) => "layerType" in l && l.layerType === "midlayer");
+    expect(midlayerPick).toMatchObject({
+      fallbackText: "No available midlayer for these conditions — an extra top layer or a brisker pace will help",
+    });
+    expect((midlayerPick as { isGenericAssumption?: boolean }).isGenericAssumption).toBeFalsy();
+  });
+
+  it("umbrella fallback substitutes an owned rain-shell combo when one exists", () => {
+    const rainyWindy = weather({ weatherCode: 61, precipMm: 3, windGustKph: 10 });
+    const journey = journeyWithLegs([walkLeg({ weather: rainyWindy })]);
+    const rainJacket = clothingItem({ type: "jacket", name: "Storm Shell", waterproof: true });
+    const rainBottoms = clothingItem({ type: "bottoms", name: "Rain Pants", waterproof: true });
+    const rainShoes = shoeItem({ id: "shoe-2", name: "Gumboots", waterproof: true });
+    // An umbrella is set up (hasNoUmbrellaSetup === false) but unavailable
+    // for this journey — exercises the "genuinely unavailable" workaround
+    // branch rather than the never-set-up generic-assumption branch.
+    const unavailableUmbrella = umbrellaItem({ unavailableUntil: "2026-07-21T00:00:00.000Z" });
+    const result = recommendGear(
+      journey,
+      inventory({ clothing: [rainJacket, rainBottoms], shoes: [rainShoes], umbrellas: [unavailableUmbrella] }),
+      NO_CALIBRATION,
+      "no-preference"
+    );
+    expect(result.umbrella).toMatchObject({
+      fallbackText: "No suitable umbrella — your Storm Shell, Rain Pants and Gumboots should keep you mostly dry",
+    });
   });
 });

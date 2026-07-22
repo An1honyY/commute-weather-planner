@@ -4,6 +4,7 @@ import * as Location from "expo-location";
 import AddressAutocomplete from "../../../components/AddressAutocomplete";
 import LocationPickerMap from "../../../components/LocationPickerMap";
 import { reverseGeocode } from "../../../services/placesService";
+import { isNullIsland } from "../../../lib/approximateLocation";
 import useTheme from "../../../theme/useTheme";
 
 // docs/04-screens-navigation.md §4.1 (2026-07-21 minimal-onboarding
@@ -34,7 +35,16 @@ export default function Step1Location({ onDone }: Props) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
       const position = await Location.getCurrentPositionAsync({});
-      onDone({ lat: position.coords.latitude, lng: position.coords.longitude, label: "Current location" });
+      const { latitude: lat, longitude: lng } = position.coords;
+      // A (0,0) "fix" is never a real location (see approximateLocation.ts)
+      // — treat it the same as the request having failed rather than
+      // saving it as this user's location.
+      if (isNullIsland(lat, lng)) return;
+      // A bare "Current location" tells the user nothing about where that
+      // actually is — reverse-geocode to a real place name, falling back to
+      // the generic label only if that lookup itself fails.
+      const result = await reverseGeocode(lat, lng);
+      onDone({ lat, lng, label: "data" in result ? result.data.formattedAddress : "Current location" });
     } catch {
       // fall through to leaving the screen up — user can retry or skip
     } finally {
@@ -42,8 +52,14 @@ export default function Step1Location({ onDone }: Props) {
     }
   }
 
-  async function handleMapConfirm(coords: { lat: number; lng: number }) {
+  async function handleMapConfirm(coords: { lat: number; lng: number }, resolvedLabel?: string) {
     setMapPickerOpen(false);
+    // The picker already reverse-geocoded this pin live while dragging —
+    // reuse it instead of paying for the same Google Geocoding call twice.
+    if (resolvedLabel) {
+      onDone({ lat: coords.lat, lng: coords.lng, label: resolvedLabel });
+      return;
+    }
     setResolvingPin(true);
     const result = await reverseGeocode(coords.lat, coords.lng);
     setResolvingPin(false);

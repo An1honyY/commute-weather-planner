@@ -66,7 +66,7 @@ export default function HistoryScreen({ navigation }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
           <Text style={styles.title}>History</Text>
-          <Text style={styles.empty}>No past journeys yet</Text>
+          <Text style={styles.empty}>No past journeys yet — plan one from the Plan tab</Text>
         </View>
       </SafeAreaView>
     );

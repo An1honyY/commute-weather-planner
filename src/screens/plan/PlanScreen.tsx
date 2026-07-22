@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { listLocations } from "../../db/repositories/locations";
 import { createSavedRoute, listSavedRoutes, touchSavedRoute } from "../../db/repositories/savedRoutes";
 import { updateJourney } from "../../db/repositories/journeys";
-import { planJourney } from "../../lib/planJourney";
+import { planJourney, DEPART_TIME_LEAD_MS } from "../../lib/planJourney";
+import { showAlert } from "../../lib/crossPlatformAlert";
 import SavedLocationPicker from "../../components/SavedLocationPicker";
 import HourlyStrip from "../../components/HourlyStrip";
 import useTheme from "../../theme/useTheme";
@@ -25,6 +26,14 @@ const MODE_LABEL: Record<TravelMode, string> = {
   hike: "Hike",
 };
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+type TimeMode = "leave-now" | "leave-by" | "arrive-by";
+const TIME_MODE_LABEL: Record<TimeMode, string> = {
+  "leave-now": "Leave now",
+  "leave-by": "Leave by",
+  "arrive-by": "Arrive by",
+};
+const TIME_MODES: TimeMode[] = ["leave-now", "leave-by", "arrive-by"];
 
 function pad2(n: number): string {
   return n.toString().padStart(2, "0");
@@ -50,6 +59,7 @@ export default function PlanScreen() {
   const [origin, setOrigin] = useState<SavedLocation | undefined>(undefined);
   const [destination, setDestination] = useState<SavedLocation | undefined>(undefined);
   const [waypoints, setWaypoints] = useState<SavedLocation[]>([]);
+  const [timeMode, setTimeMode] = useState<TimeMode>("leave-now");
   const [dateStr, setDateStr] = useState(nowDateStr());
   const [timeStr, setTimeStr] = useState(nowTimeStr());
   const [mode, setMode] = useState<TravelMode>("walk");
@@ -90,7 +100,7 @@ export default function PlanScreen() {
 
   function addStop() {
     if (locations.length === 0) {
-      Alert.alert("No locations yet", "Add some in the Locations tab first.");
+      showAlert("No locations yet", "Add a location in the Locations tab first — then you can pick it here.");
       return;
     }
     setWaypoints((current) => [...current, locations[0]]);
@@ -102,31 +112,65 @@ export default function PlanScreen() {
 
   async function handlePlanJourney() {
     if (!origin || !destination) {
-      Alert.alert("Pick an origin and destination", "Both are needed to plan a journey.");
+      showAlert("Pick a start location and destination", "Both are needed before this can be planned.");
       return;
     }
-    const departTime = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+
+    // "Leave now" is a mode in its own right, not a correction — no notice
+    // needed. "Leave by" is checked client-side since we already know the
+    // clock time; "arrive by" is resolved server-side (planJourney doesn't
+    // know the answer until it's solved the route), so its own
+    // `timeAdjusted` flag is checked once the plan comes back instead.
+    let departTime = new Date(Date.now() + DEPART_TIME_LEAD_MS).toISOString();
+    let arriveByTime: string | undefined;
+    let timeWasAdjustedLocally = false;
+    if (timeMode === "leave-by") {
+      departTime = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+      if (new Date(departTime).getTime() <= Date.now() + DEPART_TIME_LEAD_MS) {
+        departTime = new Date(Date.now() + DEPART_TIME_LEAD_MS).toISOString();
+        timeWasAdjustedLocally = true;
+      }
+    } else if (timeMode === "arrive-by") {
+      arriveByTime = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+    }
 
     const recurrence =
-      repeatsEnabled && selectedDays.length > 0
+      timeMode === "leave-by" && repeatsEnabled && selectedDays.length > 0
         ? { daysOfWeek: selectedDays, departTimeOfDay: timeStr, active: true }
         : undefined;
 
     setPlanning(true);
     try {
-      const result = await planJourney({ origin, destination, waypoints, departTime, mode, formal, carryPreference, recurrence });
+      const result = await planJourney({
+        origin,
+        destination,
+        waypoints,
+        departTime,
+        arriveByTime,
+        mode,
+        formal,
+        carryPreference,
+        recurrence,
+      });
 
       if (result.kind === "failed") {
         // §5.1 — no live route and no cached fallback to reuse.
-        Alert.alert("Can't plan a new route right now", "Check your connection and try again.", [
+        showAlert("Can't plan a new route right now", "Check your connection, then try again.", [
           { text: "Retry", onPress: handlePlanJourney },
           { text: "Cancel", style: "cancel" },
         ]);
         return;
       }
 
+      if (timeWasAdjustedLocally || result.timeAdjusted) {
+        showAlert(
+          "Leaving now instead",
+          "Your requested time had already passed by the time this was planned, so we're planning from right now."
+        );
+      }
+
       if (planReturnTrip) {
-        const returnDepart = new Date(new Date(departTime).getTime() + 8 * 60 * 60_000).toISOString(); // mock: +8h, same as Phase 3
+        const returnDepart = new Date(new Date(result.journey.departTime).getTime() + 8 * 60 * 60_000).toISOString(); // mock: +8h, same as Phase 3
         const returnResult = await planJourney({
           origin: destination,
           destination: origin,
@@ -159,9 +203,16 @@ export default function PlanScreen() {
 
   // §9.5 — feeds the hourly rain strip below the date/time fields; invalid
   // in-progress typing (mid-edit date/time text) simply omits the strip
-  // rather than crashing on an "Invalid Date" .toISOString() call.
-  const selectedDepartTime = new Date(`${dateStr}T${timeStr}:00`);
-  const selectedDepartTimeIso = isNaN(selectedDepartTime.getTime()) ? undefined : selectedDepartTime.toISOString();
+  // rather than crashing on an "Invalid Date" .toISOString() call. "Leave
+  // now" has no typed time to parse — anchor the strip on the actual
+  // current time instead.
+  let selectedDepartTimeIso: string | undefined;
+  if (timeMode === "leave-now") {
+    selectedDepartTimeIso = new Date().toISOString();
+  } else {
+    const selectedDepartTime = new Date(`${dateStr}T${timeStr}:00`);
+    selectedDepartTimeIso = isNaN(selectedDepartTime.getTime()) ? undefined : selectedDepartTime.toISOString();
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -175,7 +226,7 @@ export default function PlanScreen() {
         </ScrollView>
       )}
 
-      <SavedLocationPicker label="Origin" value={origin} onChange={setOrigin} placeholder="Choose an origin" />
+      <SavedLocationPicker label="Start Location" value={origin} onChange={setOrigin} placeholder="Choose a start location" />
       <SavedLocationPicker label="Destination" value={destination} onChange={setDestination} placeholder="Choose a destination" />
 
       {waypoints.map((stop, index) => (
@@ -205,9 +256,18 @@ export default function PlanScreen() {
 
       <Text style={styles.label}>When</Text>
       <View style={styles.row}>
-        <TextInput style={[styles.input, styles.flex1]} value={dateStr} onChangeText={setDateStr} placeholder="YYYY-MM-DD" />
-        <TextInput style={[styles.input, styles.flex1]} value={timeStr} onChangeText={setTimeStr} placeholder="HH:mm" />
+        {TIME_MODES.map((tm) => (
+          <Pressable key={tm} onPress={() => setTimeMode(tm)} style={[styles.modeChip, timeMode === tm && styles.modeChipActive]}>
+            <Text style={[styles.modeChipLabel, timeMode === tm && styles.modeChipLabelActive]}>{TIME_MODE_LABEL[tm]}</Text>
+          </Pressable>
+        ))}
       </View>
+      {timeMode !== "leave-now" && (
+        <View style={styles.row}>
+          <TextInput style={[styles.input, styles.flex1]} value={dateStr} onChangeText={setDateStr} placeholder="YYYY-MM-DD" />
+          <TextInput style={[styles.input, styles.flex1]} value={timeStr} onChangeText={setTimeStr} placeholder="HH:mm" />
+        </View>
+      )}
       {origin && selectedDepartTimeIso && (
         <HourlyStrip origin={{ lat: origin.lat, lng: origin.lng }} fromIso={selectedDepartTimeIso} />
       )}
@@ -220,7 +280,11 @@ export default function PlanScreen() {
           </Pressable>
         ))}
       </View>
-      <Pressable onPress={() => Alert.alert("More modes", "Hike mode is coming in a later update.")}>
+      <Pressable
+        onPress={() =>
+          showAlert("More modes", "Hike mode isn't available yet — walking, driving, bus, train, and cycling are ready to plan.")
+        }
+      >
         <Text style={styles.moreModesLabel}>More modes</Text>
       </Pressable>
 
@@ -236,11 +300,13 @@ export default function PlanScreen() {
         <Text style={styles.carryChipLabel}>{carryPreference === "no-preference" ? "No preference" : "Avoid spares"}</Text>
       </Pressable>
 
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Repeats</Text>
-        <Switch value={repeatsEnabled} onValueChange={setRepeatsEnabled} />
-      </View>
-      {repeatsEnabled && (
+      {timeMode === "leave-by" && (
+        <View style={styles.switchRow}>
+          <Text style={styles.label}>Repeats</Text>
+          <Switch value={repeatsEnabled} onValueChange={setRepeatsEnabled} />
+        </View>
+      )}
+      {timeMode === "leave-by" && repeatsEnabled && (
         <View style={styles.row}>
           {DAY_LABELS.map((dayLabel, day) => (
             <Pressable

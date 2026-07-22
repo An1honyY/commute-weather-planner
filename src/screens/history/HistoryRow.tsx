@@ -5,7 +5,7 @@ import type { Journey } from "../../types";
 
 // History's compact row — docs/09-design-system.md §9.4.2: "same row
 // structure as the Today-tab compact card" (src/screens/today/JourneyCard.tsx),
-// plus a "recomputed" tag for journeys with no stored recommendationSnapshot
+// plus a "current picks, not that day's" tag for journeys with no stored recommendationSnapshot
 // (docs/04-screens-navigation.md §4.4). Unlike JourneyCard, this never shows
 // weather-severity dots or a "Leaving now" action — both are live-journey
 // concerns that don't apply to something already past.
@@ -24,10 +24,10 @@ export default function HistoryRow({ journey, onPress }: Props) {
 
   let topLabel: string;
   if (snapshot) {
-    topLabel = snapshot.layerNames[snapshot.layerNames.length - 1] ?? "No extra layers needed";
+    topLabel = snapshot.layerNames[snapshot.layerNames.length - 1] ?? "Nothing extra needed — you're set";
   } else if (recomputed) {
     const topLayer = recomputed.layers[recomputed.layers.length - 1];
-    topLabel = topLayer ? ("id" in topLayer ? topLayer.name : topLayer.fallbackText) : "No extra layers needed";
+    topLabel = topLayer ? ("id" in topLayer ? topLayer.name : topLayer.fallbackText) : "Nothing extra needed — you're set";
   } else {
     topLabel = "…";
   }
@@ -47,7 +47,7 @@ export default function HistoryRow({ journey, onPress }: Props) {
 
       <View style={styles.recRow}>
         <Text style={styles.topRecommendation}>{topLabel}</Text>
-        {!snapshot && <Text style={styles.recomputedTag}>recomputed</Text>}
+        {!snapshot && <Text style={styles.recomputedTag}>current picks, not that day&apos;s</Text>}
       </View>
     </Pressable>
   );

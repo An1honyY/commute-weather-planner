@@ -63,9 +63,13 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
 
   const latNum = Number(lat);
   const lngNum = Number(lng);
-  const canSubmit = label.trim().length > 0 && address.trim().length > 0 && !Number.isNaN(latNum) && !Number.isNaN(lngNum);
+  // Number("") is 0, not NaN — an empty field must be checked for
+  // separately, or a brand-new location (lat/lng still blank) reads as a
+  // valid (0,0) coordinate instead of "not set yet."
+  const hasValidCoords = lat.trim() !== "" && lng.trim() !== "" && !Number.isNaN(latNum) && !Number.isNaN(lngNum);
+  const canSubmit = label.trim().length > 0 && address.trim().length > 0 && hasValidCoords;
 
-  async function handleMapConfirm(coords: { lat: number; lng: number }) {
+  async function handleMapConfirm(coords: { lat: number; lng: number }, resolvedLabel?: string) {
     setMapPickerOpen(false);
     setLat(String(coords.lat));
     setLng(String(coords.lng));
@@ -73,6 +77,14 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
     // edit-an-existing-location case above — they're meaningful now, not
     // blank fields waiting on a selection.
     setAdvancedExpanded(true);
+    // The picker already reverse-geocoded this pin live while it was being
+    // dragged — reuse that instead of paying for the same Google Geocoding
+    // call twice. Only falls back to a fresh call if the live resolution
+    // never completed (e.g. a very fast confirm tap).
+    if (resolvedLabel) {
+      setAddress(resolvedLabel);
+      return;
+    }
     setResolvingPin(true);
     const result = await reverseGeocode(coords.lat, coords.lng);
     setResolvingPin(false);
@@ -109,7 +121,7 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
 
       <LocationPickerMap
         visible={mapPickerOpen}
-        initialCoords={!Number.isNaN(latNum) && !Number.isNaN(lngNum) ? { lat: latNum, lng: lngNum } : undefined}
+        initialCoords={hasValidCoords ? { lat: latNum, lng: lngNum } : undefined}
         onConfirm={handleMapConfirm}
         onClose={() => setMapPickerOpen(false)}
       />

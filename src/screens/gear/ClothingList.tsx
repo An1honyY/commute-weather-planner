@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { createClothing, deleteClothing, listClothing, updateClothing } from "../../db/repositories/clothing";
+import { showAlert } from "../../lib/crossPlatformAlert";
 import type { ClothingItem, ClothingType } from "../../types";
 import ClothingForm from "./ClothingForm";
 import GearThumbnail from "../../components/GearThumbnail";
@@ -79,7 +80,7 @@ export default function ClothingList({ autoOpenAddType }: Props) {
   }
 
   function confirmMarkAsWashing(item: ClothingItem) {
-    Alert.alert(`Mark ${item.name} as in the laundry?`, "This'll mark it unavailable for about 2 days and reset its wear count.", [
+    showAlert(`Mark ${item.name} as in the laundry?`, "This'll mark it unavailable for about 2 days and reset its wear count.", [
       { text: "Not yet", style: "cancel" },
       { text: "Mark as washing", onPress: () => markAsWashing(item) },
     ]);

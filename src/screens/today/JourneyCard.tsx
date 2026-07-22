@@ -25,7 +25,7 @@ export default function JourneyCard({ journey, isNextUp, onPress, onLeavingNow, 
   const styles = getStyles(theme);
   const recommendation = useRecommendation(journey);
   const topLayer = recommendation?.layers[recommendation.layers.length - 1];
-  const topLabel = topLayer ? ("id" in topLayer ? topLayer.name : topLayer.fallbackText) : "No extra layers needed";
+  const topLabel = topLayer ? ("id" in topLayer ? topLayer.name : topLayer.fallbackText) : "Nothing extra needed — you're set";
 
   const departTime = new Date(journey.departTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
