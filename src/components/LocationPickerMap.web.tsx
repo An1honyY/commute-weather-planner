@@ -5,9 +5,11 @@ import type L from "leaflet";
 import type { LeafletMouseEvent } from "leaflet";
 import { LEAFLET_CSS } from "./leafletCss";
 import { pinDivIcon } from "./leafletIcons";
+import { basemapFor } from "./leafletBasemap";
 import { resolveApproximateLocation } from "../lib/approximateLocation";
 import { reverseGeocode } from "../services/placesService";
 import useTheme from "../theme/useTheme";
+import { darkTheme } from "../theme/tokens";
 
 // Web implementation of the map-based location picker — react-leaflet +
 // OpenStreetMap tiles, both free/keyless (matching this project's existing
@@ -126,6 +128,7 @@ export default function LocationPickerMap({ visible, initialCoords, onConfirm, o
   // tight since it's just a generic city center to start from, not "your
   // area."
   const zoom = seed?.isFallback === false ? 12 : 13;
+  const basemap = basemapFor(theme === darkTheme);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -151,11 +154,13 @@ export default function LocationPickerMap({ visible, initialCoords, onConfirm, o
           </View>
         ) : (
           <View style={styles.map}>
-            <MapContainer center={[seed.lat, seed.lng]} zoom={zoom} style={{ height: "100%", width: "100%" }}>
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution="&copy; <a href=&quot;https://www.openstreetmap.org/copyright&quot;>OpenStreetMap</a> contributors"
-              />
+            <MapContainer
+              center={[seed.lat, seed.lng]}
+              zoom={zoom}
+              style={{ height: "100%", width: "100%" }}
+              className={basemap.isDark ? "cwp-dark-basemap" : undefined}
+            >
+              <TileLayer url={basemap.url} attribution={basemap.attribution} detectRetina />
               <Marker
                 position={[marker.lat, marker.lng]}
                 icon={pinDivIcon(theme.accentWalk)}

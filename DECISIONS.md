@@ -808,3 +808,43 @@ next source in the chain — a genuine defense-in-depth measure independent
 of the `LocationForm.tsx` bug, since some browsers/WebViews are known to
 resolve geolocation with `(0, 0)` instead of rejecting when the underlying
 location provider fails silently.
+
+---
+
+## 2026-07-22 — Web maps switched to CARTO Voyager/Dark Matter basemaps, theme-matched
+
+**What**: `LocationPickerMap.web.tsx` and `JourneyMap.web.tsx` both used
+raw OpenStreetMap "Standard" raster tiles — busy, highly-saturated, the
+same dense style OSM.org itself uses. Both now use CARTO's free, keyless
+basemap tiles instead: "Voyager" (muted, clean) in light mode, "Dark
+Matter" (dark, minimal) in dark mode, chosen automatically from
+`useTheme()` — the same theme-matched pattern already used everywhere
+else in this app, rather than a single fixed style regardless of the
+app's own light/dark setting.
+
+**Why this needed a decision**: (1) picking a specific alternative tile
+provider/style is a real judgment call, not a mechanical fix; (2) Dark
+Matter's default label contrast (muted dark-grey on near-black) was too
+low to read comfortably against this app's own dark UI, needing a
+deliberate fix rather than shipping it as-is.
+
+**Resolution**: new `src/components/leafletBasemap.ts` exports
+`basemapFor(isDark)`, returning the tile URL + shared CARTO/OSM
+attribution string for either style — used by both map files so the
+provider choice lives in one place. `detectRetina` added to `TileLayer`
+for sharper tiles on high-DPI screens (a genuine "modern" win beyond just
+the style swap). Dark Matter's legibility problem is fixed with a CSS
+filter (`filter: brightness(1.35) contrast(0.85)`), scoped to
+`.leaflet-tile-pane` specifically (not the whole map container, so
+Leaflet's own UI chrome — zoom buttons, attribution — stays unaffected)
+via a `cwp-dark-basemap` class conditionally applied to `MapContainer`,
+appended to the existing vendored stylesheet in `leafletCss.ts`. Worth
+being explicit about the ceiling here: raster tiles are flattened images,
+so this is a uniform brightness/contrast adjustment across the entire
+tile layer — there's no way to selectively recolor just the label text
+within a raster basemap; a fully custom label color would need a
+vector-tile style (e.g. MapLibre GL), a materially bigger dependency
+change that wasn't in scope. Same free/keyless posture as the OSM tiles
+this replaces — no new billing/API-key surface, same "reasonable use"
+expectation already relied on. Verified visually in both themes on both
+map screens.

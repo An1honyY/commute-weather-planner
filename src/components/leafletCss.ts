@@ -670,4 +670,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
 		print-color-adjust: exact;
 		}
 	}
+
+/* Not part of the vendored Leaflet stylesheet above — CARTO's Dark Matter
+   basemap tiles (leafletBasemap.ts) are flattened raster images, so a
+   uniform brightness/contrast filter on the tile imagery itself is the
+   only way to lift its muted dark-grey labels/roads to a legible level;
+   scoped to .leaflet-tile-pane specifically so Leaflet's own UI chrome
+   (zoom buttons, attribution) stays unaffected. */
+.cwp-dark-basemap .leaflet-tile-pane {
+	filter: brightness(1.35) contrast(0.85);
+	}
 `;

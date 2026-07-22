@@ -4,7 +4,10 @@ import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, useMapEvents
 import type { LeafletMouseEvent } from "leaflet";
 import { LEAFLET_CSS } from "./leafletCss";
 import { pinDivIcon, conditionDivIcon } from "./leafletIcons";
+import { basemapFor } from "./leafletBasemap";
 import type { ConditionMarker, MapCircle, MapStop } from "./JourneyMap";
+import useTheme from "../theme/useTheme";
+import { darkTheme } from "../theme/tokens";
 
 // Web implementation of the Journey Detail route map — same react-leaflet +
 // OpenStreetMap approach LocationPickerMap.web.tsx already established for
@@ -58,6 +61,13 @@ function FitBounds({ positions }: { positions: [number, number][] }) {
 }
 
 export default function JourneyMap({ stops, routePath, accentColor, onLongPress, previewCircle, conditionMarkers, previewColor }: Props) {
+  // The native JourneyMap stays a pure prop-driven renderer (see its own
+  // header comment) — this one reads theme directly only for basemap
+  // tile choice, a web-only concept (CARTO's light/dark tile sets) with
+  // no native equivalent, not a general theme dependency creep.
+  const theme = useTheme();
+  const basemap = basemapFor(theme === darkTheme);
+
   useEffect(() => {
     if (typeof document === "undefined" || document.getElementById(LEAFLET_STYLE_ID)) return;
     const style = document.createElement("style");
@@ -74,11 +84,13 @@ export default function JourneyMap({ stops, routePath, accentColor, onLongPress,
 
   return (
     <View style={styles.container}>
-      <MapContainer center={positions[0]} zoom={13} style={{ height: "100%", width: "100%" }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; <a href=&quot;https://www.openstreetmap.org/copyright&quot;>OpenStreetMap</a> contributors"
-        />
+      <MapContainer
+        center={positions[0]}
+        zoom={13}
+        style={{ height: "100%", width: "100%" }}
+        className={basemap.isDark ? "cwp-dark-basemap" : undefined}
+      >
+        <TileLayer url={basemap.url} attribution={basemap.attribution} detectRetina />
         <FitBounds positions={linePositions} />
         <Polyline positions={linePositions} pathOptions={{ color: accentColor, weight: 4 }} />
         {positions.map((position, i) => (
