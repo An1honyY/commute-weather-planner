@@ -7,6 +7,7 @@
 | Reverse geocoding (lat/lng → address) | Google Geocoding API (`maps.googleapis.com/maps/api/geocode/json`) | Free monthly threshold, same GCP project as Routes | same API key as Routes |
 | Weather (hourly, per lat/lng) | Open-Meteo (`api.open-meteo.com/v1/forecast`) | Free, no key, 10k calls/day non-commercial | none |
 | Auckland public transit | Auckland Transport GTFS Realtime (`api.at.govt.nz/gtfs/v3/...`) | Free | subscription key from dev-portal.at.govt.nz |
+| Map tiles, **web only** (`LocationPickerMap.web.tsx`) | OpenStreetMap standard tile server (`tile.openstreetmap.org`) via react-leaflet | Free, no key, subject to OSM's tile usage policy (reasonable/non-bulk use) | none |
 
 Store as env vars: `GOOGLE_ROUTES_API_KEY`, `AT_SUBSCRIPTION_KEY`. Open-Meteo
 needs none. Places API (New) and the Geocoding API both deliberately reuse

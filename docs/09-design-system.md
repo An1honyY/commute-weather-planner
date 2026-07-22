@@ -304,6 +304,36 @@ own independently.
 - Corner radius: 12px for cards, 8px for badges/pills, 999px (full) for the
   weather condition icon circle.
 
+### 9.2.1 Navigation iconography (2026-07-22)
+
+The 4 bottom tabs and the Today/Locations header buttons use a small
+dedicated line-icon set (`NavIcon.tsx`, same stroke-only/24×24-viewBox/
+`strokeWidth` ~1.8 convention `ClothingTypeIcon.tsx` established for gear
+glyphs, kept in its own file since the two sets are unrelated) — closing a
+gap `MainTabs.tsx` had flagged in its own comment since Phase 1 ("small
+text-button header icons stand in... until that pass lands," see
+DECISIONS.md):
+
+- **Today** — sun (weather focus). **Plan** — compass. **Locations** — a
+  map pin (same silhouette `LocationPickerMap`'s dropped-pin marker uses,
+  for visual continuity between picking a location and the tab that lists
+  them). **Gear** — a coat hanger.
+- **Settings** (Today tab header) — a sliders/equalizer glyph, not a
+  literal gear-cog — deliberately, since this app has a tab literally
+  named "Gear" (clothing inventory) and a cog icon risks reading as a
+  second, confusing reference to it. **History** (Today tab header) — a
+  clock. **Local knowledge** (Locations tab header) — the same map-pin
+  shape as the Locations tab icon, plus a small sparkle badge, so it reads
+  as "a place, plus an insight about it" rather than a duplicate pin.
+- Tab bar tint: `tabBarActiveTintColor: accentWalk`, `tabBarInactiveTintColor:
+  textSecondary`, `tabBarStyle` background/border from `surface`/`border` —
+  set once in `MainTabs.tsx`'s `screenOptions` and read back via each tab's
+  `{color}` render-prop argument, rather than each icon re-deriving
+  focused/unfocused state itself. Header-button icons use `textPrimary`
+  (matching the header title's color) rather than the accent, since accent
+  stays reserved for the active tab / primary interactive emphasis
+  elsewhere in the app, not general-purpose header chrome.
+
 ### 9.3 Journey Detail screen layout (top to bottom)
 
 1. **Map** (`react-native-maps`), ~40% of screen height. Route polyline in

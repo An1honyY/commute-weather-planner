@@ -1,35 +1,39 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import TodayScreen from "../screens/today/TodayScreen";
 import PlanScreen from "../screens/plan/PlanScreen";
 import LocationsScreen from "../screens/locations/LocationsScreen";
 import GearScreen from "../screens/gear/GearScreen";
+import NavIcon from "../components/NavIcon";
+import useTheme from "../theme/useTheme";
 import type { MainTabParamList, RootStackParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// Small text-button header icons stand in for the real iconography from
-// docs/09-design-system.md until that pass lands — functionally these are
-// the History (§4.4), Settings (§9.1 — "reached from the Today tab header,
-// alongside the History icon"), and Local knowledge (§4.5) entry points.
-// §9.6 — 44×44pt minimum touch target; these text-button stand-ins are
-// visually smaller than that, so padding fills the gap without changing
-// the visible label size.
+// docs/09-design-system.md §9.1 (2026-07-22) — real iconography, closing
+// the gap this file's own comment used to flag ("small text-button header
+// icons stand in... until that pass lands," see DECISIONS.md). Header
+// buttons use theme.textPrimary (matching the header title's color, not
+// the accent — accent stays reserved for the active tab / primary
+// interactive emphasis elsewhere in the app); tab bar tint colors are set
+// once in screenOptions below and read back here via the {color} render
+// prop rather than each icon re-deriving focused/unfocused itself.
 const headerButtonStyle = { minHeight: 44, minWidth: 44, alignItems: "center" as const, justifyContent: "center" as const };
 
 function TodayHeaderButtons() {
+  const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <View style={{ flexDirection: "row", gap: 8 }}>
+    <View style={{ flexDirection: "row", gap: 4 }}>
       <Pressable
         onPress={() => navigation.navigate("Settings")}
         style={headerButtonStyle}
         accessibilityRole="button"
         accessibilityLabel="Settings"
       >
-        <Text>Settings</Text>
+        <NavIcon kind="settings" size={22} color={theme.textPrimary} />
       </Pressable>
       <Pressable
         onPress={() => navigation.navigate("History")}
@@ -37,13 +41,14 @@ function TodayHeaderButtons() {
         accessibilityRole="button"
         accessibilityLabel="History"
       >
-        <Text>History</Text>
+        <NavIcon kind="history" size={22} color={theme.textPrimary} />
       </Pressable>
     </View>
   );
 }
 
 function LocalKnowledgeButton() {
+  const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <Pressable
@@ -52,7 +57,7 @@ function LocalKnowledgeButton() {
       accessibilityRole="button"
       accessibilityLabel="Local knowledge"
     >
-      <Text>Local knowledge</Text>
+      <NavIcon kind="localKnowledge" size={22} color={theme.textPrimary} />
     </Pressable>
   );
 }
@@ -61,20 +66,43 @@ function LocalKnowledgeButton() {
 // docs/04-screens-navigation.md §4 (React Navigation's default for
 // non-focused tab screens).
 export default function MainTabs() {
+  const theme = useTheme();
   return (
-    <Tab.Navigator initialRouteName="Today">
+    <Tab.Navigator
+      initialRouteName="Today"
+      screenOptions={{
+        tabBarActiveTintColor: theme.accentWalk,
+        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+      }}
+    >
       <Tab.Screen
         name="Today"
         component={TodayScreen}
-        options={{ headerRight: TodayHeaderButtons }}
+        options={{
+          headerRight: TodayHeaderButtons,
+          tabBarIcon: ({ color, size }) => <NavIcon kind="today" size={size} color={color} />,
+        }}
       />
-      <Tab.Screen name="Plan" component={PlanScreen} />
+      <Tab.Screen
+        name="Plan"
+        component={PlanScreen}
+        options={{ tabBarIcon: ({ color, size }) => <NavIcon kind="plan" size={size} color={color} /> }}
+      />
       <Tab.Screen
         name="Locations"
         component={LocationsScreen}
-        options={{ headerRight: LocalKnowledgeButton }}
+        options={{
+          headerRight: LocalKnowledgeButton,
+          tabBarIcon: ({ color, size }) => <NavIcon kind="locations" size={size} color={color} />,
+        }}
       />
-      <Tab.Screen name="Gear" component={GearScreen} />
+      <Tab.Screen
+        name="Gear"
+        component={GearScreen}
+        options={{ tabBarIcon: ({ color, size }) => <NavIcon kind="gear" size={size} color={color} /> }}
+      />
     </Tab.Navigator>
   );
 }
