@@ -5,6 +5,7 @@ import useTheme from "../../theme/useTheme";
 import AddressAutocomplete from "../../components/AddressAutocomplete";
 import LocationPickerMap from "../../components/LocationPickerMap";
 import ActionIcon from "../../components/ActionIcon";
+import FormSection from "../../components/FormSection";
 import { reverseGeocode } from "../../services/placesService";
 
 // Add/edit form for a SavedLocation — docs/04-screens-navigation.md item 3.
@@ -97,80 +98,92 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Label</Text>
-      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={label} onChangeText={setLabel} placeholder="Home" />
+      <FormSection title="Location">
+        <View>
+          <Text style={styles.label}>Label</Text>
+          <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={label} onChangeText={setLabel} placeholder="Home" />
+        </View>
 
-      <Text style={styles.label}>Address</Text>
-      <AddressAutocomplete
-        value={address}
-        onChangeText={setAddress}
-        onSelectPlace={(result) => {
-          setAddress(result.address);
-          setLat(String(result.lat));
-          setLng(String(result.lng));
-        }}
-        placeholder="123 Queen St, Auckland"
-      />
+        <View>
+          <Text style={styles.label}>Address</Text>
+          <AddressAutocomplete
+            value={address}
+            onChangeText={setAddress}
+            onSelectPlace={(result) => {
+              setAddress(result.address);
+              setLat(String(result.lat));
+              setLng(String(result.lng));
+            }}
+            placeholder="123 Queen St, Auckland"
+          />
+        </View>
 
-      <Pressable onPress={() => setMapPickerOpen(true)} style={styles.mapPickerRow} disabled={resolvingPin}>
-        {resolvingPin ? (
-          <ActivityIndicator size="small" color={theme.accentWalk} />
-        ) : (
-          <View style={styles.mapPickerContent}>
-            <ActionIcon kind="pin" size={15} color={theme.accentWalk} />
-            <Text style={styles.mapPickerLabel}>Pick on map</Text>
-          </View>
-        )}
-      </Pressable>
-
-      <LocationPickerMap
-        visible={mapPickerOpen}
-        initialCoords={hasValidCoords ? { lat: latNum, lng: lngNum } : undefined}
-        onConfirm={handleMapConfirm}
-        onClose={() => setMapPickerOpen(false)}
-      />
-
-      <Pressable onPress={() => setAdvancedExpanded((v) => !v)} style={styles.advancedHeader}>
-        <Text style={styles.label}>{advancedExpanded ? "▾" : "▸"} Advanced — set exact coordinates</Text>
-      </Pressable>
-      {advancedExpanded && (
-        <>
-          <Text style={styles.hint}>
-            Filled in automatically when you pick an address above — only change these if the search didn&apos;t
-            find the right spot.
-          </Text>
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <Text style={styles.label}>Latitude</Text>
-              <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
+        <Pressable onPress={() => setMapPickerOpen(true)} style={styles.mapPickerRow} disabled={resolvingPin}>
+          {resolvingPin ? (
+            <ActivityIndicator size="small" color={theme.accentWalk} />
+          ) : (
+            <View style={styles.mapPickerContent}>
+              <ActionIcon kind="pin" size={15} color={theme.accentWalk} />
+              <Text style={styles.mapPickerLabel}>Pick on map</Text>
             </View>
-            <View style={styles.half}>
-              <Text style={styles.label}>Longitude</Text>
-              <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
-            </View>
-          </View>
-        </>
-      )}
+          )}
+        </Pressable>
 
-      <Pressable onPress={() => setIsFavorite((v) => !v)} style={styles.favoriteRow}>
-        <ActionIcon kind="star" size={20} color={theme.favoriteStar} filled={isFavorite} />
-        <Text style={styles.label}>Favorite</Text>
-      </Pressable>
+        <LocationPickerMap
+          visible={mapPickerOpen}
+          initialCoords={hasValidCoords ? { lat: latNum, lng: lngNum } : undefined}
+          onConfirm={handleMapConfirm}
+          onClose={() => setMapPickerOpen(false)}
+        />
 
-      <Text style={styles.label}>Reliable AC/heating here?</Text>
-      <View style={styles.segmentRow}>
-        {(["yes", "no", "default"] as ClimateOverride[]).map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setClimate(option)}
-            style={[styles.segment, climate === option && styles.segmentActive]}
-          >
-            <Text style={[styles.segmentLabel, climate === option && styles.segmentLabelActive]}>
-              {option === "yes" ? "Yes" : option === "no" ? "No" : "Don't override"}
-            </Text>
+        <View>
+          <Pressable onPress={() => setAdvancedExpanded((v) => !v)}>
+            <Text style={styles.label}>{advancedExpanded ? "▾" : "▸"} Advanced — set exact coordinates</Text>
           </Pressable>
-        ))}
-      </View>
+          {advancedExpanded && (
+            <>
+              <Text style={styles.hint}>
+                Filled in automatically when you pick an address above — only change these if the search didn&apos;t
+                find the right spot.
+              </Text>
+              <View style={styles.row}>
+                <View style={styles.half}>
+                  <Text style={styles.label}>Latitude</Text>
+                  <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
+                </View>
+                <View style={styles.half}>
+                  <Text style={styles.label}>Longitude</Text>
+                  <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+      </FormSection>
+
+      <FormSection title="Preferences">
+        <Pressable onPress={() => setIsFavorite((v) => !v)} style={styles.favoriteRow}>
+          <ActionIcon kind="star" size={20} color={theme.favoriteStar} filled={isFavorite} />
+          <Text style={styles.label}>Favorite</Text>
+        </Pressable>
+
+        <View>
+          <Text style={styles.label}>Reliable AC/heating here?</Text>
+          <View style={styles.segmentRow}>
+            {(["yes", "no", "default"] as ClimateOverride[]).map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setClimate(option)}
+                style={[styles.segment, climate === option && styles.segmentActive]}
+              >
+                <Text style={[styles.segmentLabel, climate === option && styles.segmentLabelActive]}>
+                  {option === "yes" ? "Yes" : option === "no" ? "No" : "Don't override"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </FormSection>
 
       <View style={styles.actions}>
         <Pressable onPress={onCancel} style={styles.cancelButton}>
@@ -205,17 +218,16 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 20, gap: 4 },
-    label: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 4 },
+    container: { padding: 20 },
+    label: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     row: { flexDirection: "row", gap: 12 },
     half: { flex: 1 },
-    mapPickerRow: { marginTop: 10, alignSelf: "flex-start", minHeight: 30, justifyContent: "center" },
+    mapPickerRow: { alignSelf: "flex-start", minHeight: 30, justifyContent: "center" },
     mapPickerContent: { flexDirection: "row", alignItems: "center", gap: 6 },
     mapPickerLabel: { fontSize: 13, fontWeight: "600", color: theme.accentWalk },
-    advancedHeader: { marginTop: 16 },
-    hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 4 },
-    favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, minHeight: 44 },
+    hint: { fontSize: 12, color: theme.textSecondary, marginTop: 4, marginBottom: 4 },
+    favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 },
     segmentRow: { flexDirection: "row", gap: 8 },
     segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border, alignItems: "center" },
     segmentActive: { backgroundColor: theme.accentWalk, borderColor: theme.textPrimary },

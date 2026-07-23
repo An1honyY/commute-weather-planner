@@ -48,6 +48,18 @@ const TIME_FORMAT_OPTIONS: { value: TimeFormatPreference; label: string }[] = [
   { value: "24h", label: "24-hour" },
 ];
 
+// §7.9 — "avoid-spares" means recommendGear() skips suggesting a
+// removable/packable layer even when the AC-contrast logic would
+// otherwise call for one, picking the warmest single wearable layer
+// instead. The old labels ("No preference" / "Avoid spares") were the
+// internal value names verbatim, not a plain-language description of what
+// tapping the control actually changes — relabelled here, same two
+// underlying CarryPreference values.
+const CARRY_PREFERENCE_OPTIONS: { value: CarryPreference; label: string }[] = [
+  { value: "no-preference", label: "Pack a spare" },
+  { value: "avoid-spares", label: "Skip it" },
+];
+
 const DEFAULT_FREEZING_C = 2;
 const DEFAULT_COOL_UPPER_C = 14;
 const DEFAULT_WARM_OUTDOOR_C = 18;
@@ -245,14 +257,23 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>Carrying a spare layer</Text>
       <View style={styles.sectionCard}>
         <Text style={styles.body}>
-          The default for new trips — you can still override it per trip on the Plan screen.
+          Some trips (a bus or train with unpredictable AC) work best with a removable layer you can
+          take off or put on. Decide whether we should suggest packing one — this is the default for
+          new trips; you can still override it per trip on the Plan screen.
         </Text>
-        <Pressable
-          onPress={() => selectCarryPreference(carryPreference === "no-preference" ? "avoid-spares" : "no-preference")}
-          style={styles.carryChip}
-        >
-          <Text style={styles.carryChipLabel}>{carryPreference === "no-preference" ? "No preference" : "Avoid spares"}</Text>
-        </Pressable>
+        <View style={styles.segmentRow}>
+          {CARRY_PREFERENCE_OPTIONS.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() => selectCarryPreference(option.value)}
+              style={[styles.segment, carryPreference === option.value && styles.segmentActive]}
+            >
+              <Text style={[styles.segmentLabel, carryPreference === option.value && styles.segmentLabelActive]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>Crash reporting</Text>
@@ -401,8 +422,6 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     // reason to diverge; white reads correctly against accentWalk in both
     // themes, so that's the one kept.
     segmentLabelActive: { color: "#FFFFFF", fontWeight: "600" },
-    carryChip: { alignSelf: "flex-start", marginTop: SPACING.sm, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: theme.border },
-    carryChipLabel: { fontSize: 13, color: theme.textPrimary },
     dataButtonRow: { flexDirection: "row", gap: SPACING.sm },
     dataButton: { flex: 1, minHeight: 44, paddingVertical: 10, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" },
     dataButtonDisabled: { opacity: 0.5 },

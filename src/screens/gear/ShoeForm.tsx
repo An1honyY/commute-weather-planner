@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
 import FormRow from "../../components/FormRow";
+import FormSection from "../../components/FormSection";
 import { newId } from "../../db/rowMapping";
 import useTheme from "../../theme/useTheme";
 import type { ShoeItem, ShoeType } from "../../types";
@@ -36,20 +37,33 @@ export default function ShoeForm({ initial, onSubmit, onCancel, onDelete, onMark
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
+      <FormSection title="Basics">
+        <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
+        <View>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor={theme.textSecondary}
+            value={name}
+            onChangeText={setName}
+            placeholder="Waterproof boots"
+          />
+        </View>
+      </FormSection>
 
-      <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder="Waterproof boots" />
-
-      <Text style={styles.label}>Type</Text>
-      <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
-
-      <FormRow label="Waterproof" style={styles.switchRow}>
-        <Switch value={waterproof} onValueChange={setWaterproof} />
-      </FormRow>
-
-      <Text style={styles.label}>Grip</Text>
-      <SingleSelect options={GRIP_OPTIONS} value={grip} onChange={setGrip} />
+      <FormSection title="Details">
+        <View>
+          <Text style={styles.label}>Type</Text>
+          <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
+        </View>
+        <FormRow label="Waterproof">
+          <Switch value={waterproof} onValueChange={setWaterproof} />
+        </FormRow>
+        <View>
+          <Text style={styles.label}>Grip</Text>
+          <SingleSelect options={GRIP_OPTIONS} value={grip} onChange={setGrip} />
+        </View>
+      </FormSection>
 
       <View style={styles.actions}>
         <Pressable onPress={onCancel} style={styles.cancelButton}>
@@ -76,10 +90,9 @@ export default function ShoeForm({ initial, onSubmit, onCancel, onDelete, onMark
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 20, gap: 4, alignItems: "stretch" },
-    label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
+    container: { padding: 20, alignItems: "stretch" },
+    label: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
-    switchRow: { marginTop: 12 },
     actions: { flexDirection: "row", gap: 12, marginTop: 24 },
     cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },

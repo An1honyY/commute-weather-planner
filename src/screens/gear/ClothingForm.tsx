@@ -5,6 +5,7 @@ import TagChips, { ACCESSORY_TAG_OPTIONS, BASE_TAG_OPTIONS, BOTTOMS_TAG_OPTIONS,
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
 import FormRow from "../../components/FormRow";
+import FormSection from "../../components/FormSection";
 import { newId } from "../../db/rowMapping";
 import useTheme from "../../theme/useTheme";
 import type { ClothingItem, ClothingType } from "../../types";
@@ -66,39 +67,54 @@ export default function ClothingForm({ initial, initialType, onSubmit, onCancel,
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
+      <FormSection title="Basics">
+        <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
+        <View>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor={theme.textSecondary}
+            value={name}
+            onChangeText={setName}
+            placeholder="Blue rain shell"
+          />
+        </View>
+      </FormSection>
 
-      <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder="Blue rain shell" />
+      <FormSection title="Type & warmth">
+        <View>
+          <Text style={styles.label}>Type</Text>
+          <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
+        </View>
+        <View>
+          <Text style={styles.label}>Warmth</Text>
+          <WarmthSlider
+            value={warmth}
+            onChange={setWarmth}
+            showSubstitutesToggle={type === "jacket"}
+            substitutesForMidlayer={substitutesForMidlayer}
+            onToggleSubstitutes={setSubstitutesForMidlayer}
+          />
+        </View>
+      </FormSection>
 
-      <Text style={styles.label}>Type</Text>
-      <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
-
-      <Text style={styles.label}>Warmth</Text>
-      <WarmthSlider
-        value={warmth}
-        onChange={setWarmth}
-        showSubstitutesToggle={type === "jacket"}
-        substitutesForMidlayer={substitutesForMidlayer}
-        onToggleSubstitutes={setSubstitutesForMidlayer}
-      />
-
-      <FormRow label="Waterproof" style={styles.switchRow}>
-        <Switch value={waterproof} onValueChange={setWaterproof} />
-      </FormRow>
-      <FormRow label="Windproof" style={styles.switchRow}>
-        <Switch value={windproof} onValueChange={setWindproof} />
-      </FormRow>
-      <FormRow label="Packable" style={styles.switchRow}>
-        <Switch value={packable} onValueChange={setPackable} />
-      </FormRow>
-
-      {tagOptions.length > 0 && (
-        <>
-          <Text style={styles.label}>Tags</Text>
-          <TagChips options={tagOptions} selected={tags} onChange={setTags} />
-        </>
-      )}
+      <FormSection title="Properties">
+        <FormRow label="Waterproof">
+          <Switch value={waterproof} onValueChange={setWaterproof} />
+        </FormRow>
+        <FormRow label="Windproof">
+          <Switch value={windproof} onValueChange={setWindproof} />
+        </FormRow>
+        <FormRow label="Packable">
+          <Switch value={packable} onValueChange={setPackable} />
+        </FormRow>
+        {tagOptions.length > 0 && (
+          <View>
+            <Text style={styles.label}>Tags</Text>
+            <TagChips options={tagOptions} selected={tags} onChange={setTags} />
+          </View>
+        )}
+      </FormSection>
 
       <View style={styles.actions}>
         <Pressable onPress={onCancel} style={styles.cancelButton}>
@@ -125,10 +141,9 @@ export default function ClothingForm({ initial, initialType, onSubmit, onCancel,
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 20, gap: 4, alignItems: "stretch" },
-    label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
+    container: { padding: 20, alignItems: "stretch" },
+    label: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
-    switchRow: { marginTop: 12 },
     actions: { flexDirection: "row", gap: 12, marginTop: 24 },
     cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },

@@ -32,6 +32,16 @@ const MODE_LABEL: Record<TravelMode, string> = {
 };
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// Same relabelling and reasoning as SettingsScreen.tsx's identical
+// constant — the old chip showed the raw CarryPreference value name
+// ("No preference"/"Avoid spares") with no label explaining what it even
+// was, cycling silently on tap. This is the per-trip override of the
+// Settings-level default (§7.9).
+const CARRY_PREFERENCE_OPTIONS: { value: CarryPreference; label: string }[] = [
+  { value: "no-preference", label: "Pack a spare" },
+  { value: "avoid-spares", label: "Skip it" },
+];
+
 // A default return time needs *some* starting point before the user edits
 // it — 8h after the outbound leave time approximates a typical workday,
 // same as the placeholder value Phase 3 originally hardcoded (now
@@ -383,12 +393,19 @@ export default function PlanScreen() {
         <Switch value={formal} onValueChange={setFormal} />
       </FormRow>
 
-      <Pressable
-        onPress={() => setCarryPreference((p) => (p === "no-preference" ? "avoid-spares" : "no-preference"))}
-        style={styles.carryChip}
-      >
-        <Text style={styles.carryChipLabel}>{carryPreference === "no-preference" ? "No preference" : "Avoid spares"}</Text>
-      </Pressable>
+      <Text style={styles.label}>Spare layer</Text>
+      <Text style={styles.hint}>Whether to suggest packing a removable layer for this trip.</Text>
+      <View style={styles.segmentRow}>
+        {CARRY_PREFERENCE_OPTIONS.map((option) => (
+          <Pressable
+            key={option.value}
+            onPress={() => setCarryPreference(option.value)}
+            style={[styles.segment, carryPreference === option.value && styles.segmentActive]}
+          >
+            <Text style={[styles.segmentLabel, carryPreference === option.value && styles.segmentLabelActive]}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
 
       {timeMode === "leave-by" && (
         <FormRow label="Repeats" style={styles.formRowSpaced}>
@@ -503,8 +520,12 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
       backgroundColor: theme.conditionRain,
     },
     rainSuggestionText: { flex: 1, fontSize: 12, fontWeight: "600", color: "#FFFFFF" },
-    carryChip: { alignSelf: "flex-start", marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
-    carryChipLabel: { fontSize: 13, color: theme.textPrimary },
+    hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 8 },
+    segmentRow: { flexDirection: "row", gap: 8 },
+    segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border, alignItems: "center" },
+    segmentActive: { backgroundColor: theme.accentWalk, borderColor: theme.accentWalk },
+    segmentLabel: { fontSize: 13, color: theme.textPrimary },
+    segmentLabelActive: { color: "#FFFFFF", fontWeight: "600" },
     dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.border },
     dayChipActive: { backgroundColor: theme.accentWalk, borderColor: theme.accentWalk },
     dayChipLabel: { fontSize: 11, color: theme.textPrimary },
