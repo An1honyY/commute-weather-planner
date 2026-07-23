@@ -286,7 +286,7 @@ export default function PlanScreen() {
   // not a blocker" degrade HourlyStrip already uses.
   useEffect(() => {
     if (!planReturnTrip || !destination || !returnDepartTimeIso) {
-      setReturnRainWindow(null);
+      Promise.resolve().then(() => setReturnRainWindow(null));
       return;
     }
     let cancelled = false;
@@ -300,7 +300,7 @@ export default function PlanScreen() {
     return () => {
       cancelled = true;
     };
-  }, [planReturnTrip, destination?.lat, destination?.lng, returnDepartTimeIso]);
+  }, [planReturnTrip, destination, returnDepartTimeIso]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
