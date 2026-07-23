@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { listLocations } from "../db/repositories/locations";
 import { newId } from "../db/rowMapping";
 import AddressAutocomplete from "./AddressAutocomplete";
+import ActionIcon from "./ActionIcon";
 import useTheme from "../theme/useTheme";
 import type { SavedLocation } from "../types";
 
@@ -100,7 +101,7 @@ export default function SavedLocationPicker({ label, value, onChange, placeholde
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
                   <Pressable onPress={() => selectSaved(item)} style={styles.option}>
-                    {item.isFavorite && <Text style={styles.star}>★</Text>}
+                    {item.isFavorite && <ActionIcon kind="star" size={14} color={theme.favoriteStar} filled />}
                     <Text style={styles.optionLabel}>{item.label}</Text>
                     <Text style={styles.optionAddress}>{item.address}</Text>
                   </Pressable>
@@ -125,7 +126,6 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     sheetTitle: { fontSize: 17, fontWeight: "600", marginBottom: 12, color: theme.textPrimary },
     empty: { color: theme.textSecondary, paddingVertical: 20, textAlign: "center" },
     option: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-    star: { color: theme.favoriteStar },
     optionLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
     optionAddress: { fontSize: 12, color: theme.textSecondary },
   });

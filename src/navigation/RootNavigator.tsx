@@ -70,6 +70,11 @@ export default function RootNavigator({ needsOnboarding = false }: Props) {
           headerTintColor: theme.accentWalk,
           headerShadowVisible: false,
           headerBackButtonDisplayMode: "minimal" as const,
+          // The default header-left container sits flush against the
+          // screen edge on web/RNW — no built-in inset the way a native
+          // safe-area header usually has. Matches the screen horizontal
+          // margin used everywhere else (§9.2).
+          headerLeftContainerStyle: { paddingLeft: 20 },
           headerLeft: () =>
             navigation.canGoBack() ? <HeaderBackButton onPress={() => navigation.goBack()} /> : null,
         })}

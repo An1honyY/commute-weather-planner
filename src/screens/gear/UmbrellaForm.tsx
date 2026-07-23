@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
+import FormSection from "../../components/FormSection";
 import { newId } from "../../db/rowMapping";
 import useTheme from "../../theme/useTheme";
 import type { UmbrellaItem, UmbrellaType } from "../../types";
@@ -34,16 +35,30 @@ export default function UmbrellaForm({ initial, onSubmit, onCancel, onDelete, on
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
+      <FormSection title="Basics">
+        <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
+        <View>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor={theme.textSecondary}
+            value={name}
+            onChangeText={setName}
+            placeholder="Black golf umbrella"
+          />
+        </View>
+      </FormSection>
 
-      <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Black golf umbrella" />
-
-      <Text style={styles.label}>Type</Text>
-      <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
-
-      <Text style={styles.label}>Wind rating</Text>
-      <SingleSelect options={WIND_RATING_OPTIONS} value={windRating} onChange={setWindRating} />
+      <FormSection title="Details">
+        <View>
+          <Text style={styles.label}>Type</Text>
+          <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
+        </View>
+        <View>
+          <Text style={styles.label}>Wind rating</Text>
+          <SingleSelect options={WIND_RATING_OPTIONS} value={windRating} onChange={setWindRating} />
+        </View>
+      </FormSection>
 
       <Pressable
         disabled={!canSubmit}
@@ -72,8 +87,8 @@ export default function UmbrellaForm({ initial, onSubmit, onCancel, onDelete, on
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 20, gap: 4, alignItems: "stretch" },
-    label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
+    container: { padding: 20, alignItems: "stretch" },
+    label: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
     saveButton: { marginTop: 24, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },
     saveButtonDisabled: { opacity: 0.4 },

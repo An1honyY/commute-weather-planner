@@ -78,10 +78,13 @@ export async function recordWear(recommendation: Recommendation, journey: Journe
 // §3 — flattens the live Recommendation (real items or fallback text) down
 // into RecommendationSnapshot's display-only shape for History to read
 // without re-running the live engine against inventory that may have since
-// changed.
+// changed. layerTypes is kept alongside layerNames (same order, same
+// index) purely so the frozen view can still render a real icon per layer
+// — see RecommendationSnapshot's own comment.
 export function toRecommendationSnapshot(recommendation: Recommendation): RecommendationSnapshot {
   return {
     layerNames: recommendation.layers.map((l) => pickName(l) ?? "Unknown layer"),
+    layerTypes: recommendation.layers.map((l) => ("layerType" in l ? l.layerType : l.type)),
     accessoryNames: recommendation.accessories.map((a) => pickName(a) ?? "Unknown accessory"),
     shoeName: pickName(recommendation.shoes),
     umbrellaName: pickName(recommendation.umbrella),

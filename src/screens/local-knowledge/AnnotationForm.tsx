@@ -3,6 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import type { EnvironmentAnnotation, EnvironmentEffectType } from "../../types";
 import { EFFECT_META, EFFECT_OPTIONS } from "./effectMeta";
 import RadiusSlider from "../../components/RadiusSlider";
+import EffectIcon from "../../components/EffectIcon";
+import FormSection from "../../components/FormSection";
 import useTheme from "../../theme/useTheme";
 
 // Shared add/edit form for an EnvironmentAnnotation — docs/04-screens-
@@ -71,73 +73,88 @@ export default function AnnotationForm({
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.fieldLabel}>What&apos;s special about this spot?</Text>
-      <View style={styles.effectGrid}>
-        {EFFECT_OPTIONS.map((option) => {
-          const active = option === effect;
-          return (
-            <Pressable
-              key={option}
-              onPress={() => setEffect(option)}
-              style={[styles.effectButton, active && styles.effectButtonActive]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-            >
-              <Text style={styles.effectIcon}>{EFFECT_META[option].icon}</Text>
-              <Text style={[styles.effectLabel, active && styles.effectLabelActive]}>{EFFECT_META[option].label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <FormSection title="What's special about this spot?">
+        <View style={styles.effectGrid}>
+          {EFFECT_OPTIONS.map((option) => {
+            const active = option === effect;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => setEffect(option)}
+                style={[styles.effectButton, active && styles.effectButtonActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <EffectIcon kind={option} size={20} color={active ? theme.bg : theme.textPrimary} />
+                <Text style={[styles.effectLabel, active && styles.effectLabelActive]}>{EFFECT_META[option].label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      <Text style={styles.fieldLabel}>Label</Text>
-      <TextInput
-        style={styles.input}
-        value={label}
-        onChangeText={setLabel}
-        placeholder={EFFECT_META[effect].placeholder}
-      />
+        <View>
+          <Text style={styles.fieldLabel}>Label</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor={theme.textSecondary}
+            value={label}
+            onChangeText={setLabel}
+            placeholder={EFFECT_META[effect].placeholder}
+          />
+        </View>
+      </FormSection>
 
-      <Text style={styles.fieldLabel}>Applies within {radiusM}m</Text>
-      <RadiusSlider value={radiusM} onChange={pickRadius} min={RADIUS_MIN} max={RADIUS_MAX} step={RADIUS_STEP} />
-      <View style={styles.radiusScale}>
-        <Text style={styles.radiusScaleLabel}>{RADIUS_MIN}m</Text>
-        <Text style={styles.radiusScaleLabel}>{RADIUS_MAX}m</Text>
-      </View>
-
-      {showCoordinateFields && (
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <Text style={styles.fieldLabel}>Latitude</Text>
-            <TextInput
-              style={styles.input}
-              value={lat}
-              onChangeText={setLat}
-              keyboardType="numbers-and-punctuation"
-              placeholder="-36.8485"
-            />
-          </View>
-          <View style={styles.half}>
-            <Text style={styles.fieldLabel}>Longitude</Text>
-            <TextInput
-              style={styles.input}
-              value={lng}
-              onChangeText={setLng}
-              keyboardType="numbers-and-punctuation"
-              placeholder="174.7633"
-            />
+      <FormSection title="Range">
+        <View>
+          <Text style={styles.fieldLabel}>Applies within {radiusM}m</Text>
+          <RadiusSlider value={radiusM} onChange={pickRadius} min={RADIUS_MIN} max={RADIUS_MAX} step={RADIUS_STEP} />
+          <View style={styles.radiusScale}>
+            <Text style={styles.radiusScaleLabel}>{RADIUS_MIN}m</Text>
+            <Text style={styles.radiusScaleLabel}>{RADIUS_MAX}m</Text>
           </View>
         </View>
-      )}
+      </FormSection>
 
-      <Text style={styles.fieldLabel}>Notes (optional)</Text>
-      <TextInput
-        style={[styles.input, styles.notesInput]}
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Shown when this spot affects a journey"
-        multiline
-      />
+      <FormSection title="Details">
+        {showCoordinateFields && (
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.fieldLabel}>Latitude</Text>
+              <TextInput
+                style={styles.input}
+                placeholderTextColor={theme.textSecondary}
+                value={lat}
+                onChangeText={setLat}
+                keyboardType="numbers-and-punctuation"
+                placeholder="-36.8485"
+              />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.fieldLabel}>Longitude</Text>
+              <TextInput
+                style={styles.input}
+                placeholderTextColor={theme.textSecondary}
+                value={lng}
+                onChangeText={setLng}
+                keyboardType="numbers-and-punctuation"
+                placeholder="174.7633"
+              />
+            </View>
+          </View>
+        )}
+
+        <View>
+          <Text style={styles.fieldLabel}>Notes (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            placeholderTextColor={theme.textSecondary}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Shown when this spot affects a journey"
+            multiline
+          />
+        </View>
+      </FormSection>
 
       <View style={styles.actions}>
         <Pressable onPress={onCancel} style={styles.cancelButton}>
@@ -172,8 +189,8 @@ export default function AnnotationForm({
 
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 4 },
-    fieldLabel: { fontSize: 13, color: theme.textSecondary, marginTop: 12, marginBottom: 4 },
+    container: { padding: 16 },
+    fieldLabel: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
     effectGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     effectButton: {
       width: "31%",
@@ -185,7 +202,6 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
       gap: 4,
     },
     effectButtonActive: { backgroundColor: theme.accentWalk, borderColor: theme.textPrimary },
-    effectIcon: { fontSize: 20 },
     effectLabel: { fontSize: 11, textAlign: "center", color: theme.textPrimary },
     effectLabelActive: { color: theme.bg, fontWeight: "600" },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },

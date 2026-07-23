@@ -9,6 +9,8 @@ import {
 import type { EnvironmentAnnotation } from "../../types";
 import AnnotationForm, { type AnnotationFormValues } from "./AnnotationForm";
 import { EFFECT_META } from "./effectMeta";
+import EffectIcon from "../../components/EffectIcon";
+import ActionIcon from "../../components/ActionIcon";
 import useTheme from "../../theme/useTheme";
 
 // EnvironmentAnnotation manage/list screen — docs/04-screens-navigation.md
@@ -80,7 +82,7 @@ export default function LocalKnowledgeScreen() {
           renderItem={({ item }) => (
             <Pressable onPress={() => setMode({ kind: "edit", annotation: item })} style={styles.row}>
               <View style={styles.iconCircle}>
-                <Text style={styles.icon}>{EFFECT_META[item.effect].icon}</Text>
+                <EffectIcon kind={item.effect} size={18} color="#FFFFFF" />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>{item.label}</Text>
@@ -95,7 +97,7 @@ export default function LocalKnowledgeScreen() {
                 style={styles.deleteButton}
                 accessibilityLabel={`Delete ${item.label}`}
               >
-                <Text style={styles.deleteGlyph}>✕</Text>
+                <ActionIcon kind="close" size={16} color={theme.danger} />
               </Pressable>
             </Pressable>
           )}
@@ -131,12 +133,10 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
       justifyContent: "center",
       backgroundColor: theme.annotationPin,
     },
-    icon: { fontSize: 18 },
     rowText: { flex: 1 },
     rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
     rowMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 2 },
     rowNotes: { fontSize: 12, color: theme.textSecondary, marginTop: 2, fontStyle: "italic" },
     deleteButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-    deleteGlyph: { fontSize: 16, color: theme.danger },
   });
 }

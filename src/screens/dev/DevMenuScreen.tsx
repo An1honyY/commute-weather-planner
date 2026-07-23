@@ -161,6 +161,7 @@ export default function DevMenuScreen() {
       <View style={styles.delayRow}>
         <TextInput
           style={styles.delayInput}
+          placeholderTextColor={theme.textSecondary}
           value={delayText}
           onChangeText={setDelayText}
           placeholder="Minutes"

@@ -2,6 +2,7 @@ import { getDb } from "../index";
 import type { CarryPreference } from "../../types";
 
 export type ThemePreference = "system" | "light" | "dark";
+export type TimeFormatPreference = "12h" | "24h";
 
 async function getSetting(key: string): Promise<string | undefined> {
   const db = await getDb();
@@ -56,6 +57,16 @@ export async function getThemePreference(): Promise<ThemePreference> {
 
 export async function setThemePreference(preference: ThemePreference): Promise<void> {
   await setSetting("theme_preference", preference);
+}
+
+// Defaults to "12h" (am/pm) — 24h is opt-in, not the other way round.
+export async function getTimeFormatPreference(): Promise<TimeFormatPreference> {
+  const value = await getSetting("time_format_preference");
+  return value === "24h" ? "24h" : "12h";
+}
+
+export async function setTimeFormatPreference(preference: TimeFormatPreference): Promise<void> {
+  await setSetting("time_format_preference", preference);
 }
 
 // docs/09-design-system.md §9.1 / docs/07-recommendation-engine.md §7.9 —
@@ -133,11 +144,12 @@ export async function resetDismissedSetupTasks(): Promise<void> {
 export async function resetOnboardingAndPreferences(): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    `DELETE FROM app_settings WHERE key IN (?, ?, ?, ?, ?)`,
+    `DELETE FROM app_settings WHERE key IN (?, ?, ?, ?, ?, ?)`,
     "onboarding_completed",
     "crash_reporting_enabled",
     "theme_preference",
     "default_location",
-    "dismissed_setup_tasks"
+    "dismissed_setup_tasks",
+    "time_format_preference"
   );
 }

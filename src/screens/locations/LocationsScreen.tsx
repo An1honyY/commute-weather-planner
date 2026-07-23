@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { createLocation, deleteLocation, listLocations, updateLocation } from "../../db/repositories/locations";
 import type { SavedLocation } from "../../types";
 import LocationForm, { type LocationFormValues } from "./LocationForm";
+import ActionIcon from "../../components/ActionIcon";
 import useTheme from "../../theme/useTheme";
 
 type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; location: SavedLocation };
@@ -104,9 +105,12 @@ export default function LocationsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={item.isFavorite ? `Remove ${item.label} from favorites` : `Add ${item.label} to favorites`}
                 >
-                  <Text style={[styles.star, item.isFavorite && styles.starActive]}>
-                    {item.isFavorite ? "★" : "☆"}
-                  </Text>
+                  <ActionIcon
+                    kind="star"
+                    size={20}
+                    color={item.isFavorite ? theme.favoriteStar : theme.textSecondary}
+                    filled={item.isFavorite}
+                  />
                 </Pressable>
               </Pressable>
             </>
@@ -139,7 +143,5 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     rowLabel: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
     rowAddress: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
     starButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-    star: { fontSize: 20, color: theme.textSecondary },
-    starActive: { color: theme.favoriteStar },
   });
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import WarmthSlider from "../../components/WarmthSlider";
 import PhotoPicker from "../../components/PhotoPicker";
+import ActionIcon from "../../components/ActionIcon";
 import { seedWarmthCalibration } from "../../db/repositories/calibration";
 import { createClothing } from "../../db/repositories/clothing";
 import { createShoe } from "../../db/repositories/shoes";
@@ -49,7 +50,10 @@ function WarmthEntry({
   if (state === "done") {
     return (
       <View style={styles.entryRow}>
-        <Text style={styles.entryDone}>✓ {title}: {name}</Text>
+        <View style={styles.entryDoneRow}>
+          <ActionIcon kind="check" size={15} color={theme.feedbackPositive} />
+          <Text style={styles.entryDone}>{title}: {name}</Text>
+        </View>
       </View>
     );
   }
@@ -77,7 +81,7 @@ function WarmthEntry({
   return (
     <View style={styles.expandedEntry}>
       <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={`${title} name`} />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder={`${title} name`} />
       <WarmthSlider
         value={warmth}
         onChange={setWarmth}
@@ -135,7 +139,10 @@ function SimpleEntry({
   if (state === "done") {
     return (
       <View style={styles.entryRow}>
-        <Text style={styles.entryDone}>✓ {title}: {name}</Text>
+        <View style={styles.entryDoneRow}>
+          <ActionIcon kind="check" size={15} color={theme.feedbackPositive} />
+          <Text style={styles.entryDone}>{title}: {name}</Text>
+        </View>
       </View>
     );
   }
@@ -163,7 +170,7 @@ function SimpleEntry({
   return (
     <View style={styles.expandedEntry}>
       <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={`${title} name`} />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder={`${title} name`} />
       <Pressable
         disabled={!name.trim()}
         onPress={async () => {
@@ -257,6 +264,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     selfReportLabel: { fontWeight: "600", color: theme.textPrimary },
     entryRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.border },
     entryTitle: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    entryDoneRow: { flexDirection: "row", alignItems: "center", gap: 6 },
     entryDone: { fontSize: 15, color: theme.feedbackPositive },
     entrySkipped: { fontSize: 15, color: theme.textSecondary },
     entryButtons: { flexDirection: "row", alignItems: "center", gap: 16 },

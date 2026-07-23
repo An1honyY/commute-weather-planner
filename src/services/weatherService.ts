@@ -157,6 +157,8 @@ export interface HourlyReading {
   time: string; // ISO
   tempC: number;
   weatherCode: number;
+  precipMm: number;
+  windKph: number;
   rainIntensity: RainIntensity;
 }
 
@@ -182,6 +184,8 @@ export async function getHourlyForecast(
       time: `${time}Z`,
       tempC: hourly.temperature_2m[index],
       weatherCode: hourly.weather_code[index],
+      precipMm: hourly.precipitation[index],
+      windKph: hourly.wind_speed_10m[index],
       rainIntensity: rainIntensityBucket(hourly.precipitation[index], hourly.precipitation_probability[index]),
     };
   });

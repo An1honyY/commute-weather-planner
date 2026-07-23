@@ -1,5 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRecommendation } from "../../lib/useRecommendation";
+import ActionIcon from "../../components/ActionIcon";
+import { formatTime } from "../../lib/formatTime";
+import { useTimeFormatStore } from "../../lib/useTimeFormatStore";
 import useTheme from "../../theme/useTheme";
 import type { Journey } from "../../types";
 
@@ -32,16 +35,19 @@ export default function HistoryRow({ journey, onPress }: Props) {
     topLabel = "…";
   }
 
-  const departTime = new Date(journey.departTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const hour12 = useTimeFormatStore((s) => s.timeFormatPreference !== "24h");
+  const departTime = formatTime(journey.departTime, hour12);
 
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.route}>
-          {journey.origin.label} → {journey.destination.label}
-          {journey.recurrence && " ↻"}
-          {journey.linkedReturnJourneyId && " ⇄"}
-        </Text>
+        <View style={styles.routeRow}>
+          <Text style={styles.route}>
+            {journey.origin.label} → {journey.destination.label}
+          </Text>
+          {journey.recurrence && <ActionIcon kind="repeat" size={12} color={theme.textSecondary} />}
+          {journey.linkedReturnJourneyId && <ActionIcon kind="swap" size={12} color={theme.textSecondary} />}
+        </View>
         <Text style={styles.time}>{departTime}</Text>
       </View>
 
@@ -57,7 +63,8 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     card: { padding: 12, borderRadius: 12, backgroundColor: theme.surface, marginBottom: 12, gap: 6 },
     headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    route: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
+    routeRow: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
+    route: { fontSize: 15, fontWeight: "600", color: theme.textPrimary, flexShrink: 1 },
     time: { fontSize: 12, color: theme.textSecondary },
     recRow: { flexDirection: "row", alignItems: "center", gap: 6 },
     topRecommendation: { fontSize: 13, color: theme.textPrimary },

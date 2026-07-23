@@ -16,9 +16,10 @@ import { dominantMode } from "../../lib/journeyMode";
 import { classifyWeather } from "../../lib/weather";
 import JourneyMap, { type ConditionMarker, type MapAnnotation, type MapCircle } from "../../components/JourneyMap";
 import AnnotationForm, { type AnnotationFormValues } from "../local-knowledge/AnnotationForm";
-import { EFFECT_META } from "../local-knowledge/effectMeta";
+import { EFFECT_META, EFFECT_MARKER_EMOJI } from "../local-knowledge/effectMeta";
 import GearRecommendationCard from "./GearRecommendationCard";
 import LegRow from "./LegRow";
+import ActionIcon from "../../components/ActionIcon";
 import useTheme from "../../theme/useTheme";
 import { conditionColorForSeverity } from "../../theme/tokens";
 import type { EnvironmentAnnotation, GearFeedback, Journey, JourneyLeg } from "../../types";
@@ -186,7 +187,7 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
     lat: a.lat,
     lng: a.lng,
     radiusM: a.radiusM,
-    icon: EFFECT_META[a.effect].icon,
+    icon: EFFECT_MARKER_EMOJI[a.effect],
     label: `${a.label} — ${EFFECT_META[a.effect].label}`,
     color: theme.annotationPin,
   }));
@@ -312,7 +313,8 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
 
         {recommendation?.severeWeatherAdvisory && (
           <View style={styles.severeBanner}>
-            <Text style={styles.severeBannerText}>⚠ {recommendation.severeWeatherAdvisory}</Text>
+            <ActionIcon kind="warning" size={16} color="#FFFFFF" />
+            <Text style={styles.severeBannerText}>{recommendation.severeWeatherAdvisory}</Text>
           </View>
         )}
 
@@ -365,7 +367,8 @@ export default function JourneyDetailScreen({ route, navigation }: Props) {
             accessibilityRole="button"
             accessibilityLabel="View return trip"
           >
-            <Text style={styles.returnLinkLabel}>⇄ Return trip</Text>
+            <ActionIcon kind="swap" size={15} color={theme.textPrimary} />
+            <Text style={styles.returnLinkLabel}>Return trip</Text>
           </Pressable>
         )}
 
@@ -440,8 +443,8 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     mapContainer: { height: 280, backgroundColor: theme.surface },
     cachedBanner: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: theme.conditionLight },
     cachedBannerText: { fontSize: 12, color: theme.textPrimary },
-    severeBanner: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: theme.conditionStorm },
-    severeBannerText: { fontSize: 13, color: "#FFFFFF", fontWeight: "600" },
+    severeBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: theme.conditionStorm },
+    severeBannerText: { flex: 1, fontSize: 13, color: "#FFFFFF", fontWeight: "600" },
     confidenceBanner: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: theme.surface },
     confidenceBannerText: { fontSize: 12, color: theme.confidenceLow },
     recurrenceRow: {
@@ -455,7 +458,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     recurrenceLabel: { fontSize: 12, color: theme.textSecondary, flex: 1 },
     recurrenceToggleLabel: { fontSize: 13, fontWeight: "600", color: theme.accentWalk, minHeight: 30, textAlignVertical: "center" },
     legList: { paddingHorizontal: 20, paddingTop: 12 },
-    returnLink: { margin: 20, alignItems: "center", paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
+    returnLink: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, margin: 20, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     returnLinkLabel: { fontWeight: "600", color: theme.textPrimary },
     deleteButton: { marginHorizontal: 20, marginTop: 16, alignItems: "center", paddingVertical: 12 },
     deleteButtonLabel: { color: theme.danger, fontWeight: "600", fontSize: 13 },

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { LayerPick, Recommendation } from "../../lib/recommend";
 import useTheme from "../../theme/useTheme";
 import { cardElevationStyle } from "../../theme/tokens";
+import { SPACING, TYPE } from "../../theme/typography";
 import ClothingTypeIcon, { accessoryIconKind, type ClothingIconKind } from "../../components/ClothingTypeIcon";
 import type { GearAddTarget } from "../../navigation/types";
 import type { RecommendationSnapshot } from "../../types";
@@ -79,15 +80,23 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
   const theme = useTheme();
   const styles = getStyles(theme);
   if (snapshot) {
-    const layersTopDown = [...snapshot.layerNames].reverse();
+    // layerTypes is index-matched to layerNames (pre-reversal) — zip them
+    // together before reversing so a name never ends up paired with the
+    // wrong type. Missing on snapshots frozen before this field existed;
+    // those layers just render without an icon rather than a wrong one.
+    const layersTopDown = [...snapshot.layerNames]
+      .map((name, i) => ({ name, kind: snapshot.layerTypes?.[i] }))
+      .reverse();
     return (
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>Recommended gear</Text>
         {layersTopDown.length > 0 && (
           <View style={styles.layerStack}>
-            {layersTopDown.map((name, i) => (
-              <Text key={i} style={styles.layerText}>
-                {name}
-              </Text>
+            {layersTopDown.map(({ name, kind }, i) => (
+              <View key={i} style={styles.pickRow}>
+                {kind && <ClothingTypeIcon kind={kind} size={16} color={theme.accentWalk} />}
+                <Text style={styles.layerText}>{name}</Text>
+              </View>
             ))}
           </View>
         )}
@@ -95,25 +104,39 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
         {snapshot.accessoryNames.length > 0 && (
           <View style={styles.accessoriesRow}>
             {snapshot.accessoryNames.map((name, i) => (
-              <Text key={i} style={styles.accessoryText}>
-                {name}
-              </Text>
+              <View key={i} style={styles.pickRow}>
+                <ClothingTypeIcon kind={accessoryIconKind(name)} size={15} color={theme.accentWalk} />
+                <Text style={styles.accessoryText}>{name}</Text>
+              </View>
             ))}
           </View>
         )}
 
         <View style={styles.slotsRow}>
-          {snapshot.shoeName && <Text style={styles.slotText}>{snapshot.shoeName}</Text>}
-          {snapshot.umbrellaName && <Text style={styles.slotText}>{snapshot.umbrellaName}</Text>}
+          {snapshot.shoeName && (
+            <View style={styles.pickRow}>
+              <ClothingTypeIcon kind="shoe" size={15} color={theme.accentWalk} />
+              <Text style={styles.slotText}>{snapshot.shoeName}</Text>
+            </View>
+          )}
+          {snapshot.umbrellaName && (
+            <View style={styles.pickRow}>
+              <ClothingTypeIcon kind="umbrella" size={15} color={theme.accentWalk} />
+              <Text style={styles.slotText}>{snapshot.umbrellaName}</Text>
+            </View>
+          )}
         </View>
 
         {snapshot.notes.length > 0 && (
-          <View style={styles.notes}>
-            {snapshot.notes.map((note, i) => (
-              <Text key={i} style={styles.note}>
-                · {note}
-              </Text>
-            ))}
+          <View style={styles.notesCallout}>
+            <View style={styles.notesAccentBar} />
+            <View style={styles.notesTextCol}>
+              {snapshot.notes.map((note, i) => (
+                <Text key={i} style={styles.note}>
+                  {note}
+                </Text>
+              ))}
+            </View>
           </View>
         )}
       </View>
@@ -132,6 +155,7 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
 
   return (
     <View style={styles.card}>
+      <Text style={styles.cardTitle}>Recommended gear</Text>
       {layersTopDown.length > 0 && (
         <View style={styles.layerStack}>
           {layersTopDown.map((pick, i) => {
@@ -232,12 +256,15 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
       </View>
 
       {recommendation.notes.length > 0 && (
-        <View style={styles.notes}>
-          {recommendation.notes.map((note, i) => (
-            <Text key={i} style={styles.note}>
-              · {note}
-            </Text>
-          ))}
+        <View style={styles.notesCallout}>
+          <View style={styles.notesAccentBar} />
+          <View style={styles.notesTextCol}>
+            {recommendation.notes.map((note, i) => (
+              <Text key={i} style={styles.note}>
+                {note}
+              </Text>
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -247,13 +274,14 @@ export default function GearRecommendationCard({ recommendation, snapshot, onAdd
 function getStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     card: {
-      margin: 20,
-      padding: 16,
+      margin: SPACING.xl,
+      padding: SPACING.lg,
       borderRadius: 12,
       backgroundColor: theme.surfaceRaised,
-      gap: 12,
+      gap: SPACING.md,
       ...cardElevationStyle(theme),
     },
+    cardTitle: { ...TYPE.subtitle, color: theme.textPrimary },
     layerStack: { gap: 6 },
     pickRow: { flexDirection: "row", alignItems: "center", gap: 7 },
     layerText: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
@@ -262,7 +290,13 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     accessoryText: { fontSize: 13, color: theme.textPrimary },
     slotsRow: { flexDirection: "row", flexWrap: "wrap", gap: 18 },
     slotText: { fontSize: 13, fontWeight: "600", color: theme.textPrimary },
-    notes: { gap: 4 },
+    // A visually distinct "footnote" callout — inset against the card's
+    // surfaceRaised fill with its own accent bar — so the AC-contrast/
+    // warmup-discount/UV reasoning here reads as secondary context, not
+    // more of the same-weight recommendation as the icon+text picks above.
+    notesCallout: { flexDirection: "row", gap: SPACING.sm, backgroundColor: theme.bg, borderRadius: 8, padding: SPACING.sm },
+    notesAccentBar: { width: 3, borderRadius: 2, backgroundColor: theme.accentWalk },
+    notesTextCol: { flex: 1, gap: 4 },
     note: { fontSize: 12, color: theme.textSecondary },
   });
 }
