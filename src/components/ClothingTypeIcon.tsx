@@ -4,6 +4,17 @@ import Svg, { Line, Path, Rect } from "react-native-svg";
 // paired with every clothing/accessory recommendation ("icon + item name",
 // never bare text), one fixed icon per slot kind — not per-item art (gear
 // photos stay exactly as they are in Gear/Journey Detail).
+//
+// UI/UX polish pass 2 (2026-07-23): jacket/base/shoe/umbrella/sunglasses/
+// accessory paths are adapted from Tabler Icons (github.com/tabler/
+// tabler-icons, MIT, no attribution required) — same 24x24 viewBox as this
+// file's own convention, near-identical stroke width — after the
+// hand-drawn originals didn't read clearly at a glance (the jacket glyph
+// in particular didn't look like a jacket). Only geometry is reused; this
+// component still applies its own strokeWidth/colour at render time, not
+// Tabler's source styling. midlayer/bottoms/vehicle stay hand-drawn —
+// simple enough silhouettes not to need an external source. See
+// DECISIONS.md.
 export type ClothingIconKind =
   | "jacket"
   | "midlayer"
@@ -12,7 +23,8 @@ export type ClothingIconKind =
   | "shoe"
   | "umbrella"
   | "sunglasses"
-  | "accessory";
+  | "accessory"
+  | "vehicle";
 
 interface Props {
   kind: ClothingIconKind;
@@ -30,39 +42,77 @@ export function accessoryIconKind(text: string): ClothingIconKind {
 }
 
 const PATHS: Record<ClothingIconKind, { d: string[]; lines?: { x1: number; y1: number; x2: number; y2: number }[]; rects?: { x: number; y: number; w: number; h: number; rx: number }[] }> = {
+  // Tabler Icons "jacket" (MIT) — a winter coat with a V-neck collar and
+  // two flapped side pockets, unlike the old unrecognisable outline.
   jacket: {
-    d: ["M9,4 L7,7 L7,19 L17,19 L17,7 L15,4 L12,6.5 Z", "M7,7 L3.5,10 L3.5,15", "M17,7 L20.5,10 L20.5,15"],
+    d: [
+      "M16,3l-4,5l-4,-5",
+      "M12,19a2,2,0,0,1,-2,2h-4a2,2,0,0,1,-2,-2v-8.172a2,2,0,0,1,.586,-1.414l.828,-.828a2,2,0,0,0,.586,-1.414v-2.172a2,2,0,0,1,2,-2h8a2,2,0,0,1,2,2v2.172a2,2,0,0,0,.586,1.414l.828,.828a2,2,0,0,1,.586,1.414v8.172a2,2,0,0,1,-2,2h-4a2,2,0,0,1,-2,-2",
+      "M20,13h-3a1,1,0,0,0,-1,1v2a1,1,0,0,0,1,1h3",
+      "M4,17h3a1,1,0,0,0,1,-1v-2a1,1,0,0,0,-1,-1h-3",
+      "M12,19v-11",
+    ],
   },
+  // Hand-drawn — a sleeveless vest/gilet, distinguished from the jacket by
+  // its cut-away armholes and lack of a collar/lapel.
   midlayer: {
-    d: ["M9,5 Q12,3.3 15,5 L15,19 L9,19 Z", "M9,7 L4.5,9.5 L4.5,14", "M15,7 L19.5,9.5 L19.5,14"],
+    d: [
+      "M9,4.5 Q12,3 15,4.5 L15,19.5 L12,17.5 L9,19.5 Z",
+      "M9,4.5 L6.5,6 L7,10.5",
+      "M15,4.5 L17.5,6 L17,10.5",
+    ],
   },
+  // Tabler Icons "shirt" (MIT) — a t-shirt collar/sleeve silhouette.
   base: {
-    d: ["M8,4 L4,7.5 L6.5,10.5 L8,9 L8,20 L16,20 L16,9 L17.5,10.5 L20,7.5 L16,4 L13.5,6 L10.5,6 Z"],
+    d: ["M15,4l6,2v5h-3v8a1,1,0,0,1,-1,1h-10a1,1,0,0,1,-1,-1v-8h-3v-5l6,-2a3,3,0,0,0,6,0"],
   },
+  // Hand-drawn — a simple trouser silhouette: waistband + two legs split
+  // by a centre seam.
   bottoms: {
-    d: ["M7,4 L7,20 L10,20 L11,11 L13,11 L14,20 L17,20 L17,4 L13,4 L13,8.5 L11,8.5 L11,4 Z"],
+    d: ["M7,4 L17,4 L17,20 L13.5,20 L12,10 L10.5,20 L7,20 Z", "M7,7 L17,7"],
   },
+  // Tabler Icons "shoe" (MIT).
   shoe: {
-    d: ["M2,17.5 L2,13 Q2,11.5 3.5,11 L8,9.5 L9,10.5 L14,12 L20,12.5 Q22,12.7 22,15 L22,17.5 Z"],
+    d: [
+      "M4,6h5.426a1,1,0,0,1,.863,.496l1.064,1.823a3,3,0,0,0,1.896,1.407l4.677,1.114a4,4,0,0,1,3.074,3.89v2.27a1,1,0,0,1,-1,1h-16a1,1,0,0,1,-1,-1v-10a1,1,0,0,1,1,-1",
+      "M14,13l1,-2",
+      "M8,18v-1a4,4,0,0,0,-4,-4h-1",
+      "M10,12l1.5,-3",
+    ],
   },
+  // Tabler Icons "umbrella" (MIT).
   umbrella: {
-    d: ["M4,13 A8,8 0 0,1 20,13", "M12,20 Q12,23 9,23"],
-    lines: [{ x1: 12, y1: 13, x2: 12, y2: 20 }],
+    d: ["M4,12a8,8,0,0,1,16,0l-16,0", "M12,12v6a2,2,0,0,0,4,0"],
   },
+  // Tabler Icons "sunglasses" (MIT).
   sunglasses: {
-    d: [],
-    rects: [
-      { x: 2.5, y: 9, w: 7, h: 6, rx: 2 },
-      { x: 14.5, y: 9, w: 7, h: 6, rx: 2 },
-    ],
-    lines: [
-      { x1: 9.5, y1: 11, x2: 14.5, y2: 11 },
-      { x1: 2.5, y1: 10.5, x2: 0.5, y2: 9 },
-      { x1: 21.5, y1: 10.5, x2: 23.5, y2: 9 },
+    d: [
+      "M8,4h-2l-3,10",
+      "M16,4h2l3,10",
+      "M10,16h4",
+      "M21,16.5a3.5,3.5,0,0,1,-7,0v-2.5h7v2.5",
+      "M10,16.5a3.5,3.5,0,0,1,-7,0v-2.5h7v2.5",
+      "M4,14l4.5,4.5",
+      "M15,14l4.5,4.5",
     ],
   },
+  // Tabler Icons "backpack" (MIT) — a generic carried-accessory glyph
+  // (bag), used whenever the free-text accessory name isn't sunglasses.
   accessory: {
-    d: ["M7,10 Q7,5 11,5 Q15,5 15,10 L15,18 Q15,20 13,20 L9,20 Q7,20 7,18 Z", "M7,11 Q4,11 4,14 Q4,16 6,16 L7,16"],
+    d: [
+      "M5,18v-6a6,6,0,0,1,6,-6h2a6,6,0,0,1,6,6v6a3,3,0,0,1,-3,3h-8a3,3,0,0,1,-3,-3",
+      "M10,6v-1a2,2,0,1,1,4,0v1",
+      "M9,21v-4a2,2,0,0,1,2,-2h2a2,2,0,0,1,2,2v4",
+      "M11,10h2",
+    ],
+  },
+  // Tabler Icons "car" (MIT) — used by GearThumbnail's vehicle rows.
+  vehicle: {
+    d: [
+      "M5,17a2,2,0,1,0,4,0a2,2,0,1,0,-4,0",
+      "M15,17a2,2,0,1,0,4,0a2,2,0,1,0,-4,0",
+      "M5,17h-2v-6l2,-5h9l4,5h1a2,2,0,0,1,2,2v4h-2m-4,0h-6m-6,-6h15m-6,0v-5",
+    ],
   },
 };
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
+import FormRow from "../../components/FormRow";
 import { newId } from "../../db/rowMapping";
 import useTheme from "../../theme/useTheme";
 import type { ShoeItem, ShoeType } from "../../types";
@@ -38,15 +39,14 @@ export default function ShoeForm({ initial, onSubmit, onCancel, onDelete, onMark
       <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
 
       <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Waterproof boots" />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder="Waterproof boots" />
 
       <Text style={styles.label}>Type</Text>
       <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Waterproof</Text>
+      <FormRow label="Waterproof" style={styles.switchRow}>
         <Switch value={waterproof} onValueChange={setWaterproof} />
-      </View>
+      </FormRow>
 
       <Text style={styles.label}>Grip</Text>
       <SingleSelect options={GRIP_OPTIONS} value={grip} onChange={setGrip} />
@@ -79,8 +79,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     container: { padding: 20, gap: 4, alignItems: "stretch" },
     label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
-    switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, minHeight: 44 },
-    switchLabel: { fontSize: 15, color: theme.textPrimary },
+    switchRow: { marginTop: 12 },
     actions: { flexDirection: "row", gap: 12, marginTop: 24 },
     cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },

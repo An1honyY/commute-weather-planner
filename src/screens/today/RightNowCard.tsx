@@ -4,6 +4,9 @@ import { classifyWeather } from "../../lib/weather";
 import useWeatherTheme from "../../theme/useWeatherTheme";
 import { cardElevationStyle } from "../../theme/tokens";
 import ClothingTypeIcon, { accessoryIconKind, type ClothingIconKind } from "../../components/ClothingTypeIcon";
+import WeatherIcon, { weatherIconKindFor } from "../../components/WeatherIcon";
+import { formatTime } from "../../lib/formatTime";
+import { useTimeFormatStore } from "../../lib/useTimeFormatStore";
 import type { LayerPick } from "../../lib/recommend";
 
 // "Right now" card — docs/09-design-system.md §9.3.1, docs/04-screens-
@@ -26,9 +29,10 @@ function layerIconKind(pick: LayerPick): ClothingIconKind {
   return "accessory";
 }
 
-export default function RightNowCard({ loading, weather, recommendation, isFallbackLocation }: RightNowState) {
+export default function RightNowCard({ loading, weather, recommendation, suburb }: RightNowState) {
   const theme = useWeatherTheme(weather);
   const styles = getStyles(theme);
+  const hour12 = useTimeFormatStore((s) => s.timeFormatPreference !== "24h");
 
   if (loading) {
     return (
@@ -47,7 +51,7 @@ export default function RightNowCard({ loading, weather, recommendation, isFallb
   }
 
   const condition = classifyWeather(weather.weatherCode, weather.precipMm, weather.windKph);
-  const asOf = new Date(weather.time).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const asOf = formatTime(weather.time, hour12);
   const picks: { pick: { name: string } | { fallbackText: string }; icon: ClothingIconKind }[] = [
     ...recommendation.layers.map((pick) => ({ pick, icon: layerIconKind(pick) })),
     ...recommendation.accessories.map((pick) => ({ pick, icon: layerIconKind(pick) })),
@@ -58,9 +62,9 @@ export default function RightNowCard({ loading, weather, recommendation, isFallb
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Right now</Text>
-      {isFallbackLocation && <Text style={styles.fallbackLocationLabel}>Example — Auckland</Text>}
+      {suburb && <Text style={styles.suburbLabel}>{suburb}</Text>}
       <View style={styles.conditionRow}>
-        <Text style={styles.conditionIcon}>{condition.icon}</Text>
+        <WeatherIcon kind={weatherIconKindFor(condition)} size={22} color={theme.textPrimary} />
         <Text style={styles.temp}>{Math.round(weather.apparentTempC)}°C</Text>
         <Text style={styles.conditionLabel}>{condition.label}</Text>
         {weather.uvIndex >= 6 && (
@@ -100,9 +104,8 @@ function getStyles(theme: ReturnType<typeof useWeatherTheme>) {
       ...cardElevationStyle(theme),
     },
     title: { fontSize: 15, fontWeight: "600", color: theme.textPrimary },
-    fallbackLocationLabel: { fontSize: 12, color: theme.textSecondary },
+    suburbLabel: { fontSize: 12, color: theme.textSecondary },
     conditionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    conditionIcon: { fontSize: 20 },
     temp: { fontSize: 24, fontWeight: "700", color: theme.textPrimary },
     conditionLabel: { fontSize: 14, color: theme.textSecondary },
     uvBadge: { marginLeft: "auto", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: theme.uvBadge },

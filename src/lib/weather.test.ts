@@ -1,4 +1,12 @@
-import { acFeelsCold, classifyWeather, forecastConfidence, getSeason, rainIntensityBucket, resolveWeatherMood } from "./weather";
+import {
+  acFeelsCold,
+  classifyWeather,
+  findRainWindowNear,
+  forecastConfidence,
+  getSeason,
+  rainIntensityBucket,
+  resolveWeatherMood,
+} from "./weather";
 import type { Journey, JourneyLeg } from "../types";
 
 // docs/11-testing-strategy.md §11.1 — table-driven over the full WMO code
@@ -167,5 +175,75 @@ describe("resolveWeatherMood", () => {
 
   it("a mid-range temperature with ordinary conditions -> mild", () => {
     expect(resolveWeatherMood(15, 1)).toBe("mild");
+  });
+});
+
+// PlanScreen's return-trip rain-shower suggestion.
+describe("findRainWindowNear", () => {
+  function reading(hour: number, rainIntensity: "none" | "low" | "med" | "high") {
+    return { time: `2026-07-23T${String(hour).padStart(2, "0")}:00:00.000Z`, rainIntensity };
+  }
+
+  it("finds a rain run overlapping the target time", () => {
+    const readings = [reading(15, "none"), reading(16, "med"), reading(17, "med"), reading(18, "none")];
+    const result = findRainWindowNear(readings, "2026-07-23T16:30:00.000Z", 2);
+    expect(result).toEqual({ startIso: reading(16, "med").time, endIso: "2026-07-23T18:00:00.000Z" });
+  });
+
+  it("finds the nearest rain run when the target itself is dry", () => {
+    const readings = [reading(15, "none"), reading(16, "med"), reading(17, "none")];
+    const result = findRainWindowNear(readings, "2026-07-23T17:00:00.000Z", 2);
+    expect(result).toEqual({ startIso: reading(16, "med").time, endIso: "2026-07-23T17:00:00.000Z" });
+  });
+
+  it("returns null when no rain run falls within lookAroundHours", () => {
+    const readings = [reading(10, "med"), reading(17, "none")];
+    expect(findRainWindowNear(readings, "2026-07-23T17:00:00.000Z", 2)).toBeNull();
+  });
+
+  it("returns null when every reading is dry", () => {
+    const readings = [reading(16, "none"), reading(17, "low")];
+    expect(findRainWindowNear(readings, "2026-07-23T16:30:00.000Z", 2)).toBeNull();
+  });
+
+  it("low intensity does not count as a rain window", () => {
+    const readings = [reading(16, "low"), reading(17, "low")];
+    expect(findRainWindowNear(readings, "2026-07-23T16:30:00.000Z", 2)).toBeNull();
+  });
+
+  // "Leave before X or after Y" is only correct if both sides are actually
+  // dry — a run that isn't bounded by a dry reading on both sides might
+  // just be the visible edge of a longer spell, where shifting either way
+  // still gets you wet.
+  it("suppresses the suggestion when rain runs off the start of the data (no dry reading before it)", () => {
+    const readings = [reading(16, "med"), reading(17, "med"), reading(18, "none")];
+    expect(findRainWindowNear(readings, "2026-07-23T16:30:00.000Z", 2)).toBeNull();
+  });
+
+  it("suppresses the suggestion when rain runs off the end of the data (no dry reading after it)", () => {
+    const readings = [reading(16, "none"), reading(17, "med"), reading(18, "med")];
+    expect(findRainWindowNear(readings, "2026-07-23T17:30:00.000Z", 2)).toBeNull();
+  });
+
+  it("suppresses the suggestion for continuous rain spanning the target on both sides", () => {
+    const readings = [reading(14, "med"), reading(15, "med"), reading(16, "med"), reading(17, "none")];
+    expect(findRainWindowNear(readings, "2026-07-23T16:00:00.000Z", 2)).toBeNull();
+  });
+
+  it("still finds an isolated shower even with continuous rain further away, outside lookAroundHours", () => {
+    // A longer, non-isolated spell at 08-10 is far from the target and
+    // outside lookAroundHours; the genuinely isolated 16:00 shower near
+    // the target should still be found.
+    const readings = [
+      reading(8, "med"),
+      reading(9, "med"),
+      reading(10, "med"),
+      reading(11, "none"),
+      reading(15, "none"),
+      reading(16, "med"),
+      reading(17, "none"),
+    ];
+    const result = findRainWindowNear(readings, "2026-07-23T16:30:00.000Z", 2);
+    expect(result).toEqual({ startIso: reading(16, "med").time, endIso: "2026-07-23T17:00:00.000Z" });
   });
 });

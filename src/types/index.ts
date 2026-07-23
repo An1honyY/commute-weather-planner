@@ -187,6 +187,13 @@ export type GearFeedback = "much_too_cold" | "too_cold" | "just_right" | "too_wa
 // live engine.
 export interface RecommendationSnapshot {
   layerNames: string[];
+  // Parallel, index-matched array (same order as layerNames, before any
+  // display-time reversal) recording each layer's ClothingType, so the
+  // frozen view can still show a real icon per layer instead of reading
+  // icon-less — added after the freeze already existed; optional so old
+  // rows written before this field existed just degrade to icon-less
+  // layers rather than needing a migration/backfill.
+  layerTypes?: ClothingType[];
   accessoryNames: string[];
   shoeName: string | null;
   umbrellaName: string | null;

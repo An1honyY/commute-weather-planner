@@ -4,6 +4,7 @@ import type { SavedLocation } from "../../types";
 import useTheme from "../../theme/useTheme";
 import AddressAutocomplete from "../../components/AddressAutocomplete";
 import LocationPickerMap from "../../components/LocationPickerMap";
+import ActionIcon from "../../components/ActionIcon";
 import { reverseGeocode } from "../../services/placesService";
 
 // Add/edit form for a SavedLocation — docs/04-screens-navigation.md item 3.
@@ -97,7 +98,7 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Label</Text>
-      <TextInput style={styles.input} value={label} onChangeText={setLabel} placeholder="Home" />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={label} onChangeText={setLabel} placeholder="Home" />
 
       <Text style={styles.label}>Address</Text>
       <AddressAutocomplete
@@ -115,7 +116,10 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
         {resolvingPin ? (
           <ActivityIndicator size="small" color={theme.accentWalk} />
         ) : (
-          <Text style={styles.mapPickerLabel}>📍 Pick on map</Text>
+          <View style={styles.mapPickerContent}>
+            <ActionIcon kind="pin" size={15} color={theme.accentWalk} />
+            <Text style={styles.mapPickerLabel}>Pick on map</Text>
+          </View>
         )}
       </Pressable>
 
@@ -138,18 +142,18 @@ export default function LocationForm({ initial, onSubmit, onCancel, onDelete }: 
           <View style={styles.row}>
             <View style={styles.half}>
               <Text style={styles.label}>Latitude</Text>
-              <TextInput style={styles.input} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
+              <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="-36.8485" />
             </View>
             <View style={styles.half}>
               <Text style={styles.label}>Longitude</Text>
-              <TextInput style={styles.input} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
+              <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="174.7633" />
             </View>
           </View>
         </>
       )}
 
       <Pressable onPress={() => setIsFavorite((v) => !v)} style={styles.favoriteRow}>
-        <Text style={styles.favoriteStar}>{isFavorite ? "★" : "☆"}</Text>
+        <ActionIcon kind="star" size={20} color={theme.favoriteStar} filled={isFavorite} />
         <Text style={styles.label}>Favorite</Text>
       </Pressable>
 
@@ -207,16 +211,19 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     row: { flexDirection: "row", gap: 12 },
     half: { flex: 1 },
     mapPickerRow: { marginTop: 10, alignSelf: "flex-start", minHeight: 30, justifyContent: "center" },
+    mapPickerContent: { flexDirection: "row", alignItems: "center", gap: 6 },
     mapPickerLabel: { fontSize: 13, fontWeight: "600", color: theme.accentWalk },
     advancedHeader: { marginTop: 16 },
     hint: { fontSize: 12, color: theme.textSecondary, marginBottom: 4 },
     favoriteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16, minHeight: 44 },
-    favoriteStar: { fontSize: 22, color: theme.favoriteStar },
     segmentRow: { flexDirection: "row", gap: 8 },
     segment: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.border, alignItems: "center" },
     segmentActive: { backgroundColor: theme.accentWalk, borderColor: theme.textPrimary },
     segmentLabel: { fontSize: 13, color: theme.textPrimary },
-    segmentLabelActive: { color: theme.bg, fontWeight: "600" },
+    // Matches SettingsScreen.tsx's equivalent segmented control — both used
+    // to disagree (theme.bg vs white for the active label); white reads
+    // correctly against accentWalk in both themes, so unified on that.
+    segmentLabelActive: { color: "#FFFFFF", fontWeight: "600" },
     actions: { flexDirection: "row", gap: 12, marginTop: 24 },
     cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },

@@ -37,7 +37,7 @@ export default function UmbrellaForm({ initial, onSubmit, onCancel, onDelete, on
       <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
 
       <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Black golf umbrella" />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder="Black golf umbrella" />
 
       <Text style={styles.label}>Type</Text>
       <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />

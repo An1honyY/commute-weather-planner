@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import type { EnvironmentAnnotation, EnvironmentEffectType } from "../../types";
 import { EFFECT_META, EFFECT_OPTIONS } from "./effectMeta";
 import RadiusSlider from "../../components/RadiusSlider";
+import EffectIcon from "../../components/EffectIcon";
 import useTheme from "../../theme/useTheme";
 
 // Shared add/edit form for an EnvironmentAnnotation — docs/04-screens-
@@ -83,7 +84,7 @@ export default function AnnotationForm({
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
             >
-              <Text style={styles.effectIcon}>{EFFECT_META[option].icon}</Text>
+              <EffectIcon kind={option} size={20} color={active ? theme.bg : theme.textPrimary} />
               <Text style={[styles.effectLabel, active && styles.effectLabelActive]}>{EFFECT_META[option].label}</Text>
             </Pressable>
           );
@@ -93,6 +94,7 @@ export default function AnnotationForm({
       <Text style={styles.fieldLabel}>Label</Text>
       <TextInput
         style={styles.input}
+        placeholderTextColor={theme.textSecondary}
         value={label}
         onChangeText={setLabel}
         placeholder={EFFECT_META[effect].placeholder}
@@ -111,6 +113,7 @@ export default function AnnotationForm({
             <Text style={styles.fieldLabel}>Latitude</Text>
             <TextInput
               style={styles.input}
+              placeholderTextColor={theme.textSecondary}
               value={lat}
               onChangeText={setLat}
               keyboardType="numbers-and-punctuation"
@@ -121,6 +124,7 @@ export default function AnnotationForm({
             <Text style={styles.fieldLabel}>Longitude</Text>
             <TextInput
               style={styles.input}
+              placeholderTextColor={theme.textSecondary}
               value={lng}
               onChangeText={setLng}
               keyboardType="numbers-and-punctuation"
@@ -133,6 +137,7 @@ export default function AnnotationForm({
       <Text style={styles.fieldLabel}>Notes (optional)</Text>
       <TextInput
         style={[styles.input, styles.notesInput]}
+        placeholderTextColor={theme.textSecondary}
         value={notes}
         onChangeText={setNotes}
         placeholder="Shown when this spot affects a journey"
@@ -185,7 +190,6 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
       gap: 4,
     },
     effectButtonActive: { backgroundColor: theme.accentWalk, borderColor: theme.textPrimary },
-    effectIcon: { fontSize: 20 },
     effectLabel: { fontSize: 11, textAlign: "center", color: theme.textPrimary },
     effectLabelActive: { color: theme.bg, fontWeight: "600" },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },

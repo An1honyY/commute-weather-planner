@@ -4,6 +4,7 @@ import WarmthSlider from "../../components/WarmthSlider";
 import TagChips, { ACCESSORY_TAG_OPTIONS, BASE_TAG_OPTIONS, BOTTOMS_TAG_OPTIONS, LAYER_TAG_OPTIONS } from "../../components/TagChips";
 import SingleSelect from "../../components/SingleSelect";
 import PhotoPicker from "../../components/PhotoPicker";
+import FormRow from "../../components/FormRow";
 import { newId } from "../../db/rowMapping";
 import useTheme from "../../theme/useTheme";
 import type { ClothingItem, ClothingType } from "../../types";
@@ -68,7 +69,7 @@ export default function ClothingForm({ initial, initialType, onSubmit, onCancel,
       <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
 
       <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Blue rain shell" />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder="Blue rain shell" />
 
       <Text style={styles.label}>Type</Text>
       <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />
@@ -82,18 +83,15 @@ export default function ClothingForm({ initial, initialType, onSubmit, onCancel,
         onToggleSubstitutes={setSubstitutesForMidlayer}
       />
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Waterproof</Text>
+      <FormRow label="Waterproof" style={styles.switchRow}>
         <Switch value={waterproof} onValueChange={setWaterproof} />
-      </View>
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Windproof</Text>
+      </FormRow>
+      <FormRow label="Windproof" style={styles.switchRow}>
         <Switch value={windproof} onValueChange={setWindproof} />
-      </View>
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Packable</Text>
+      </FormRow>
+      <FormRow label="Packable" style={styles.switchRow}>
         <Switch value={packable} onValueChange={setPackable} />
-      </View>
+      </FormRow>
 
       {tagOptions.length > 0 && (
         <>
@@ -130,8 +128,7 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     container: { padding: 20, gap: 4, alignItems: "stretch" },
     label: { fontSize: 13, color: theme.textSecondary, marginTop: 16, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: theme.textPrimary },
-    switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, minHeight: 44 },
-    switchLabel: { fontSize: 15, color: theme.textPrimary },
+    switchRow: { marginTop: 12 },
     actions: { flexDirection: "row", gap: 12, marginTop: 24 },
     cancelButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     saveButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 8, backgroundColor: theme.accentWalk },

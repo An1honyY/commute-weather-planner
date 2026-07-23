@@ -154,12 +154,21 @@ export async function getPlaceLocation(placeId: string, sessionToken: string): P
   };
 }
 
+interface GoogleGeocodeAddressComponent {
+  long_name?: string;
+  short_name?: string;
+  types?: string[];
+}
+interface GoogleGeocodeResult {
+  formatted_address?: string;
+  address_components?: GoogleGeocodeAddressComponent[];
+}
 interface GoogleGeocodeResponse {
   status?: string;
-  results?: { formatted_address?: string }[];
+  results?: GoogleGeocodeResult[];
 }
 
-export async function reverseGeocode(lat: number, lng: number): Promise<ServiceResult<{ formattedAddress: string }>> {
+async function fetchReverseGeocode(lat: number, lng: number): Promise<ServiceResult<GoogleGeocodeResult>> {
   const key = apiKey();
   if (!key) return { error: "unreachable" };
 
@@ -182,8 +191,33 @@ export async function reverseGeocode(lat: number, lng: number): Promise<ServiceR
   }
 
   if (payload.status === "OVER_QUERY_LIMIT") return { error: "rate-limited" };
-  const formattedAddress = payload.results?.[0]?.formatted_address;
-  if (!formattedAddress) return { error: "unreachable" };
+  const result = payload.results?.[0];
+  if (!result?.formatted_address) return { error: "unreachable" };
 
-  return { data: { formattedAddress } };
+  return { data: result };
+}
+
+export async function reverseGeocode(lat: number, lng: number): Promise<ServiceResult<{ formattedAddress: string }>> {
+  const result = await fetchReverseGeocode(lat, lng);
+  if ("error" in result) return result;
+  return { data: { formattedAddress: result.data.formatted_address! } };
+}
+
+// The "Right now" card (§4.2) shows a short place name rather than a full
+// street address — pulls the suburb-level component (`sublocality`, or
+// `locality` when there's no finer-grained suburb, e.g. a smaller town)
+// from the same Geocoding response `reverseGeocode()` already fetches,
+// rather than a second call. Falls back to the first comma-separated
+// segment of the formatted address if neither component type is present
+// (observed to happen for some rural/edge-of-region points).
+export async function reverseGeocodeSuburb(lat: number, lng: number): Promise<ServiceResult<{ suburb: string }>> {
+  const result = await fetchReverseGeocode(lat, lng);
+  if ("error" in result) return result;
+
+  const components = result.data.address_components ?? [];
+  const bySuburb = components.find((c) => c.types?.includes("sublocality") || c.types?.includes("sublocality_level_1"));
+  const byLocality = components.find((c) => c.types?.includes("locality"));
+  const suburb = bySuburb?.long_name ?? byLocality?.long_name ?? result.data.formatted_address!.split(",")[0].trim();
+
+  return { data: { suburb } };
 }

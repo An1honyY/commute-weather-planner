@@ -38,7 +38,7 @@ export default function VehicleForm({ initial, onSubmit, onCancel, onDelete }: P
       <PhotoPicker itemId={id} photoUri={photoUri} onChange={setPhotoUri} />
 
       <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Honda Civic" />
+      <TextInput style={styles.input} placeholderTextColor={theme.textSecondary} value={name} onChangeText={setName} placeholder="Honda Civic" />
 
       <Text style={styles.label}>Type</Text>
       <SingleSelect options={TYPE_OPTIONS} value={type} onChange={setType} />

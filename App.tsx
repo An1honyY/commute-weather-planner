@@ -5,7 +5,7 @@ import * as Notifications from "expo-notifications";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getDb } from "./src/db";
-import { getThemePreference, isOnboardingCompleted } from "./src/db/repositories/settings";
+import { getThemePreference, getTimeFormatPreference, isOnboardingCompleted } from "./src/db/repositories/settings";
 import { listUpcomingJourneys } from "./src/db/repositories/journeys";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { withTimeout } from "./src/lib/withTimeout";
@@ -14,6 +14,7 @@ import { runCalibrationDecayIfDue } from "./src/lib/calibration";
 import { checkForecastDrift } from "./src/lib/forecastDrift";
 import { initCrashReportingIfEnabled } from "./src/lib/crashReporting";
 import { useThemeStore } from "./src/theme/useThemeStore";
+import { useTimeFormatStore } from "./src/lib/useTimeFormatStore";
 
 // §5.2 — same-day journeys get re-checked at 3h/30min out; this foreground
 // supplement instead just covers "anything departing soon enough that a
@@ -41,6 +42,10 @@ export default function App() {
     // every change, so this is the only cold-start read needed.
     withTimeout(getThemePreference(), "system").then((preference) =>
       useThemeStore.getState().setThemePreference(preference)
+    );
+    // Same pattern for the 12h/24h time format preference.
+    withTimeout(getTimeFormatPreference(), "12h").then((preference) =>
+      useTimeFormatStore.getState().setTimeFormatPreference(preference)
     );
     // §10.5 — only initializes the provider when the stored preference is
     // already true (set during onboarding or a prior Settings visit); a

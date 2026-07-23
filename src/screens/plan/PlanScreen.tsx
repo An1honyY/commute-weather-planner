@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -8,8 +8,13 @@ import { createSavedRoute, listSavedRoutes, touchSavedRoute } from "../../db/rep
 import { updateJourney } from "../../db/repositories/journeys";
 import { planJourney, DEPART_TIME_LEAD_MS } from "../../lib/planJourney";
 import { showAlert } from "../../lib/crossPlatformAlert";
+import { findRainWindowNear } from "../../lib/weather";
+import { getHourlyForecast } from "../../services/weatherService";
+import { formatTime } from "../../lib/formatTime";
+import { useTimeFormatStore } from "../../lib/useTimeFormatStore";
 import SavedLocationPicker from "../../components/SavedLocationPicker";
 import HourlyStrip from "../../components/HourlyStrip";
+import FormRow from "../../components/FormRow";
 import useTheme from "../../theme/useTheme";
 import type { CarryPreference, SavedLocation, SavedRoute, TravelMode } from "../../types";
 
@@ -26,6 +31,23 @@ const MODE_LABEL: Record<TravelMode, string> = {
   hike: "Hike",
 };
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// A default return time needs *some* starting point before the user edits
+// it — 8h after the outbound leave time approximates a typical workday,
+// same as the placeholder value Phase 3 originally hardcoded (now
+// user-editable rather than fixed).
+const DEFAULT_RETURN_GAP_MS = 8 * 60 * 60_000;
+// How far around the chosen return time to look for a nearby rain window —
+// wide enough to catch "just missed it by 45 minutes," narrow enough that
+// the suggestion still reads as "near your time," not "sometime today."
+const RETURN_RAIN_LOOKAROUND_HOURS = 2;
+// findRainWindowNear() only suggests a shift when the rain run has a dry
+// reading immediately before and after it — a genuine isolated shower, not
+// just the edge of a longer spell. Fetching this much extra padding beyond
+// the lookaround window means a shower sitting right at that boundary
+// still has a real reading past it to confirm dryness against, rather than
+// silently failing the isolation check for lack of data.
+const RETURN_RAIN_FETCH_PADDING_HOURS = 2;
 
 type TimeMode = "leave-now" | "leave-by" | "arrive-by";
 const TIME_MODE_LABEL: Record<TimeMode, string> = {
@@ -66,8 +88,13 @@ export default function PlanScreen() {
   const [repeatsEnabled, setRepeatsEnabled] = useState(false);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [planReturnTrip, setPlanReturnTrip] = useState(false);
+  const [returnDateStr, setReturnDateStr] = useState("");
+  const [returnTimeStr, setReturnTimeStr] = useState("");
+  const [returnRainWindow, setReturnRainWindow] = useState<{ startIso: string; endIso: string } | null>(null);
+  const hour12 = useTimeFormatStore((s) => s.timeFormatPreference !== "24h");
   const [saveThisRoute, setSaveThisRoute] = useState(false);
   const [formal, setFormal] = useState(false);
+  const [moreModesOpen, setMoreModesOpen] = useState(false);
   const [carryPreference, setCarryPreference] = useState<CarryPreference>("no-preference");
   const [planning, setPlanning] = useState(false);
 
@@ -170,7 +197,17 @@ export default function PlanScreen() {
       }
 
       if (planReturnTrip) {
-        const returnDepart = new Date(new Date(result.journey.departTime).getTime() + 8 * 60 * 60_000).toISOString(); // mock: +8h, same as Phase 3
+        // A user-picked return date/time (defaulted to +8h when the toggle
+        // was switched on, editable from there) replaces the old fixed
+        // +8h-no-matter-what mock. Falls back to that same +8h if the
+        // fields are somehow still empty (e.g. toggled on and off fast
+        // enough that the seeding effect never ran).
+        const parsedReturn = returnDateStr && returnTimeStr ? new Date(`${returnDateStr}T${returnTimeStr}:00`) : null;
+        const returnDepart = (
+          parsedReturn && !isNaN(parsedReturn.getTime())
+            ? parsedReturn
+            : new Date(new Date(result.journey.departTime).getTime() + DEFAULT_RETURN_GAP_MS)
+        ).toISOString();
         const returnResult = await planJourney({
           origin: destination,
           destination: origin,
@@ -213,6 +250,47 @@ export default function PlanScreen() {
     const selectedDepartTime = new Date(`${dateStr}T${timeStr}:00`);
     selectedDepartTimeIso = isNaN(selectedDepartTime.getTime()) ? undefined : selectedDepartTime.toISOString();
   }
+
+  // Same "omit rather than crash on invalid in-progress typing" pattern as
+  // selectedDepartTimeIso above.
+  let returnDepartTimeIso: string | undefined;
+  if (returnDateStr && returnTimeStr) {
+    const returnDepartTime = new Date(`${returnDateStr}T${returnTimeStr}:00`);
+    returnDepartTimeIso = isNaN(returnDepartTime.getTime()) ? undefined : returnDepartTime.toISOString();
+  }
+
+  function seedReturnTimeIfUnset(enabling: boolean) {
+    setPlanReturnTrip(enabling);
+    if (enabling && !returnDateStr && !returnTimeStr) {
+      const base = new Date((selectedDepartTimeIso ? new Date(selectedDepartTimeIso).getTime() : Date.now()) + DEFAULT_RETURN_GAP_MS);
+      setReturnDateStr(`${base.getFullYear()}-${pad2(base.getMonth() + 1)}-${pad2(base.getDate())}`);
+      setReturnTimeStr(`${pad2(base.getHours())}:${pad2(base.getMinutes())}`);
+    }
+  }
+
+  // Scans a window centred on the chosen return time for a nearby rain
+  // window (§7.14-adjacent, but purely informational — same non-blocking,
+  // suggestion-only posture as the severe-weather advisory). Runs off the
+  // *destination*'s coordinates, since that's where the return leg departs
+  // from. Omits the suggestion entirely on a failed fetch, same "supplement,
+  // not a blocker" degrade HourlyStrip already uses.
+  useEffect(() => {
+    if (!planReturnTrip || !destination || !returnDepartTimeIso) {
+      setReturnRainWindow(null);
+      return;
+    }
+    let cancelled = false;
+    const lookAroundMs = (RETURN_RAIN_LOOKAROUND_HOURS + RETURN_RAIN_FETCH_PADDING_HOURS) * 3_600_000;
+    const fetchFromIso = new Date(new Date(returnDepartTimeIso).getTime() - lookAroundMs).toISOString();
+    const hoursToFetch = (RETURN_RAIN_LOOKAROUND_HOURS + RETURN_RAIN_FETCH_PADDING_HOURS) * 2 + 1;
+    getHourlyForecast({ lat: destination.lat, lng: destination.lng }, fetchFromIso, hoursToFetch).then((result) => {
+      if (cancelled) return;
+      setReturnRainWindow("data" in result ? findRainWindowNear(result.data, returnDepartTimeIso!, RETURN_RAIN_LOOKAROUND_HOURS) : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [planReturnTrip, destination?.lat, destination?.lng, returnDepartTimeIso]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -264,8 +342,20 @@ export default function PlanScreen() {
       </View>
       {timeMode !== "leave-now" && (
         <View style={styles.row}>
-          <TextInput style={[styles.input, styles.flex1]} value={dateStr} onChangeText={setDateStr} placeholder="YYYY-MM-DD" />
-          <TextInput style={[styles.input, styles.flex1]} value={timeStr} onChangeText={setTimeStr} placeholder="HH:mm" />
+          <TextInput
+            style={[styles.input, styles.flex1]}
+            placeholderTextColor={theme.textSecondary}
+            value={dateStr}
+            onChangeText={setDateStr}
+            placeholder="YYYY-MM-DD"
+          />
+          <TextInput
+            style={[styles.input, styles.flex1]}
+            placeholderTextColor={theme.textSecondary}
+            value={timeStr}
+            onChangeText={setTimeStr}
+            placeholder="HH:mm"
+          />
         </View>
       )}
       {origin && selectedDepartTimeIso && (
@@ -280,18 +370,18 @@ export default function PlanScreen() {
           </Pressable>
         ))}
       </View>
-      <Pressable
-        onPress={() =>
-          showAlert("More modes", "Hike mode isn't available yet — walking, driving, bus, train, and cycling are ready to plan.")
-        }
-      >
-        <Text style={styles.moreModesLabel}>More modes</Text>
+      <Pressable onPress={() => setMoreModesOpen((v) => !v)} accessibilityRole="button" accessibilityLabel="More modes">
+        <Text style={styles.moreModesLabel}>{moreModesOpen ? "▾" : "▸"} More modes</Text>
       </Pressable>
+      {moreModesOpen && (
+        <Text style={styles.moreModesNote}>
+          Hike mode isn&apos;t available yet — walking, driving, bus, train, and cycling are ready to plan.
+        </Text>
+      )}
 
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Formal occasion</Text>
+      <FormRow label="Formal occasion" style={styles.formRowSpaced}>
         <Switch value={formal} onValueChange={setFormal} />
-      </View>
+      </FormRow>
 
       <Pressable
         onPress={() => setCarryPreference((p) => (p === "no-preference" ? "avoid-spares" : "no-preference"))}
@@ -301,10 +391,9 @@ export default function PlanScreen() {
       </Pressable>
 
       {timeMode === "leave-by" && (
-        <View style={styles.switchRow}>
-          <Text style={styles.label}>Repeats</Text>
+        <FormRow label="Repeats" style={styles.formRowSpaced}>
           <Switch value={repeatsEnabled} onValueChange={setRepeatsEnabled} />
-        </View>
+        </FormRow>
       )}
       {timeMode === "leave-by" && repeatsEnabled && (
         <View style={styles.row}>
@@ -320,14 +409,54 @@ export default function PlanScreen() {
         </View>
       )}
 
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Plan return trip too</Text>
-        <Switch value={planReturnTrip} onValueChange={setPlanReturnTrip} />
+      {/* One card holds both the toggle and (when on) the time picker below
+          it, rather than a switch with a separately-styled block floating
+          underneath — the shared card boundary is what reads as "this
+          content belongs to this toggle," the same way the Settings
+          screen's Advanced disclosure keeps its body inside its own
+          section. */}
+      <View style={styles.returnCard}>
+        <FormRow label="Plan return trip too">
+          <Switch value={planReturnTrip} onValueChange={seedReturnTimeIfUnset} />
+        </FormRow>
+        {planReturnTrip && (
+          <View style={styles.returnCardBody}>
+            <View style={styles.returnCardDivider} />
+            <Text style={styles.label}>Return time</Text>
+            <View style={styles.row}>
+              <TextInput
+                style={[styles.input, styles.flex1]}
+                placeholderTextColor={theme.textSecondary}
+                value={returnDateStr}
+                onChangeText={setReturnDateStr}
+                placeholder="YYYY-MM-DD"
+              />
+              <TextInput
+                style={[styles.input, styles.flex1]}
+                placeholderTextColor={theme.textSecondary}
+                value={returnTimeStr}
+                onChangeText={setReturnTimeStr}
+                placeholder="HH:mm"
+              />
+            </View>
+            {destination && returnDepartTimeIso && (
+              <HourlyStrip origin={{ lat: destination.lat, lng: destination.lng }} fromIso={returnDepartTimeIso} />
+            )}
+            {returnRainWindow && (
+              <View style={styles.rainSuggestion}>
+                <Text style={styles.rainSuggestionText}>
+                  Rain expected {formatTime(returnRainWindow.startIso, hour12)}–{formatTime(returnRainWindow.endIso, hour12)} near your
+                  return time — consider leaving before {formatTime(returnRainWindow.startIso, hour12)} or after{" "}
+                  {formatTime(returnRainWindow.endIso, hour12)} to dodge the shower.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Save this route</Text>
+      <FormRow label="Save this route" style={styles.formRowSpaced}>
         <Switch value={saveThisRoute} onValueChange={setSaveThisRoute} />
-      </View>
+      </FormRow>
 
       <Pressable onPress={handlePlanJourney} disabled={planning} style={[styles.planButton, planning && styles.planButtonDisabled]}>
         {planning ? <ActivityIndicator color={theme.bg} /> : <Text style={styles.planButtonLabel}>Plan journey</Text>}
@@ -356,7 +485,24 @@ function getStyles(theme: ReturnType<typeof useTheme>) {
     modeChipLabel: { fontSize: 13, color: theme.textPrimary },
     modeChipLabelActive: { color: "#FFFFFF", fontWeight: "600" },
     moreModesLabel: { color: theme.textSecondary, fontSize: 12, marginTop: 8 },
-    switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16, minHeight: 44 },
+    moreModesNote: { color: theme.textSecondary, fontSize: 12, marginTop: 4 },
+    formRowSpaced: { marginTop: 16 },
+    returnCard: {
+      marginTop: 16,
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+    },
+    returnCardBody: { marginTop: 4 },
+    returnCardDivider: { height: 1, backgroundColor: theme.border, marginTop: 12, marginBottom: 4 },
+    rainSuggestion: {
+      flexDirection: "row",
+      marginTop: 8,
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: theme.conditionRain,
+    },
+    rainSuggestionText: { flex: 1, fontSize: 12, fontWeight: "600", color: "#FFFFFF" },
     carryChip: { alignSelf: "flex-start", marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.border },
     carryChipLabel: { fontSize: 13, color: theme.textPrimary },
     dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.border },

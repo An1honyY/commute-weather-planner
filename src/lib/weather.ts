@@ -31,6 +31,68 @@ export function rainIntensityBucket(precipMm: number, precipProbabilityPct: numb
   return "high";
 }
 
+export interface RainWindow {
+  startIso: string;
+  endIso: string;
+}
+
+// Plan screen's return-trip picker (§4.3.1) — scans hourly readings for the
+// nearest contiguous run of med/high rain intensity within `lookAroundHours`
+// of a candidate departure time, so the UI can suggest "leave a little
+// earlier/later" to dodge a short shower rather than only ever reporting
+// the reading at the exact chosen minute. Readings are hourly-resolution
+// (Open-Meteo), so this can't resolve a shower narrower than about an hour,
+// but it's enough to flag "rain expected 5–6pm" against a 5:30pm pick.
+// Returns the single nearest run, not every rain window in range — one
+// clear suggestion beats a list the user has to interpret themselves.
+//
+// Only ever returns a run that's a genuinely *isolated* shower — bounded
+// by a dry (or unknown) reading immediately before its start and after its
+// end. "Leave before X or after Y" is only correct advice if both sides
+// are actually dry; a run that runs off either edge of the supplied
+// readings might just be the visible slice of a longer rain spell, where
+// shifting either direction still leaves the traveller wet. Callers should
+// fetch a little padding beyond `lookAroundHours` on each side so a shower
+// sitting right at the edge of the window still has a real dry reading to
+// check against, rather than silently failing this test just because the
+// data ran out.
+export function findRainWindowNear(
+  readings: { time: string; rainIntensity: RainIntensity }[],
+  targetIso: string,
+  lookAroundHours: number
+): RainWindow | null {
+  const targetMs = new Date(targetIso).getTime();
+  const maxDistanceMs = lookAroundHours * 3_600_000;
+  const isRainy = (r: RainIntensity) => r === "med" || r === "high";
+
+  let best: (RainWindow & { distanceMs: number }) | null = null;
+  let i = 0;
+  while (i < readings.length) {
+    if (!isRainy(readings[i].rainIntensity)) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < readings.length && isRainy(readings[j + 1].rainIntensity)) j++;
+
+    const hasDryBefore = i > 0 && !isRainy(readings[i - 1].rainIntensity);
+    const hasDryAfter = j + 1 < readings.length && !isRainy(readings[j + 1].rainIntensity);
+
+    if (hasDryBefore && hasDryAfter) {
+      const startMs = new Date(readings[i].time).getTime();
+      const endMs = new Date(readings[j].time).getTime() + 3_600_000; // through the end of that hour
+      const distanceMs = targetMs < startMs ? startMs - targetMs : targetMs > endMs ? targetMs - endMs : 0;
+
+      if (distanceMs <= maxDistanceMs && (!best || distanceMs < best.distanceMs)) {
+        best = { startIso: readings[i].time, endIso: new Date(endMs).toISOString(), distanceMs };
+      }
+    }
+    i = j + 1;
+  }
+
+  return best ? { startIso: best.startIso, endIso: best.endIso } : null;
+}
+
 // Default indoor climate per mode — refine later if AT exposes vehicle data.
 // `null` means "no default guess to apply" (walk/cycle are outdoor, and
 // drive is treated as unaffected by outside weather either way) — only

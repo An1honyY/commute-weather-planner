@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { getHourlyForecast, type HourlyReading } from "../services/weatherService";
+import { classifyWeather } from "../lib/weather";
+import { useTimeFormatStore } from "../lib/useTimeFormatStore";
+import useTheme from "../theme/useTheme";
+import { cardElevationStyle } from "../theme/tokens";
+import { RADIUS, SPACING } from "../theme/typography";
 import RainGauge from "./RainGauge";
+import WeatherIcon, { weatherIconKindFor } from "./WeatherIcon";
 
 // docs/09-design-system.md §9.5 — "used in the hourly strip on Plan/Today."
 // Placement decision logged in DECISIONS.md: Plan screen only, under the
@@ -16,12 +22,62 @@ interface Props {
   fromIso: string; // the Plan screen's currently-selected departure time
 }
 
-function formatHourLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric" }).replace(" ", "").toLowerCase();
+function formatHourLabel(iso: string, hour12: boolean): string {
+  return new Date(iso)
+    .toLocaleTimeString(undefined, { hour: "numeric", minute: undefined, hour12 })
+    .replace(" ", "")
+    .toLowerCase();
+}
+
+// A compact key explaining the strip's two signals — the droplet fill
+// level (rain intensity) and the small condition icon above it — since
+// neither is self-explanatory the first time someone sees this strip.
+// Deliberately rendered outside the outlook card (below it, own "Key"
+// heading) rather than inside — it's reference material for reading the
+// card above, not more of the card's own content, and blending the two
+// together made it easy to mistake one for the other.
+function Legend() {
+  const theme = useTheme();
+  const styles = getStyles(theme);
+  return (
+    <View style={styles.legend}>
+      <Text style={styles.legendHeading}>Key</Text>
+      <View style={styles.legendRow}>
+        <Text style={styles.legendLabel}>Rain:</Text>
+        {(["none", "low", "med", "high"] as const).map((bucket) => (
+          <View key={bucket} style={styles.legendItem}>
+            <RainGauge hour="" rainIntensity={bucket} />
+            <Text style={styles.legendItemLabel}>
+              {bucket === "none" ? "Dry" : bucket === "low" ? "Light" : bucket === "med" ? "Moderate" : "Heavy"}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.legendRow}>
+        <Text style={styles.legendLabel}>Sky:</Text>
+        {(
+          [
+            { kind: "sun", label: "Sunny" },
+            { kind: "cloud", label: "Cloudy" },
+            { kind: "wind", label: "Windy" },
+            { kind: "storm", label: "Storm" },
+          ] as const
+        ).map(({ kind, label }) => (
+          <View key={kind} style={styles.legendItem}>
+            <WeatherIcon kind={kind} size={16} color={theme.textSecondary} />
+            <Text style={styles.legendItemLabel}>{label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 export default function HourlyStrip({ origin, fromIso }: Props) {
   const [readings, setReadings] = useState<HourlyReading[]>([]);
+  const theme = useTheme();
+  const styles = getStyles(theme);
+  const hour12 = useTimeFormatStore((s) => s.timeFormatPreference !== "24h");
   const lat = origin?.lat;
   const lng = origin?.lng;
 
@@ -54,15 +110,46 @@ export default function HourlyStrip({ origin, fromIso }: Props) {
   if (readings.length === 0) return null;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.row} contentContainerStyle={styles.rowContent}>
-      {readings.map((reading) => (
-        <RainGauge key={reading.time} hour={formatHourLabel(reading.time)} rainIntensity={reading.rainIntensity} />
-      ))}
-    </ScrollView>
+    <View>
+      <View style={styles.card}>
+        <Text style={styles.title}>Hourly outlook</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContent}>
+          {readings.map((reading) => {
+            const condition = classifyWeather(reading.weatherCode, reading.precipMm, reading.windKph);
+            return (
+              <RainGauge
+                key={reading.time}
+                hour={formatHourLabel(reading.time, hour12)}
+                rainIntensity={reading.rainIntensity}
+                tempC={reading.tempC}
+                conditionKind={weatherIconKindFor(condition)}
+                conditionLabel={condition.label}
+              />
+            );
+          })}
+        </ScrollView>
+      </View>
+      <Legend />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: { marginTop: 8, marginBottom: 4 },
-  rowContent: { gap: 12, paddingRight: 16 },
-});
+function getStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    card: {
+      marginTop: SPACING.md,
+      padding: SPACING.md,
+      borderRadius: RADIUS.card,
+      backgroundColor: theme.surfaceRaised,
+      ...cardElevationStyle(theme),
+    },
+    title: { fontSize: 13, fontWeight: "600", color: theme.textPrimary, marginBottom: SPACING.sm },
+    rowContent: { gap: 12, paddingRight: 4 },
+    legend: { marginTop: SPACING.md, gap: 6 },
+    legendHeading: { fontSize: 11, fontWeight: "700", color: theme.textSecondary, textTransform: "uppercase", marginBottom: 2 },
+    legendRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
+    legendLabel: { fontSize: 11, fontWeight: "600", color: theme.textSecondary, width: 34 },
+    legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+    legendItemLabel: { fontSize: 11, color: theme.textSecondary },
+  });
+}
